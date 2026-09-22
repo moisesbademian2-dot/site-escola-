@@ -1,0 +1,3400 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Portal of Future — Portal Acadêmico</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;600&display=swap');
+
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg: #eef2f9;
+  --surface: #ffffff;
+  --surface-2: #f5f8fc;
+  --border: #d8e0ed;
+  --border-2: #b8c5db;
+  --ink: #0f172a;
+  --ink-2: #334155;
+  --muted: #64748b;
+  --subtle: #94a3b8;
+  --blue: #1e40af;
+  --blue-dark: #1e3a8a;
+  --blue-light: #3b82f6;
+  --blue-soft: #dbeafe;
+  --blue-glow: rgba(30, 64, 175, .18);
+  --yellow: #fbbf24;
+  --yellow-dark: #d97706;
+  --yellow-light: #fcd34d;
+  --yellow-soft: #fef3c7;
+  --success: #15803d;
+  --success-soft: #f0fdf4;
+  --warning: #a16207;
+  --warning-soft: #fffbeb;
+  --danger: #b91c1c;
+  --danger-soft: #fef2f2;
+  --radius: 6px;
+  --radius-lg: 10px;
+  --rail-w: 72px;
+  --rail-w-open: 260px;
+  --topbar-h: 76px;
+  --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --mono: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
+  --transition: all .15s cubic-bezier(.4, 0, .2, 1);
+}
+
+html { scroll-behavior: smooth; }
+html, body { height: 100%; }
+
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  overflow-x: hidden;
+}
+
+/* ORBS DE FUNDO */
+body::before {
+  content: '';
+  position: fixed;
+  inset: -15%;
+  background:
+    radial-gradient(circle at 15% 25%, rgba(59, 130, 246, .30), transparent 42%),
+    radial-gradient(circle at 85% 15%, rgba(30, 64, 175, .22), transparent 42%),
+    radial-gradient(circle at 25% 85%, rgba(251, 191, 36, .14), transparent 42%),
+    radial-gradient(circle at 80% 75%, rgba(37, 99, 235, .24), transparent 42%),
+    radial-gradient(circle at 50% 50%, rgba(219, 234, 254, .4), transparent 48%);
+  filter: blur(60px);
+  animation: bgOrbit 22s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 0;
+  will-change: transform;
+}
+body::after {
+  content: '';
+  position: fixed;
+  top: -50%; left: -50%;
+  width: 200%; height: 200%;
+  background:
+    radial-gradient(circle at 30% 40%, rgba(59, 130, 246, .12), transparent 20%),
+    radial-gradient(circle at 70% 60%, rgba(251, 191, 36, .10), transparent 20%),
+    radial-gradient(circle at 50% 80%, rgba(30, 64, 175, .12), transparent 20%);
+  filter: blur(80px);
+  animation: bgRotate 70s linear infinite;
+  pointer-events: none;
+  z-index: 0;
+  will-change: transform;
+}
+@keyframes bgOrbit {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  25%      { transform: translate(60px, -50px) scale(1.12); }
+  50%      { transform: translate(-50px, 50px) scale(1.06); }
+  75%      { transform: translate(50px, 40px) scale(1.15); }
+}
+@keyframes bgRotate {
+  0%   { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* CANVAS DE LINHAS CONECTADAS */
+#network-canvas {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: .85;
+}
+
+/* LINHAS DIAGONAIS ANIMADAS */
+.diag-lines {
+  position: fixed;
+  inset: -30%;
+  z-index: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(115deg,
+    transparent 0,
+    transparent 120px,
+    rgba(59, 130, 246, .08) 120px,
+    rgba(59, 130, 246, .08) 121px,
+    transparent 121px,
+    transparent 300px,
+    rgba(251, 191, 36, .06) 300px,
+    rgba(251, 191, 36, .06) 301px);
+  animation: diagMove 24s linear infinite;
+  will-change: transform;
+}
+@keyframes diagMove {
+  0%   { transform: translate(0, 0); }
+  100% { transform: translate(120px, 120px); }
+}
+
+/* SCANLINE VARRENDO */
+.scanline {
+  position: fixed;
+  left: 0; right: 0;
+  height: 140px;
+  z-index: 0;
+  pointer-events: none;
+  background: linear-gradient(to bottom, transparent 0%, rgba(59, 130, 246, .12) 50%, transparent 100%);
+  filter: blur(6px);
+  animation: scanSweep 8s linear infinite;
+  will-change: transform;
+}
+@keyframes scanSweep {
+  0%   { transform: translateY(-200px); opacity: 0; }
+  10%  { opacity: 1; }
+  90%  { opacity: 1; }
+  100% { transform: translateY(110vh); opacity: 0; }
+}
+
+/* ============================================================================
+   ✨ ANIMAÇÕES DE ENTRADA
+   ============================================================================ */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeRight {
+  from { opacity: 0; transform: translateX(-32px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes fadeLeft {
+  from { opacity: 0; transform: translateX(32px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes popIn {
+  0%   { opacity: 0; transform: scale(.85); }
+  60%  { transform: scale(1.05); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes glowPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(251, 191, 36, .6), 0 4px 14px rgba(251, 191, 36, .35); }
+  50%      { box-shadow: 0 0 0 12px rgba(251, 191, 36, 0), 0 4px 28px rgba(251, 191, 36, .8); }
+}
+@keyframes floatOrb {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  33%      { transform: translate(30px, -20px) rotate(120deg); }
+  66%      { transform: translate(-20px, 30px) rotate(240deg); }
+}
+@keyframes logoRingSpin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+@keyframes gradientShift {
+  0%, 100% { background-position: 0% 50%; }
+  50%      { background-position: 100% 50%; }
+}
+@keyframes barShine {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+@keyframes dotPulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(251, 191, 36, .7); }
+  50%      { transform: scale(1.2); box-shadow: 0 0 0 6px rgba(251, 191, 36, 0); }
+}
+@keyframes toastIn {
+  0%   { opacity: 0; transform: translateY(40px) scale(.9); }
+  60%  { transform: translateY(-4px) scale(1.02); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+button, input, select, textarea { font-family: inherit; font-size: inherit; color: inherit; }
+button { cursor: pointer; }
+a { color: var(--blue); text-decoration: none; }
+a:hover { text-decoration: underline; }
+.hidden { display: none !important; }
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--subtle); }
+
+.ico { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+.ico-sm { width: 14px; height: 14px; stroke-width: 2; }
+
+h1, h2, h3, h4 { letter-spacing: -0.02em; }
+.mono { font-family: var(--mono); font-feature-settings: 'tnum'; }
+
+.logo-img {
+  width: 100%; height: 100%; object-fit: contain;
+  display: block; border-radius: inherit;
+  user-select: none; -webkit-user-drag: none;
+}
+
+/* ============================================================================
+   🎨 NOVA TELA DE LOGIN
+   ============================================================================ */
+.auth-screen {
+  display: grid;
+  grid-template-columns: 1.05fr 1fr;
+  min-height: 100vh;
+  position: relative;
+  z-index: 1;
+  background: transparent;
+}
+
+.auth-left {
+  background: linear-gradient(135deg, rgba(15, 23, 42, .97) 0%, rgba(30, 58, 138, .95) 55%, rgba(30, 64, 175, .93) 100%);
+  background-size: 200% 200%;
+  animation: gradientShift 12s ease-in-out infinite;
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  color: #f5f4f1;
+  padding: 56px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Orbs flutuantes decorativas */
+.auth-left::before {
+  content: '';
+  position: absolute;
+  top: -200px; right: -200px;
+  width: 500px; height: 500px;
+  background: var(--yellow);
+  border-radius: 50%;
+  filter: blur(140px);
+  opacity: .22;
+  animation: floatOrb 20s ease-in-out infinite;
+}
+.auth-left::after {
+  content: '';
+  position: absolute;
+  bottom: -150px; left: -100px;
+  width: 400px; height: 400px;
+  background: var(--blue-light);
+  border-radius: 50%;
+  filter: blur(120px);
+  opacity: .25;
+  animation: floatOrb 25s ease-in-out infinite reverse;
+}
+
+/* Grid sutil no painel esquerdo */
+.auth-left .grid-overlay {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255,255,255,.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.045) 1px, transparent 1px);
+  background-size: 44px 44px;
+  pointer-events: none;
+  mask-image: radial-gradient(circle at 30% 30%, black 0%, transparent 75%);
+  -webkit-mask-image: radial-gradient(circle at 30% 30%, black 0%, transparent 75%);
+}
+
+.auth-brand-lg {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  position: relative;
+  z-index: 2;
+  animation: fadeRight .7s .1s cubic-bezier(.22, 1, .36, 1) both;
+}
+
+/* LOGO com anel girando */
+.auth-brand-lg .logo-wrap {
+  position: relative;
+  width: 60px; height: 60px;
+  flex-shrink: 0;
+}
+.auth-brand-lg .logo-ring {
+  position: absolute;
+  inset: -4px;
+  border-radius: 16px;
+  background: conic-gradient(from 0deg, var(--yellow), var(--blue-light), var(--yellow), var(--blue-light), var(--yellow));
+  animation: logoRingSpin 6s linear infinite;
+  filter: blur(2px);
+  opacity: .9;
+}
+.auth-brand-lg .logo-lg {
+  position: relative;
+  width: 60px; height: 60px;
+  border-radius: 14px;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px;
+  overflow: hidden;
+  z-index: 1;
+  animation: popIn .6s .15s cubic-bezier(.34, 1.56, .64, 1) both;
+}
+.auth-brand-lg h1 {
+  font-size: 21px;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: -0.025em;
+  background: linear-gradient(90deg, #fff, #cbd5e1);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.auth-brand-lg p {
+  font-size: 10.5px;
+  color: var(--yellow);
+  margin-top: 3px;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+.auth-tagline {
+  position: relative;
+  z-index: 2;
+  max-width: 520px;
+}
+.auth-tagline .eyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--yellow);
+  margin-bottom: 22px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border: 1px solid rgba(251, 191, 36, .5);
+  border-radius: 100px;
+  background: rgba(251, 191, 36, .08);
+  animation: fadeRight .6s .25s cubic-bezier(.22, 1, .36, 1) both;
+}
+.auth-tagline .eyebrow::before {
+  content: '';
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--yellow);
+  box-shadow: 0 0 12px var(--yellow);
+  animation: dotPulse 2s ease-in-out infinite;
+}
+
+.auth-tagline h2 {
+  font-size: 46px;
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.035em;
+  color: #fff;
+  margin-bottom: 22px;
+  animation: fadeRight .7s .35s cubic-bezier(.22, 1, .36, 1) both;
+}
+.auth-tagline h2 em {
+  background: linear-gradient(120deg, var(--yellow) 0%, #fde68a 50%, var(--yellow) 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-style: normal;
+  animation: gradientShift 4s ease-in-out infinite;
+}
+.auth-tagline p {
+  font-size: 15px;
+  color: #cbd5e1;
+  line-height: 1.65;
+  max-width: 420px;
+  animation: fadeRight .6s .5s cubic-bezier(.22, 1, .36, 1) both;
+}
+
+.auth-features {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  font-size: 12.5px;
+  color: #e2e8f0;
+  max-width: 480px;
+}
+.auth-features .feature-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, .04);
+  border: 1px solid rgba(255, 255, 255, .09);
+  border-radius: 10px;
+  backdrop-filter: blur(10px);
+  animation: fadeUp .5s both;
+  transition: var(--transition);
+}
+.auth-features .feature-item:hover {
+  background: rgba(255, 255, 255, .08);
+  border-color: rgba(251, 191, 36, .4);
+  transform: translateY(-2px);
+}
+.auth-features .feature-item .f-ico {
+  width: 28px; height: 28px;
+  border-radius: 7px;
+  background: linear-gradient(135deg, var(--yellow), var(--yellow-light));
+  color: var(--blue-dark);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.auth-features .feature-item .f-ico .ico { width: 15px; height: 15px; stroke-width: 2.4; }
+.auth-features .feature-item:nth-child(1) { animation-delay: .6s; }
+.auth-features .feature-item:nth-child(2) { animation-delay: .68s; }
+.auth-features .feature-item:nth-child(3) { animation-delay: .76s; }
+.auth-features .feature-item:nth-child(4) { animation-delay: .84s; }
+
+/* Painel direito */
+.auth-right {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 56px 48px;
+  background: rgba(255, 255, 255, .78);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  position: relative;
+  overflow: hidden;
+}
+.auth-right::before {
+  content: '';
+  position: absolute;
+  top: -100px; right: -100px;
+  width: 300px; height: 300px;
+  background: radial-gradient(circle, rgba(59, 130, 246, .2), transparent 70%);
+  pointer-events: none;
+}
+
+.auth-form-wrap {
+  width: 100%;
+  max-width: 400px;
+  position: relative;
+  z-index: 1;
+}
+
+.auth-form-wrap .form-eyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--blue);
+  margin-bottom: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  animation: fadeLeft .5s .2s cubic-bezier(.22, 1, .36, 1) both;
+}
+.auth-form-wrap .form-eyebrow::before {
+  content: '';
+  width: 20px;
+  height: 2px;
+  background: var(--blue);
+  border-radius: 2px;
+}
+
+.auth-form-wrap h3 {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  margin-bottom: 8px;
+  color: var(--ink);
+  animation: fadeLeft .6s .3s cubic-bezier(.22, 1, .36, 1) both;
+}
+.auth-form-wrap .form-sub {
+  font-size: 14px;
+  color: var(--muted);
+  margin-bottom: 36px;
+  animation: fadeLeft .5s .4s cubic-bezier(.22, 1, .36, 1) both;
+}
+
+.setup-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: linear-gradient(135deg, var(--yellow-soft), #fff8e1);
+  color: var(--yellow-dark);
+  border: 1px solid rgba(251, 191, 36, .4);
+  border-radius: 100px;
+  font-size: 11.5px;
+  font-weight: 700;
+  margin-bottom: 22px;
+  letter-spacing: .02em;
+  animation: popIn .5s .3s cubic-bezier(.34, 1.56, .64, 1) both;
+}
+
+/* Campos com ícones */
+.auth-field {
+  display: block;
+  margin-bottom: 18px;
+  position: relative;
+  animation: fadeLeft .5s both;
+}
+.auth-field:nth-of-type(1) { animation-delay: .5s; }
+.auth-field:nth-of-type(2) { animation-delay: .58s; }
+
+.auth-field > span {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-2);
+  margin-bottom: 8px;
+  letter-spacing: -0.005em;
+  text-transform: uppercase;
+  font-size: 10.5px;
+  letter-spacing: .08em;
+}
+
+.auth-field .input-wrap {
+  position: relative;
+}
+.auth-field .input-ico {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px; height: 18px;
+  color: var(--subtle);
+  pointer-events: none;
+  transition: var(--transition);
+}
+.auth-field input,
+.auth-field select {
+  width: 100%;
+  padding: 13px 14px 13px 44px;
+  border: 1.5px solid var(--border-2);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, .9);
+  color: var(--ink);
+  outline: none;
+  transition: var(--transition);
+  font-size: 14px;
+  font-weight: 500;
+}
+.auth-field input::placeholder { color: var(--subtle); font-weight: 400; }
+.auth-field input:focus,
+.auth-field select:focus {
+  border-color: var(--blue);
+  background: #fff;
+  box-shadow: 0 0 0 4px var(--blue-glow), 0 4px 20px rgba(59, 130, 246, .15);
+}
+.auth-field input:focus ~ .input-ico,
+.auth-field .input-wrap:focus-within .input-ico {
+  color: var(--blue);
+}
+.auth-field select { padding-left: 44px; cursor: pointer; }
+
+.auth-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.auth-row .auth-field { margin-bottom: 18px; }
+
+.auth-msg {
+  padding: 12px 14px;
+  border-radius: 10px;
+  font-size: 12.5px;
+  font-weight: 600;
+  margin-bottom: 18px;
+  border-left: 3px solid;
+  display: none;
+}
+.auth-msg.show { display: block; animation: fadeUp .3s ease; }
+.auth-msg.error { background: var(--danger-soft); color: var(--danger); border-color: var(--danger); }
+.auth-msg.success { background: var(--success-soft); color: var(--success); border-color: var(--success); }
+
+.btn-auth {
+  width: 100%;
+  padding: 14px 18px;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--blue) 0%, var(--blue-dark) 100%);
+  background-size: 200% auto;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all .3s cubic-bezier(.22, 1, .36, 1);
+  margin-top: 8px;
+  letter-spacing: -0.005em;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 6px 20px rgba(30, 64, 175, .25);
+  animation: fadeLeft .5s .68s cubic-bezier(.22, 1, .36, 1) both;
+}
+.btn-auth::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(120deg, transparent 30%, rgba(255,255,255,.3) 50%, transparent 70%);
+  transform: translateX(-100%);
+  transition: transform .6s;
+}
+.btn-auth:hover {
+  background-position: 100% 0;
+  transform: translateY(-2px);
+  box-shadow: 0 12px 32px rgba(30, 64, 175, .45);
+}
+.btn-auth:hover::after { transform: translateX(100%); }
+.btn-auth:active { transform: translateY(0) scale(.99); }
+
+.auth-hint {
+  text-align: center;
+  font-size: 11.5px;
+  color: var(--subtle);
+  margin-top: 26px;
+  line-height: 1.6;
+  animation: fadeLeft .5s .78s cubic-bezier(.22, 1, .36, 1) both;
+}
+
+.auth-form-wrap .divider-auth {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 22px 0 18px;
+  color: var(--subtle);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  animation: fadeLeft .5s .75s cubic-bezier(.22, 1, .36, 1) both;
+}
+.auth-form-wrap .divider-auth::before,
+.auth-form-wrap .divider-auth::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+@media (max-width: 900px) {
+  .auth-screen { grid-template-columns: 1fr; }
+  .auth-left { padding: 40px 32px; min-height: auto; }
+  .auth-tagline h2 { font-size: 32px; }
+  .auth-right { padding: 40px 32px; }
+  .auth-features { grid-template-columns: 1fr 1fr; }
+}
+
+@media (max-width: 560px) {
+  .auth-left { display: none; }
+  .auth-screen { grid-template-columns: 1fr; }
+  .auth-right { padding: 32px 24px; background: rgba(255, 255, 255, .92); }
+  .auth-form-wrap { max-width: none; }
+  .auth-features { grid-template-columns: 1fr; }
+}
+
+/* ============================================================================
+   APP
+   ============================================================================ */
+.app { display: flex; min-height: 100vh; position: relative; z-index: 1; background: transparent; }
+
+.sidebar {
+  width: var(--rail-w);
+  background: linear-gradient(180deg, #0f172a 0%, #1e3a8a 100%);
+  position: fixed; top: 0; left: 0; bottom: 0; z-index: 40;
+  display: flex; flex-direction: column; overflow: hidden;
+  transition: width .28s cubic-bezier(.4, 0, .2, 1);
+  box-shadow: 0 0 0 rgba(0,0,0,0);
+  animation: fadeRight .5s cubic-bezier(.22, 1, .36, 1) both;
+}
+.sidebar:hover { width: var(--rail-w-open); box-shadow: 8px 0 40px rgba(15, 23, 42, .25); }
+
+.sidebar-header {
+  height: var(--topbar-h);
+  display: flex; align-items: center; justify-content: center;
+  gap: 0; padding: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, .08);
+  flex-shrink: 0; overflow: hidden;
+  transition: padding .25s, gap .25s, justify-content .25s;
+  white-space: nowrap;
+}
+.sidebar:hover .sidebar-header { padding: 0 20px; justify-content: flex-start; gap: 12px; }
+.sidebar-header .logo {
+  width: 44px; height: 44px; border-radius: 10px;
+  background: #ffffff;
+  display: flex; align-items: center; justify-content: center;
+  padding: 3px; flex-shrink: 0; overflow: hidden;
+  box-shadow: 0 0 20px rgba(251, 191, 36, .4);
+  animation: glowPulse 3s ease-in-out infinite;
+}
+.sidebar-header::after {
+  content: 'Portal of Future';
+  opacity: 0; color: #fff; font-weight: 700;
+  font-size: 14px; letter-spacing: -0.02em; white-space: nowrap;
+  transition: opacity .2s .05s; overflow: hidden; max-width: 0;
+}
+.sidebar:hover .sidebar-header::after { opacity: 1; max-width: 200px; }
+
+.sidebar-nav {
+  flex: 1; padding: 20px 14px;
+  display: flex; flex-direction: column; gap: 2px;
+  overflow-y: auto; overflow-x: hidden;
+  transition: padding .25s;
+}
+.sidebar-nav::-webkit-scrollbar { width: 4px; }
+.sidebar-nav::-webkit-scrollbar-thumb { background: rgba(255,255,255,.15); border-radius: 2px; }
+.sidebar:hover .sidebar-nav { padding: 20px 12px; }
+
+.nav-group-title {
+  height: 1px; background: rgba(255, 255, 255, .08);
+  margin: 14px 8px 10px; font-size: 0;
+  overflow: hidden; flex-shrink: 0;
+  transition: all .25s; white-space: nowrap;
+}
+.sidebar:hover .nav-group-title {
+  height: auto; background: transparent;
+  font-size: 10px; font-weight: 600;
+  color: #94a3b8; letter-spacing: .12em;
+  text-transform: uppercase;
+  padding: 14px 12px 6px; margin: 0;
+}
+.nav-group-title:first-child { display: none; }
+
+.nav-item {
+  width: 100%; height: 44px;
+  display: flex; align-items: center; justify-content: center;
+  gap: 0; padding: 0;
+  border: none; background: transparent; color: #cbd5e1;
+  border-radius: 8px; transition: all .15s;
+  position: relative; flex-shrink: 0;
+  overflow: hidden; white-space: nowrap;
+  animation: fadeRight .4s cubic-bezier(.22, 1, .36, 1) both;
+}
+.nav-item .ico { width: 20px; height: 20px; flex-shrink: 0; }
+.nav-item span {
+  font-size: 13.5px; font-weight: 500;
+  letter-spacing: -0.005em; white-space: nowrap;
+  opacity: 0; max-width: 0; overflow: hidden;
+  transition: opacity .2s .05s, max-width .25s;
+}
+.sidebar:hover .nav-item { justify-content: flex-start; padding: 0 12px; gap: 12px; }
+.sidebar:hover .nav-item span { opacity: 1; max-width: 200px; }
+.nav-item:hover { background: rgba(255, 255, 255, .08); color: #fff; transform: translateX(2px); }
+.nav-item.active { background: var(--yellow); color: var(--blue-dark); font-weight: 600; box-shadow: 0 4px 16px rgba(251, 191, 36, .4); }
+.nav-item.active .ico { stroke-width: 2.2; }
+
+.sidebar-footer {
+  padding: 16px 14px;
+  border-top: 1px solid rgba(255, 255, 255, .08);
+  display: flex; align-items: center; justify-content: center;
+  gap: 0; flex-shrink: 0; overflow: hidden;
+  transition: padding .25s, gap .25s, justify-content .25s;
+  white-space: nowrap;
+}
+.sidebar:hover .sidebar-footer { padding: 16px 20px; justify-content: flex-start; gap: 12px; }
+.sidebar-footer .avatar {
+  width: 36px; height: 36px; border-radius: 8px;
+  background: var(--yellow) !important;
+  color: var(--blue-dark) !important;
+  font-weight: 700; font-size: 12px;
+  display: flex; align-items: center; justify-content: center;
+  letter-spacing: -0.02em; flex-shrink: 0; cursor: pointer;
+}
+.sidebar-footer .uinfo {
+  opacity: 0; max-width: 0; overflow: hidden;
+  transition: opacity .2s .05s, max-width .25s;
+}
+.sidebar:hover .sidebar-footer .uinfo { opacity: 1; max-width: 200px; }
+.sidebar-footer .uinfo strong {
+  display: block; font-size: 13px; color: #fff; font-weight: 600;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.sidebar-footer .uinfo span {
+  display: block; font-size: 10.5px; color: #cbd5e1;
+  text-transform: uppercase; letter-spacing: .08em;
+  font-weight: 500; white-space: nowrap;
+}
+
+.main { flex: 1; margin-left: var(--rail-w); display: flex; flex-direction: column; min-width: 0; }
+
+.topbar {
+  height: var(--topbar-h);
+  background: rgba(255, 255, 255, .88);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center;
+  position: sticky; top: 0; z-index: 30;
+  padding: 0 32px;
+  animation: fadeUp .4s .1s cubic-bezier(.22, 1, .36, 1) both;
+}
+.topbar-inner {
+  width: 100%; max-width: 1400px; margin: 0 auto;
+  display: flex; align-items: center; gap: 16px; height: 100%;
+}
+.topbar .menu-toggle {
+  display: none; background: none; border: none;
+  color: var(--ink); padding: 8px; border-radius: var(--radius);
+}
+.topbar .menu-toggle:hover { background: var(--surface-2); }
+.topbar .page-title {
+  font-size: 18px; font-weight: 700;
+  letter-spacing: -0.02em; color: var(--ink); line-height: 1.2;
+}
+.topbar .page-title small {
+  display: block; font-size: 11px; font-weight: 500;
+  color: var(--muted); letter-spacing: .06em;
+  text-transform: uppercase; margin-top: 2px;
+}
+.topbar-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+
+.icon-btn {
+  width: 38px; height: 38px; border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, .8);
+  color: var(--muted);
+  display: flex; align-items: center; justify-content: center;
+  transition: var(--transition); position: relative;
+}
+.icon-btn:hover { background: #fff; color: var(--blue); border-color: var(--blue); transform: translateY(-1px); box-shadow: 0 4px 12px var(--blue-glow); }
+.icon-btn .dot {
+  position: absolute; top: 8px; right: 8px;
+  width: 6px; height: 6px;
+  background: var(--yellow); border-radius: 50%;
+  border: 1.5px solid #fff;
+  animation: dotPulse 2s ease-in-out infinite;
+}
+
+.view {
+  flex: 1; width: 100%; max-width: 1400px;
+  margin: 0 auto; padding: 40px 32px 64px;
+  animation: fadeUp .5s .2s cubic-bezier(.22, 1, .36, 1) both;
+}
+
+.overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, .5); z-index: 35; }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: 6px; padding: 9px 14px;
+  border: 1px solid transparent; border-radius: var(--radius);
+  font-size: 13px; font-weight: 600; letter-spacing: -0.005em;
+  transition: var(--transition); white-space: nowrap; line-height: 1.2;
+}
+.btn:active { transform: translateY(1px) scale(.98); }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+
+.btn-primary { background: var(--blue); color: #fff; border-color: var(--blue); }
+.btn-primary:hover { background: var(--blue-dark); border-color: var(--blue-dark); box-shadow: 0 6px 20px rgba(30, 64, 175, .35); transform: translateY(-1px); }
+.btn-secondary { background: var(--surface); color: var(--ink); border-color: var(--border-2); }
+.btn-secondary:hover { background: var(--surface-2); border-color: var(--blue); color: var(--blue); }
+.btn-success { background: var(--surface); color: var(--success); border-color: #bbf7d0; }
+.btn-success:hover { background: var(--success-soft); border-color: var(--success); }
+.btn-danger { background: var(--surface); color: var(--danger); border-color: #fecaca; }
+.btn-danger:hover { background: var(--danger-soft); border-color: var(--danger); }
+.btn-ghost { background: transparent; color: var(--blue); border-color: transparent; }
+.btn-ghost:hover { background: var(--blue-soft); }
+
+.btn-sm { padding: 7px 12px; font-size: 12.5px; }
+.btn-xs { padding: 4px 9px; font-size: 11.5px; gap: 4px; }
+
+.card {
+  background: rgba(255, 255, 255, .96);
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  transition: var(--transition);
+  animation: fadeUp .5s cubic-bezier(.22, 1, .36, 1) both;
+}
+.card:hover { border-color: var(--blue); box-shadow: 0 8px 32px rgba(30, 64, 175, .1); }
+
+.card-header {
+  padding: 18px 24px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; flex-wrap: wrap;
+  background: linear-gradient(180deg, var(--surface-2), transparent);
+}
+.card-header h3 {
+  font-size: 14px; font-weight: 600; letter-spacing: -0.01em;
+  color: var(--ink); display: flex; align-items: center; gap: 10px;
+}
+.card-header h3 .ico { color: var(--blue); }
+.card-body { padding: 24px; }
+.card-pad { padding: 24px; }
+
+.stats-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1px; background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden; margin-bottom: 32px;
+}
+.stat-card {
+  background: rgba(255, 255, 255, .96);
+  backdrop-filter: blur(16px);
+  padding: 22px 24px;
+  display: flex; flex-direction: column; gap: 14px;
+  transition: var(--transition);
+  animation: popIn .5s cubic-bezier(.34, 1.56, .64, 1) both;
+}
+.stat-card:nth-child(1) { animation-delay: .05s; }
+.stat-card:nth-child(2) { animation-delay: .10s; }
+.stat-card:nth-child(3) { animation-delay: .15s; }
+.stat-card:nth-child(4) { animation-delay: .20s; }
+.stat-card:nth-child(5) { animation-delay: .25s; }
+.stat-card:nth-child(6) { animation-delay: .30s; }
+.stat-card:nth-child(7) { animation-delay: .35s; }
+.stat-card:nth-child(8) { animation-delay: .40s; }
+.stat-card:hover { background: #fff; transform: translateY(-2px); }
+.stat-icon {
+  width: 34px; height: 34px; border-radius: var(--radius);
+  display: flex; align-items: center; justify-content: center;
+  background: var(--blue-soft); color: var(--blue);
+  align-self: flex-start; transition: var(--transition);
+}
+.stat-card:hover .stat-icon { transform: scale(1.1) rotate(-5deg); }
+.stat-icon .ico { width: 17px; height: 17px; stroke-width: 2; }
+.stat-icon.blue, .stat-icon.sky, .stat-icon.purple, .stat-icon.pink { background: var(--blue-soft); color: var(--blue); }
+.stat-icon.green { background: var(--success-soft); color: var(--success); }
+.stat-icon.amber { background: var(--yellow-soft); color: var(--yellow-dark); }
+.stat-icon.red { background: var(--danger-soft); color: var(--danger); }
+.stat-info .label {
+  font-size: 11px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: .08em; color: var(--muted); margin-bottom: 4px;
+}
+.stat-info .value {
+  font-size: 28px; font-weight: 700; letter-spacing: -0.03em;
+  line-height: 1; color: var(--ink); font-feature-settings: 'tnum';
+}
+
+.table-wrap { overflow-x: auto; }
+table.data { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+table.data thead th {
+  padding: 11px 20px; text-align: left;
+  font-size: 11px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .08em;
+  color: var(--muted); background: var(--surface-2);
+  border-bottom: 1px solid var(--border); white-space: nowrap;
+}
+table.data tbody td {
+  padding: 15px 20px; border-bottom: 1px solid var(--border);
+  vertical-align: middle; color: var(--ink-2);
+}
+table.data tbody tr { transition: background .1s; }
+table.data tbody tr:hover { background: var(--blue-soft); }
+table.data tbody tr:last-child td { border-bottom: none; }
+table.data tbody td strong { color: var(--ink); font-weight: 600; }
+
+.cell-user { display: flex; align-items: center; gap: 12px; }
+.cell-user .avatar-sm {
+  width: 34px; height: 34px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-weight: 700; font-size: 12px;
+  flex-shrink: 0; letter-spacing: -0.02em;
+}
+.cell-user .u-meta strong { display: block; font-weight: 600; font-size: 13.5px; color: var(--ink); }
+.cell-user .u-meta span { font-size: 12px; color: var(--muted); }
+
+.actions { display: flex; gap: 4px; justify-content: flex-end; }
+
+.badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 8px; border-radius: 4px;
+  font-size: 11.5px; font-weight: 600;
+  letter-spacing: -0.005em; border: 1px solid;
+  line-height: 1.5; white-space: nowrap;
+}
+.badge::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+.badge.green { background: var(--success-soft); color: var(--success); border-color: #bbf7d0; }
+.badge.red { background: var(--danger-soft); color: var(--danger); border-color: #fecaca; }
+.badge.amber { background: var(--yellow-soft); color: var(--yellow-dark); border-color: var(--yellow); }
+.badge.blue { background: var(--blue-soft); color: var(--blue); border-color: #bfdbfe; }
+.badge.gray { background: var(--surface-2); color: var(--muted); border-color: var(--border); }
+.badge.purple { background: #ede9fe; color: #6d28d9; border-color: #ddd6fe; }
+.badge.sky { background: #cffafe; color: #0e7490; border-color: #a5f3fc; }
+.badge.pink { background: #fce7f3; color: #be185d; border-color: #fbcfe8; }
+
+.form-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+.form-grid .full { grid-column: 1 / -1; }
+
+.field-group { margin-bottom: 4px; }
+.field-group label {
+  display: block; font-size: 12px; font-weight: 600;
+  margin-bottom: 6px; color: var(--ink-2);
+  letter-spacing: -0.005em;
+}
+.field-group label .req { color: var(--blue); margin-left: 2px; }
+.field-group input, .field-group select, .field-group textarea {
+  width: 100%; padding: 10px 12px;
+  border: 1px solid var(--border-2); border-radius: var(--radius);
+  background: var(--surface); outline: none;
+  transition: var(--transition); font-size: 13.5px; color: var(--ink);
+}
+.field-group input:focus, .field-group select:focus, .field-group textarea:focus {
+  border-color: var(--blue); box-shadow: 0 0 0 3px var(--blue-glow);
+}
+.field-group textarea { resize: vertical; min-height: 90px; }
+.field-group .err { color: var(--danger); font-size: 12px; margin-top: 5px; display: none; }
+.field-group.invalid input, .field-group.invalid select, .field-group.invalid textarea {
+  border-color: var(--danger); background: var(--danger-soft);
+}
+.field-group.invalid .err { display: block; }
+
+.modal-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(15, 23, 42, .55);
+  backdrop-filter: blur(6px); z-index: 100;
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px; animation: fadeUp .2s ease;
+}
+.modal {
+  background: var(--surface); border: 1px solid var(--border-2);
+  border-radius: var(--radius-lg); width: 100%; max-width: 620px;
+  max-height: 92vh; overflow-y: auto;
+  box-shadow: 0 20px 50px rgba(15, 23, 42, .25);
+  animation: popIn .3s cubic-bezier(.34, 1.4, .64, 1);
+}
+.modal.modal-lg { max-width: 900px; }
+.modal-header {
+  padding: 20px 24px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; position: sticky; top: 0;
+  background: var(--surface); z-index: 1;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+.modal-header h3 {
+  font-size: 16px; font-weight: 700; letter-spacing: -0.02em;
+  display: flex; align-items: center; gap: 10px;
+}
+.modal-header h3 .ico { color: var(--blue); }
+.modal-header .close {
+  background: none; border: none; color: var(--muted);
+  width: 32px; height: 32px; border-radius: var(--radius);
+  display: flex; align-items: center; justify-content: center;
+  transition: var(--transition);
+}
+.modal-header .close:hover { background: var(--surface-2); color: var(--ink); transform: rotate(90deg); }
+.modal-body { padding: 24px; }
+.modal-footer {
+  padding: 16px 24px; border-top: 1px solid var(--border);
+  display: flex; justify-content: flex-end; gap: 8px;
+  position: sticky; bottom: 0;
+  background: var(--surface);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+}
+
+.toast {
+  position: fixed; bottom: 24px; right: 24px;
+  background: var(--blue-dark); color: #fff;
+  padding: 14px 18px; border-radius: var(--radius);
+  box-shadow: 0 12px 32px rgba(15, 23, 42, .3);
+  font-size: 13.5px; font-weight: 500; z-index: 200;
+  display: flex; align-items: center; gap: 10px;
+  transform: translateY(150%);
+  transition: transform .35s cubic-bezier(.34, 1.56, .64, 1);
+  max-width: 380px; border-left: 3px solid var(--yellow);
+  letter-spacing: -0.005em;
+}
+.toast.show { transform: translateY(0); animation: toastIn .4s cubic-bezier(.34, 1.56, .64, 1); }
+.toast.success { background: #064e3b; border-left-color: #34d399; }
+.toast.error { background: #7f1d1d; border-left-color: #f87171; }
+.toast.warning { background: #78350f; border-left-color: var(--yellow); }
+
+.toolbar {
+  display: flex; gap: 10px; flex-wrap: wrap;
+  align-items: center; margin-bottom: 20px;
+}
+.toolbar .search { flex: 1; min-width: 220px; position: relative; }
+.toolbar .search input {
+  width: 100%; padding: 10px 14px 10px 38px;
+  border: 1px solid var(--border-2); border-radius: var(--radius);
+  background: var(--surface); outline: none;
+  transition: var(--transition); font-size: 13.5px;
+}
+.toolbar .search input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px var(--blue-glow); }
+.toolbar .search svg {
+  position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+  width: 15px; height: 15px; stroke: var(--subtle);
+  fill: none; stroke-width: 2; pointer-events: none;
+}
+.toolbar select {
+  padding: 10px 14px; border: 1px solid var(--border-2);
+  border-radius: var(--radius); background: var(--surface);
+  outline: none; font-size: 13.5px; cursor: pointer;
+  transition: var(--transition); color: var(--ink);
+}
+.toolbar select:focus { border-color: var(--blue); box-shadow: 0 0 0 3px var(--blue-glow); }
+
+.progress { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+.progress .bar {
+  height: 100%; background: var(--blue); border-radius: 3px;
+  transition: width .8s cubic-bezier(.22, 1, .36, 1);
+  position: relative;
+}
+.progress .bar::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.4), transparent);
+  animation: barShine 2s linear infinite;
+}
+.progress.green .bar { background: var(--success); }
+.progress.amber .bar { background: var(--yellow); }
+.progress.red { background: var(--danger); }
+
+.grid-cards {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.turma-card {
+  background: rgba(255, 255, 255, .96);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px; transition: var(--transition);
+  cursor: pointer; position: relative; overflow: hidden;
+}
+.turma-card::before {
+  content: '';
+  position: absolute; top: 0; left: -100%;
+  width: 100%; height: 100%;
+  background: linear-gradient(120deg, transparent 30%, rgba(59, 130, 246, .15) 50%, transparent 70%);
+  transition: left .6s;
+}
+.turma-card:hover::before { left: 100%; }
+.turma-card:hover {
+  border-color: var(--blue); transform: translateY(-4px); background: #fff;
+  box-shadow: 0 12px 32px var(--blue-glow);
+}
+.turma-card .t-head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  margin-bottom: 14px;
+}
+.turma-card .t-code { font-size: 17px; font-weight: 700; letter-spacing: -0.02em; color: var(--ink); }
+.turma-card .t-sub { font-size: 12.5px; color: var(--muted); margin-top: 3px; }
+.turma-card .t-meta {
+  display: flex; flex-wrap: wrap; gap: 10px;
+  margin-top: 16px; padding-top: 16px;
+  border-top: 1px dashed var(--border-2);
+  font-size: 12px; color: var(--muted);
+}
+.turma-card .t-meta span { display: flex; align-items: center; gap: 5px; }
+
+.attendance-row {
+  display: flex; align-items: center; gap: 16px;
+  padding: 14px 20px; border-bottom: 1px solid var(--border);
+  transition: background .15s;
+}
+.attendance-row:last-child { border-bottom: none; }
+.attendance-row:hover { background: var(--blue-soft); }
+.attendance-row .a-name { flex: 1; display: flex; align-items: center; gap: 12px; min-width: 0; }
+.attendance-row .a-name strong { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+
+.att-group { display: flex; gap: 4px; flex-wrap: wrap; }
+.att-btn {
+  padding: 6px 12px; border: 1px solid var(--border-2);
+  background: var(--surface); border-radius: var(--radius);
+  font-size: 12px; font-weight: 600; color: var(--muted);
+  transition: var(--transition);
+  display: inline-flex; align-items: center; gap: 5px;
+}
+.att-btn:hover { border-color: var(--blue); color: var(--blue); transform: translateY(-1px); }
+.att-btn.active-present { background: var(--success-soft); color: var(--success); border-color: var(--success); box-shadow: 0 4px 12px rgba(21, 128, 61, .2); }
+.att-btn.active-absent { background: var(--danger-soft); color: var(--danger); border-color: var(--danger); box-shadow: 0 4px 12px rgba(185, 28, 28, .2); }
+.att-btn.active-just { background: var(--yellow-soft); color: var(--yellow-dark); border-color: var(--yellow); box-shadow: 0 4px 12px rgba(217, 119, 6, .2); }
+
+.diary-summary {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 1px; background: var(--border); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); overflow: hidden;
+}
+.diary-summary .ds-item {
+  background: rgba(255, 255, 255, .96); padding: 16px 18px;
+  text-align: center; transition: var(--transition);
+}
+.diary-summary .ds-item:hover { background: #fff; transform: scale(1.02); }
+.diary-summary .ds-item .ds-num {
+  font-family: var(--mono); font-size: 24px; font-weight: 700;
+  letter-spacing: -0.03em; line-height: 1;
+}
+.diary-summary .ds-item .ds-lbl {
+  font-size: 10.5px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .08em;
+  color: var(--muted); margin-top: 6px;
+}
+
+.timeline { position: relative; padding-left: 28px; }
+.timeline::before {
+  content: ''; position: absolute; left: 7px; top: 6px; bottom: 6px;
+  width: 1px; background: var(--border-2);
+}
+.timeline-item { position: relative; padding-bottom: 20px; animation: fadeUp .4s both; }
+.timeline-item::before {
+  content: ''; position: absolute; left: -25px; top: 4px;
+  width: 9px; height: 9px; border-radius: 50%;
+  background: var(--surface); border: 2px solid var(--blue);
+}
+.timeline-item.success::before { border-color: var(--success); }
+.timeline-item.warning::before { border-color: var(--yellow); }
+.timeline-item.danger::before { border-color: var(--danger); }
+.timeline-item .t-title { font-weight: 600; font-size: 13.5px; margin-bottom: 2px; color: var(--ink); letter-spacing: -0.005em; }
+.timeline-item .t-time { font-size: 11.5px; color: var(--subtle); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .04em; }
+.timeline-item .t-desc { font-size: 13px; color: var(--muted); line-height: 1.55; }
+
+.empty { text-align: center; padding: 64px 24px; color: var(--muted); }
+.empty .empty-icon {
+  width: 48px; height: 48px; margin: 0 auto 16px;
+  border-radius: var(--radius); background: var(--blue-soft);
+  border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--blue); animation: popIn .5s cubic-bezier(.34, 1.56, .64, 1);
+}
+.empty .empty-icon .ico { width: 22px; height: 22px; }
+.empty h4 { font-size: 14px; font-weight: 600; color: var(--ink); margin-bottom: 4px; letter-spacing: -0.01em; }
+.empty p { font-size: 13px; max-width: 380px; margin: 0 auto; line-height: 1.55; }
+
+.bar-chart { display: flex; align-items: flex-end; gap: 8px; height: 180px; padding: 12px 0; }
+.bar-chart .col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; height: 100%; justify-content: flex-end; }
+.bar-chart .bar-fill {
+  width: 100%; max-width: 36px; background: var(--blue);
+  border-radius: 3px 3px 0 0;
+  transition: height .8s cubic-bezier(.22, 1, .36, 1);
+  min-height: 4px;
+}
+.bar-chart .bar-fill.amber { background: var(--yellow); }
+.bar-chart .bar-fill.green { background: var(--success); }
+.bar-chart .bar-fill.red { background: var(--danger); }
+.bar-chart .lbl { font-size: 11px; color: var(--muted); font-weight: 600; letter-spacing: .02em; }
+
+.donut {
+  width: 140px; height: 140px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto; position: relative;
+}
+.donut .hole {
+  width: 96px; height: 96px; background: var(--surface);
+  border-radius: 50%;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  border: 1px solid var(--border);
+}
+.donut .hole strong { font-size: 22px; font-weight: 700; letter-spacing: -0.03em; }
+.donut .hole span {
+  font-size: 10px; color: var(--muted); text-transform: uppercase;
+  letter-spacing: .08em; font-weight: 600; margin-top: 2px;
+}
+
+.flex { display: flex; }
+.items-center { align-items: center; }
+.items-start { align-items: flex-start; }
+.justify-between { justify-content: space-between; }
+.justify-center { justify-content: center; }
+.flex-wrap { flex-wrap: wrap; }
+.gap-4 { gap: 4px; } .gap-8 { gap: 8px; } .gap-10 { gap: 10px; } .gap-12 { gap: 12px; } .gap-16 { gap: 16px; }
+.mt-8 { margin-top: 8px; } .mt-12 { margin-top: 12px; } .mt-16 { margin-top: 16px; } .mt-24 { margin-top: 24px; }
+.mb-8 { margin-bottom: 8px; } .mb-12 { margin-bottom: 12px; } .mb-16 { margin-bottom: 16px; } .mb-24 { margin-bottom: 24px; }
+.text-muted { color: var(--muted); }
+.text-sm { font-size: 12.5px; }
+.text-xs { font-size: 11.5px; }
+.text-bold { font-weight: 700; }
+.text-center { text-align: center; }
+.text-right { text-align: right; }
+.w-100 { width: 100%; }
+
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; align-items: start; }
+
+.divider { height: 1px; background: var(--border); margin: 20px 0; }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 10px; background: var(--blue-soft);
+  border: 1px solid var(--border); border-radius: 20px;
+  font-size: 11.5px; font-weight: 500; color: var(--blue);
+}
+
+@media (max-width: 1024px) {
+  .view { padding: 28px 24px 48px; }
+  .topbar { padding: 0 24px; }
+}
+
+@media (max-width: 820px) {
+  .sidebar {
+    width: var(--rail-w-open);
+    transform: translateX(-100%);
+    transition: transform .3s cubic-bezier(.4, 0, .2, 1);
+  }
+  .sidebar.open { transform: translateX(0); }
+  .sidebar .sidebar-header { padding: 0 20px; justify-content: flex-start; gap: 12px; }
+  .sidebar .sidebar-header::after { opacity: 1; max-width: 200px; }
+  .sidebar .sidebar-nav { padding: 12px; }
+  .sidebar .nav-item { justify-content: flex-start; padding: 0 12px; gap: 12px; }
+  .sidebar .nav-item span { opacity: 1; max-width: 200px; }
+  .sidebar .nav-group-title {
+    height: auto; background: transparent;
+    font-size: 10px; font-weight: 600;
+    color: #94a3b8; letter-spacing: .12em;
+    text-transform: uppercase;
+    padding: 14px 12px 6px; margin: 0;
+  }
+  .sidebar .sidebar-footer { padding: 16px 20px; justify-content: flex-start; gap: 12px; }
+  .sidebar .sidebar-footer .uinfo { opacity: 1; max-width: 200px; }
+  .main { margin-left: 0; }
+  .topbar .menu-toggle { display: flex; }
+  .topbar { padding: 0 16px; height: 68px; }
+  .view { padding: 20px 16px 40px; }
+  .modal { max-width: 100%; border-radius: var(--radius); }
+  .grid-2, .grid-3 { grid-template-columns: 1fr; }
+  .attendance-row { flex-direction: column; align-items: stretch; gap: 10px; }
+  .att-group { justify-content: stretch; }
+  .att-btn { flex: 1; justify-content: center; }
+}
+
+@media (max-width: 560px) {
+  .stats-grid { grid-template-columns: 1fr; }
+  .card-body { padding: 18px; }
+  .card-header { padding: 14px 18px; }
+  .toolbar { flex-direction: column; align-items: stretch; }
+  .toolbar select { width: 100%; }
+  .toast { left: 16px; right: 16px; bottom: 16px; max-width: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}
+</style>
+</head>
+<body>
+
+<!-- ==================== CANVAS DE LINHAS CONECTADAS ==================== -->
+<canvas id="network-canvas"></canvas>
+<div class="diag-lines" aria-hidden="true"></div>
+<div class="scanline" aria-hidden="true"></div>
+
+<!-- ==================== TELA DE LOGIN ==================== -->
+<div id="auth-screen" class="auth-screen">
+  <div class="auth-left">
+    <div class="grid-overlay"></div>
+
+    <div class="auth-brand-lg">
+      <div class="logo-wrap">
+        <div class="logo-ring"></div>
+        <div class="logo-lg">
+          <img src="WhatsApp Image 2026-09-15 at 11.57.35.jpeg" alt="Portal of Future" class="logo-img">
+        </div>
+      </div>
+      <div>
+        <h1>Portal of Future</h1>
+        <p>Portal Acadêmico</p>
+      </div>
+    </div>
+
+    <div class="auth-tagline">
+      <span class="eyebrow">Sistema Escolar</span>
+      <h2>Gestão acadêmica <em>completa</em> em um só lugar.</h2>
+      <p>Acompanhe alunos, turmas, notas, frequência e comunicados de forma simples, organizada e integrada.</p>
+    </div>
+
+    <div class="auth-features">
+      <div class="feature-item">
+        <div class="f-ico">
+          <svg class="ico" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+        </div>
+        <span>Diário digital</span>
+      </div>
+      <div class="feature-item">
+        <div class="f-ico">
+          <svg class="ico" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <span>Controle de frequência</span>
+      </div>
+      <div class="feature-item">
+        <div class="f-ico">
+          <svg class="ico" viewBox="0 0 24 24"><path d="M3 11l18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>
+        </div>
+        <span>Mural de comunicados</span>
+      </div>
+      <div class="feature-item">
+        <div class="f-ico">
+          <svg class="ico" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        </div>
+        <span>Boletim de notas</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="auth-right">
+    <div class="auth-form-wrap">
+      <p class="form-eyebrow">Acesso ao sistema</p>
+      <h3>Entrar na sua conta</h3>
+      <p class="form-sub">Use suas credenciais institucionais para continuar.</p>
+
+      <div id="setup-notice" class="setup-badge hidden">
+        <svg class="ico ico-sm" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        Primeira configuração — crie o administrador
+      </div>
+
+      <form id="login-form" novalidate>
+        <div id="login-msg" class="auth-msg error"></div>
+
+        <label class="auth-field">
+          <span>E-mail institucional</span>
+          <div class="input-wrap">
+            <svg class="input-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+              <polyline points="22,6 12,13 2,6"/>
+            </svg>
+            <input type="email" id="login-email" placeholder="nome@escola.com" autocomplete="username" required>
+          </div>
+        </label>
+
+        <label class="auth-field">
+          <span>Senha</span>
+          <div class="input-wrap">
+            <svg class="input-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+            <input type="password" id="login-senha" placeholder="••••••••" autocomplete="current-password" required>
+          </div>
+        </label>
+
+        <button type="submit" class="btn-auth">
+          Acessar painel
+          <svg class="ico ico-sm" viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+        </button>
+      </form>
+
+      <form id="setup-form" class="hidden" novalidate>
+        <div id="setup-msg" class="auth-msg"></div>
+
+        <label class="auth-field">
+          <span>Nome completo</span>
+          <div class="input-wrap">
+            <svg class="input-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+              <circle cx="12" cy="7" r="4"/>
+            </svg>
+            <input type="text" id="setup-nome" placeholder="Seu nome completo" autocomplete="name" required>
+          </div>
+        </label>
+
+        <label class="auth-field">
+          <span>E-mail institucional</span>
+          <div class="input-wrap">
+            <svg class="input-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+              <polyline points="22,6 12,13 2,6"/>
+            </svg>
+            <input type="email" id="setup-email" placeholder="nome@escola.com" autocomplete="email" required>
+          </div>
+        </label>
+
+        <div class="auth-row">
+          <label class="auth-field">
+            <span>Senha</span>
+            <div class="input-wrap">
+              <svg class="input-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+              <input type="password" id="setup-senha" placeholder="Mín. 4 caracteres" autocomplete="new-password" required>
+            </div>
+          </label>
+          <label class="auth-field">
+            <span>Confirmar</span>
+            <div class="input-wrap">
+              <svg class="input-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+              <input type="password" id="setup-senha2" placeholder="Repita a senha" autocomplete="new-password" required>
+            </div>
+          </label>
+        </div>
+
+        <button type="submit" class="btn-auth">
+          Criar administrador
+          <svg class="ico ico-sm" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+        </button>
+      </form>
+
+      <p class="auth-hint">🔒 Dados salvos localmente no navegador · v9</p>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== APP ==================== -->
+<div id="app" class="app hidden">
+  <aside id="sidebar" class="sidebar"></aside>
+  <div class="main">
+    <header id="topbar" class="topbar"></header>
+    <div id="view" class="view"></div>
+  </div>
+  <div id="overlay" class="overlay hidden"></div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+'use strict';
+
+// ============================================================================
+// 🎨 CANVAS — REDE DE LINHAS CONECTADAS (efeito constelação viva)
+// ============================================================================
+(function initNetwork() {
+  const canvas = document.getElementById('network-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  let w, h, particles = [], rafId;
+  const mouse = { x: -9999, y: -9999 };
+
+  function resize() {
+    w = canvas.width = window.innerWidth;
+    h = canvas.height = window.innerHeight;
+    buildParticles();
+  }
+
+  function buildParticles() {
+    const density = window.innerWidth < 768 ? 40 : 90;
+    particles = [];
+    for (let i = 0; i < density; i++) {
+      particles.push({
+        x: Math.random() * w,
+        y: Math.random() * h,
+        vx: (Math.random() - 0.5) * 0.6,
+        vy: (Math.random() - 0.5) * 0.6,
+        r: Math.random() * 1.8 + 0.8,
+        yellow: Math.random() > 0.85
+      });
+    }
+  }
+
+  function step() {
+    ctx.clearRect(0, 0, w, h);
+
+    // Atualiza posições
+    for (let i = 0; i < particles.length; i++) {
+      const p = particles[i];
+      p.x += p.vx;
+      p.y += p.vy;
+
+      // Bounce nas bordas
+      if (p.x < 0 || p.x > w) p.vx *= -1;
+      if (p.y < 0 || p.y > h) p.vy *= -1;
+
+      // Atração leve do mouse
+      const mdx = mouse.x - p.x;
+      const mdy = mouse.y - p.y;
+      const md = Math.sqrt(mdx * mdx + mdy * mdy);
+      if (md < 160 && md > 0) {
+        p.x += (mdx / md) * 0.6;
+        p.y += (mdy / md) * 0.6;
+      }
+    }
+
+    // Desenha linhas entre partículas próximas
+    const MAX_DIST = 140;
+    for (let i = 0; i < particles.length; i++) {
+      const a = particles[i];
+      for (let j = i + 1; j < particles.length; j++) {
+        const b = particles[j];
+        const dx = a.x - b.x;
+        const dy = a.y - b.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < MAX_DIST) {
+          const alpha = (1 - dist / MAX_DIST) * 0.5;
+          ctx.strokeStyle = 'rgba(59, 130, 246, ' + alpha + ')';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(a.x, a.y);
+          ctx.lineTo(b.x, b.y);
+          ctx.stroke();
+        }
+      }
+    }
+
+    // Desenha partículas
+    for (let i = 0; i < particles.length; i++) {
+      const p = particles[i];
+      if (p.yellow) {
+        ctx.fillStyle = 'rgba(251, 191, 36, .85)';
+        ctx.shadowColor = 'rgba(251, 191, 36, 1)';
+      } else {
+        ctx.fillStyle = 'rgba(59, 130, 246, .85)';
+        ctx.shadowColor = 'rgba(59, 130, 246, 1)';
+      }
+      ctx.shadowBlur = 10;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.shadowBlur = 0;
+
+    // Linhas do mouse para partículas próximas
+    if (mouse.x > 0 && mouse.y > 0) {
+      for (let i = 0; i < particles.length; i++) {
+        const p = particles[i];
+        const dx = mouse.x - p.x;
+        const dy = mouse.y - p.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < 180) {
+          const alpha = (1 - dist / 180) * 0.7;
+          ctx.strokeStyle = 'rgba(251, 191, 36, ' + alpha + ')';
+          ctx.lineWidth = 1.2;
+          ctx.beginPath();
+          ctx.moveTo(mouse.x, mouse.y);
+          ctx.lineTo(p.x, p.y);
+          ctx.stroke();
+        }
+      }
+    }
+
+    rafId = requestAnimationFrame(step);
+  }
+
+  window.addEventListener('resize', resize);
+  window.addEventListener('mousemove', e => {
+    mouse.x = e.clientX;
+    mouse.y = e.clientY;
+  });
+  window.addEventListener('mouseleave', () => {
+    mouse.x = -9999;
+    mouse.y = -9999;
+  });
+  window.addEventListener('touchmove', e => {
+    if (e.touches.length) {
+      mouse.x = e.touches[0].clientX;
+      mouse.y = e.touches[0].clientY;
+    }
+  });
+  window.addEventListener('touchend', () => {
+    mouse.x = -9999;
+    mouse.y = -9999;
+  });
+
+  resize();
+  step();
+})();
+
+const LOGO_IMG = '<img src="WhatsApp Image 2026-09-15 at 11.57.35.jpeg" alt="Portal of Future" class="logo-img">';
+
+const Icons = {
+  dashboard: '<svg class="ico" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>',
+  users: '<svg class="ico" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+  student: '<svg class="ico" viewBox="0 0 24 24"><path d="M22 10v6"/><path d="M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>',
+  teacher: '<svg class="ico" viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>',
+  building: '<svg class="ico" viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01M16 6h.01M8 10h.01M16 10h.01M8 14h.01M16 14h.01M12 6h.01M12 10h.01M12 14h.01"/></svg>',
+  check: '<svg class="ico" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>',
+  checkCircle: '<svg class="ico" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+  edit: '<svg class="ico" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>',
+  clipboard: '<svg class="ico" viewBox="0 0 24 24"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg>',
+  alert: '<svg class="ico" viewBox="0 0 24 24"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+  megaphone: '<svg class="ico" viewBox="0 0 24 24"><path d="M3 11l18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>',
+  chart: '<svg class="ico" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>',
+  user: '<svg class="ico" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
+  book: '<svg class="ico" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>',
+  bookOpen: '<svg class="ico" viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>',
+  bell: '<svg class="ico" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>',
+  refresh: '<svg class="ico" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>',
+  search: '<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>',
+  plus: '<svg class="ico ico-sm" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
+  trash: '<svg class="ico" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>',
+  close: '<svg class="ico ico-sm" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
+  menu: '<svg class="ico" viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>',
+  trendUp: '<svg class="ico" viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>',
+  clock: '<svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+  shield: '<svg class="ico" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>',
+  lock: '<svg class="ico" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>'
+};
+
+const DB = {
+  KEY: 'educontrol_db_v9',
+  state: { users: [], students: [], classes: [], teachers: [], subjects: [], attendance: [], grades: [], activities: [], occurrences: [], announcements: [], lessons: [] },
+  load() {
+    try {
+      const raw = localStorage.getItem(this.KEY);
+      if (raw) this.state = Object.assign(this.state, JSON.parse(raw));
+      else { this.seed(); this.save(); }
+    } catch (e) { console.error(e); this.seed(); this.save(); }
+  },
+  save() { try { localStorage.setItem(this.KEY, JSON.stringify(this.state)); } catch (e) {} },
+  reset() { localStorage.removeItem(this.KEY); location.reload(); },
+  id(p) { return p + '-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); },
+  seed() {
+    this.state = { users: [], students: [], classes: [], teachers: [], subjects: [], attendance: [], grades: [], activities: [], occurrences: [], announcements: [], lessons: [] };
+    this.state.subjects = [
+      { id: 'd1', name: 'Desenvolvimento Web', code: 'DWEB' },
+      { id: 'd2', name: 'Programação Mobile', code: 'PMOB' },
+      { id: 'd3', name: 'Banco de Dados', code: 'BDAD' },
+      { id: 'd4', name: 'Análise de Sistemas', code: 'ANSI' },
+      { id: 'd5', name: 'Matemática Aplicada', code: 'MATE' },
+      { id: 'd6', name: 'Português Instrumental', code: 'PORT' }
+    ];
+  }
+};
+
+const Auth = {
+  currentUser: null,
+  isFirstUser() { return DB.state.users.length === 0; },
+  login(email, password) {
+    const u = DB.state.users.find(x => x.email.toLowerCase() === String(email).toLowerCase().trim() && x.password === password);
+    if (!u) return { ok: false, error: 'E-mail ou senha inválidos.' };
+    this.currentUser = u;
+    try { sessionStorage.setItem('educontrol_v9', u.id); } catch (e) {}
+    return { ok: true, user: u };
+  },
+  register(data) {
+    const exists = DB.state.users.find(u => u.email.toLowerCase() === data.email.toLowerCase().trim());
+    if (exists) return { ok: false, error: 'Este e-mail já está cadastrado.' };
+    const firstUser = this.isFirstUser();
+    const role = firstUser ? 'diretor' : data.role;
+    const newUser = {
+      id: DB.id('u'), name: data.name, email: data.email.trim(), password: data.password, role: role,
+      avatar: data.name.trim().split(/\s+/).map(n => n[0]).slice(0, 2).join('').toUpperCase(),
+      createdAt: new Date().toISOString(), matricula: data.matricula ? String(data.matricula).trim() : ''
+    };
+    if ((role === 'aluno' || role === 'responsavel') && data.matricula) {
+      const st = DB.state.students.find(s => String(s.matricula) === String(data.matricula).trim());
+      if (st) newUser.studentId = st.id;
+    }
+    DB.state.users.push(newUser);
+    if (role === 'professor') {
+      if (!DB.state.teachers.find(t => t.email === newUser.email)) {
+        DB.state.teachers.push({ id: DB.id('t'), name: data.name, email: data.email.trim(), subject: 'A definir', phone: '', userId: newUser.id });
+      }
+    }
+    DB.save();
+    return { ok: true, user: newUser, firstUser: firstUser };
+  },
+  logout() { this.currentUser = null; try { sessionStorage.removeItem('educontrol_v9'); } catch (e) {} },
+  restore() {
+    try {
+      const id = sessionStorage.getItem('educontrol_v9');
+      if (!id) return null;
+      const u = DB.state.users.find(x => x.id === id);
+      if (u) { this.currentUser = u; return u; }
+    } catch (e) {}
+    return null;
+  },
+  isAdmin() { return this.currentUser && this.currentUser.role === 'diretor'; }
+};
+
+const Util = {
+  fmtDate(iso) { if (!iso) return '—'; const p = String(iso).slice(0, 10).split('-'); if (p.length !== 3) return iso; return p[2] + '/' + p[1] + '/' + p[0]; },
+  fmtDateLong(iso) {
+    if (!iso) return '—';
+    const d = new Date(iso); if (isNaN(d)) return iso;
+    const m = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+    return d.getDate() + ' de ' + m[d.getMonth()] + ' de ' + d.getFullYear();
+  },
+  todayISO() { return new Date().toISOString().slice(0, 10); },
+  esc(s) { if (s === null || s === undefined) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); },
+  initials(n) { if (!n) return '?'; const p = String(n).trim().split(/\s+/); if (p.length === 1) return p[0].slice(0, 2).toUpperCase(); return (p[0][0] + p[p.length - 1][0]).toUpperCase(); },
+  colorFor(s) {
+    const pal = [
+      'linear-gradient(135deg,#1e40af,#3b82f6)',
+      'linear-gradient(135deg,#fbbf24,#fcd34d)',
+      'linear-gradient(135deg,#1e3a8a,#2563eb)',
+      'linear-gradient(135deg,#f59e0b,#fbbf24)',
+      'linear-gradient(135deg,#2563eb,#60a5fa)',
+      'linear-gradient(135deg,#d97706,#f59e0b)',
+      'linear-gradient(135deg,#3730a3,#4f46e5)',
+      'linear-gradient(135deg,#fcd34d,#fde68a)'
+    ];
+    let h = 0; const str = String(s || '');
+    for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0;
+    return pal[h % pal.length];
+  },
+  avg(a) { return a && a.length ? a.reduce((x, y) => x + Number(y || 0), 0) / a.length : 0; },
+  fmtNum(n, d) { d = d === undefined ? 1 : d; if (isNaN(n)) return '0'; return Number(n).toFixed(d).replace('.', ','); },
+  notaBadge(m) { return m >= 7 ? 'green' : m >= 5 ? 'amber' : 'red'; },
+  statusClass(s) {
+    const map = { 'Ativo':'green','Inativo':'gray','Transferido':'amber','Concluído':'blue','Presente':'green','Falta':'red','Justificada':'amber','Disponível':'blue','Em andamento':'amber','Encerrada':'gray','Registrada':'amber','Positiva':'green','Resolvida':'blue' };
+    return map[s] || 'gray';
+  },
+  roleLabel(r) { return { diretor:'Diretor(a)', coordenador:'Coordenador(a)', professor:'Professor(a)', aluno:'Aluno(a)', responsavel:'Responsável' }[r] || r; },
+  on(el, evt, sel, fn) { el.addEventListener(evt, e => { const t = e.target.closest(sel); if (t && el.contains(t)) fn.call(t, e, t); }); },
+  debounce(fn, wait) { let t; return function () { const a = arguments, c = this; clearTimeout(t); t = setTimeout(() => fn.apply(c, a), wait); }; }
+};
+
+const Toast = {
+  el: null, timer: null,
+  init() { this.el = document.getElementById('toast'); },
+  show(msg, type) {
+    if (!this.el) return;
+    this.el.className = 'toast';
+    if (type) this.el.classList.add(type);
+    this.el.textContent = msg;
+    void this.el.offsetWidth;
+    this.el.classList.add('show');
+    clearTimeout(this.timer);
+    this.timer = setTimeout(() => this.el.classList.remove('show'), 3400);
+  },
+  success(m) { this.show(m, 'success'); }, error(m) { this.show(m, 'error'); },
+  warning(m) { this.show(m, 'warning'); }, info(m) { this.show(m); }
+};
+
+const Modal = {
+  open(opts) {
+    opts = opts || {};
+    const bd = document.createElement('div');
+    bd.className = 'modal-backdrop';
+    const size = opts.size === 'lg' ? ' modal-lg' : '';
+    bd.innerHTML = '<div class="modal' + size + '"><div class="modal-header"><h3>' + (opts.icon || '') + Util.esc(opts.title || '') + '</h3><button type="button" class="close" data-close>' + Icons.close + '</button></div><div class="modal-body">' + (opts.body || '') + '</div>' + (opts.footer ? '<div class="modal-footer">' + opts.footer + '</div>' : '') + '</div>';
+    document.body.appendChild(bd);
+    const close = () => { bd.style.opacity = '0'; setTimeout(() => { if (bd.parentNode) bd.parentNode.removeChild(bd); }, 200); if (opts.onClose) opts.onClose(); };
+    bd.addEventListener('click', e => { if (e.target === bd) close(); if (e.target.closest('[data-close]')) close(); });
+    document.addEventListener('keydown', function h(e) { if (e.key === 'Escape') { document.removeEventListener('keydown', h); close(); } });
+    if (opts.onMount) opts.onMount(bd, close);
+  },
+  confirm(title, message, onConfirm, label) {
+    Modal.open({
+      title: title, icon: Icons.alert,
+      body: '<p style="font-size:14px;line-height:1.65;color:var(--muted);">' + Util.esc(message) + '</p>',
+      footer: '<button type="button" class="btn btn-secondary" data-close>Cancelar</button><button type="button" class="btn btn-danger" data-confirm>' + Util.esc(label || 'Confirmar') + '</button>',
+      onMount: (bd, close) => { bd.querySelector('[data-confirm]').addEventListener('click', () => { close(); onConfirm(); }); }
+    });
+  }
+};
+
+const MENUS = {
+  diretor: [
+    { group: 'Visão Geral', items: [ { id: 'dashboard', icon: 'dashboard', label: 'Dashboard' }, { id: 'relatorios', icon: 'chart', label: 'Relatórios' } ]},
+    { group: 'Administração', items: [ { id: 'admin', icon: 'shield', label: 'Painel Admin' }, { id: 'usuarios', icon: 'users', label: 'Usuários' } ]},
+    { group: 'Instituição', items: [ { id: 'turmas', icon: 'building', label: 'Turmas' }, { id: 'professores', icon: 'teacher', label: 'Professores' }, { id: 'alunos', icon: 'student', label: 'Alunos' }, { id: 'disciplinas', icon: 'bookOpen', label: 'Disciplinas' } ]},
+    { group: 'Acompanhamento', items: [ { id: 'diario', icon: 'book', label: 'Diário de Classe' }, { id: 'frequencia', icon: 'checkCircle', label: 'Frequência' }, { id: 'notas', icon: 'edit', label: 'Notas' }, { id: 'ocorrencias', icon: 'alert', label: 'Ocorrências' }, { id: 'comunicados', icon: 'megaphone', label: 'Comunicados' } ]}
+  ],
+  coordenador: [
+    { group: 'Painel', items: [{ id: 'dashboard', icon: 'dashboard', label: 'Dashboard' }]},
+    { group: 'Gestão', items: [ { id: 'alunos', icon: 'student', label: 'Alunos' }, { id: 'turmas', icon: 'building', label: 'Turmas' }, { id: 'professores', icon: 'teacher', label: 'Professores' }, { id: 'disciplinas', icon: 'bookOpen', label: 'Disciplinas' } ]},
+    { group: 'Acompanhamento', items: [ { id: 'diario', icon: 'book', label: 'Diário de Classe' }, { id: 'notas', icon: 'edit', label: 'Notas' }, { id: 'frequencia', icon: 'checkCircle', label: 'Frequência' }, { id: 'ocorrencias', icon: 'alert', label: 'Ocorrências' }, { id: 'comunicados', icon: 'megaphone', label: 'Comunicados' }, { id: 'relatorios', icon: 'chart', label: 'Relatórios' } ]}
+  ],
+  professor: [
+    { group: 'Painel', items: [ { id: 'dashboard', icon: 'dashboard', label: 'Dashboard' }, { id: 'minhas-turmas', icon: 'building', label: 'Minhas Turmas' } ]},
+    { group: 'Diário de Classe', items: [ { id: 'diario', icon: 'book', label: 'Diário' }, { id: 'frequencia', icon: 'checkCircle', label: 'Frequência' }, { id: 'notas', icon: 'edit', label: 'Notas' }, { id: 'conteudos', icon: 'bookOpen', label: 'Conteúdos' } ]},
+    { group: 'Extras', items: [ { id: 'atividades', icon: 'clipboard', label: 'Atividades' }, { id: 'ocorrencias', icon: 'alert', label: 'Ocorrências' }, { id: 'comunicados', icon: 'megaphone', label: 'Comunicados' } ]}
+  ],
+  aluno: [
+    { group: 'Meu Portal', items: [ { id: 'dashboard', icon: 'dashboard', label: 'Início' }, { id: 'minhas-notas', icon: 'edit', label: 'Minhas Notas' }, { id: 'minha-frequencia', icon: 'checkCircle', label: 'Minha Frequência' } ]},
+    { group: 'Escola', items: [ { id: 'atividades', icon: 'clipboard', label: 'Atividades' }, { id: 'comunicados', icon: 'megaphone', label: 'Comunicados' }, { id: 'ocorrencias', icon: 'alert', label: 'Ocorrências' }, { id: 'perfil', icon: 'user', label: 'Meu Perfil' } ]}
+  ],
+  responsavel: [
+    { group: 'Acompanhamento', items: [ { id: 'dashboard', icon: 'dashboard', label: 'Início' }, { id: 'minhas-notas', icon: 'edit', label: 'Notas' }, { id: 'minha-frequencia', icon: 'checkCircle', label: 'Frequência' } ]},
+    { group: 'Escola', items: [ { id: 'atividades', icon: 'clipboard', label: 'Atividades' }, { id: 'comunicados', icon: 'megaphone', label: 'Comunicados' }, { id: 'ocorrencias', icon: 'alert', label: 'Ocorrências' }, { id: 'perfil', icon: 'user', label: 'Perfil do Aluno' } ]}
+  ]
+};
+
+const App = {
+  currentView: 'dashboard',
+  init() {
+    Toast.init();
+    this.bindAuth();
+    this.bindShell();
+    this.refreshAuthUI();
+    const restored = Auth.restore();
+    if (restored) this.startApp();
+  },
+  refreshAuthUI() {
+    const first = Auth.isFirstUser();
+    document.getElementById('setup-notice').classList.toggle('hidden', !first);
+    document.getElementById('login-form').classList.toggle('hidden', first);
+    document.getElementById('setup-form').classList.toggle('hidden', !first);
+  },
+  bindAuth() {
+    document.getElementById('login-form').addEventListener('submit', e => {
+      e.preventDefault();
+      const msg = document.getElementById('login-msg');
+      msg.classList.remove('show');
+      const email = document.getElementById('login-email').value.trim();
+      const senha = document.getElementById('login-senha').value;
+      if (!email || !senha) { msg.textContent = 'Preencha e-mail e senha para continuar.'; msg.className = 'auth-msg error show'; return; }
+      const r = Auth.login(email, senha);
+      if (!r.ok) { msg.textContent = r.error; msg.className = 'auth-msg error show'; return; }
+      Toast.success('Bem-vindo(a), ' + r.user.name.split(' ')[0] + '!');
+      this.startApp();
+    });
+    document.getElementById('setup-form').addEventListener('submit', e => {
+      e.preventDefault();
+      const msg = document.getElementById('setup-msg');
+      msg.classList.remove('show');
+      const name = document.getElementById('setup-nome').value.trim();
+      const email = document.getElementById('setup-email').value.trim();
+      const senha = document.getElementById('setup-senha').value;
+      const senha2 = document.getElementById('setup-senha2').value;
+      if (!name || !email || !senha || !senha2) { msg.textContent = 'Preencha todos os campos para criar o administrador.'; msg.className = 'auth-msg error show'; return; }
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { msg.textContent = 'Informe um e-mail válido.'; msg.className = 'auth-msg error show'; return; }
+      if (senha.length < 4) { msg.textContent = 'A senha deve ter no mínimo 4 caracteres.'; msg.className = 'auth-msg error show'; return; }
+      if (senha !== senha2) { msg.textContent = 'As senhas não coincidem.'; msg.className = 'auth-msg error show'; return; }
+      const r = Auth.register({ name, email, role: 'diretor', password: senha });
+      if (!r.ok) { msg.textContent = r.error; msg.className = 'auth-msg error show'; return; }
+      msg.textContent = 'Administrador criado com sucesso!';
+      msg.className = 'auth-msg success show';
+      document.getElementById('setup-form').reset();
+      setTimeout(() => {
+        this.refreshAuthUI();
+        document.getElementById('login-email').value = email;
+        document.getElementById('login-senha').value = senha;
+        document.getElementById('login-senha').focus();
+      }, 900);
+    });
+  },
+  startApp() {
+    document.getElementById('auth-screen').classList.add('hidden');
+    document.getElementById('app').classList.remove('hidden');
+    this.buildSidebar();
+    this.buildTopbar();
+    this.navigate('dashboard');
+  },
+  bindShell() {
+    document.getElementById('overlay').addEventListener('click', () => {
+      document.getElementById('sidebar').classList.remove('open');
+      document.getElementById('overlay').classList.add('hidden');
+    });
+  },
+  buildSidebar() {
+    const u = Auth.currentUser;
+    const menu = MENUS[u.role] || [];
+    const sb = document.getElementById('sidebar');
+    let nav = '';
+    let idx = 0;
+    menu.forEach(g => {
+      nav += '<div class="nav-group-title">' + Util.esc(g.group) + '</div>';
+      g.items.forEach(it => {
+        idx++;
+        nav += '<button type="button" class="nav-item" data-view="' + it.id + '" style="animation-delay:' + (0.25 + idx * 0.04) + 's">' +
+          Icons[it.icon] + '<span>' + Util.esc(it.label) + '</span></button>';
+      });
+    });
+    sb.innerHTML =
+      '<div class="sidebar-header"><div class="logo">' + LOGO_IMG + '</div></div>' +
+      '<nav class="sidebar-nav">' + nav + '</nav>' +
+      '<div class="sidebar-footer">' +
+        '<div class="avatar">' + Util.esc(u.avatar || Util.initials(u.name)) + '</div>' +
+        '<div class="uinfo">' +
+          '<strong>' + Util.esc(u.name) + '</strong>' +
+          '<span>' + Util.roleLabel(u.role) + '</span>' +
+        '</div>' +
+      '</div>';
+    sb.querySelectorAll('.nav-item').forEach(btn => {
+      btn.addEventListener('click', () => {
+        this.navigate(btn.dataset.view);
+        if (window.innerWidth <= 820) {
+          sb.classList.remove('open');
+          document.getElementById('overlay').classList.add('hidden');
+        }
+      });
+    });
+  },
+  buildTopbar() {
+    const tb = document.getElementById('topbar');
+    tb.innerHTML =
+      '<div class="topbar-inner">' +
+        '<button type="button" class="menu-toggle" id="menu-toggle">' + Icons.menu + '</button>' +
+        '<div class="page-title" id="page-title">Dashboard<small>Visão geral</small></div>' +
+        '<div class="topbar-actions">' +
+          '<button type="button" class="icon-btn" id="btn-notif" title="Notificações">' + Icons.bell + '<span class="dot"></span></button>' +
+          '<button type="button" class="icon-btn" id="btn-refresh" title="Recarregar">' + Icons.refresh + '</button>' +
+          '<button type="button" class="btn btn-secondary btn-sm" id="btn-logout">Sair</button>' +
+        '</div>' +
+      '</div>';
+    document.getElementById('menu-toggle').addEventListener('click', () => {
+      document.getElementById('sidebar').classList.toggle('open');
+      document.getElementById('overlay').classList.toggle('hidden');
+    });
+    document.getElementById('btn-logout').addEventListener('click', () => {
+      Modal.confirm('Encerrar sessão', 'Deseja realmente sair do sistema?', () => { Auth.logout(); location.reload(); }, 'Sair');
+    });
+    document.getElementById('btn-refresh').addEventListener('click', () => { DB.load(); this.navigate(this.currentView); Toast.info('Dados recarregados.'); });
+    document.getElementById('btn-notif').addEventListener('click', () => this.showNotifications());
+  },
+  setTitle(t, s) { const el = document.getElementById('page-title'); if (!el) return; el.innerHTML = Util.esc(t) + (s ? '<small>' + Util.esc(s) + '</small>' : ''); },
+  navigate(view) {
+    if (!view) return;
+    this.currentView = view;
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.view === view));
+    const el = document.getElementById('view');
+    el.innerHTML = '';
+    el.style.animation = 'none';
+    void el.offsetWidth;
+    el.style.animation = '';
+    try {
+      const fn = this.views[view];
+      if (typeof fn === 'function') fn.call(this, el);
+      else el.innerHTML = '<div class="empty"><div class="empty-icon">' + Icons.alert + '</div><h4>Tela em construção</h4></div>';
+    } catch (err) { console.error(err); el.innerHTML = '<div class="empty"><p>Erro: ' + Util.esc(err.message) + '</p></div>'; }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  },
+  showNotifications() {
+    const list = DB.state.announcements.slice(-5).reverse();
+    let html = '<div class="timeline">';
+    if (!list.length) html += '<p class="text-muted">Nenhuma notificação no momento.</p>';
+    else list.forEach(a => { html += '<div class="timeline-item"><div class="t-title">' + Util.esc(a.title) + '</div><div class="t-time">' + Util.fmtDate(a.date) + ' · ' + Util.esc(a.author) + '</div><div class="t-desc">' + Util.esc(a.message.slice(0, 140)) + (a.message.length > 140 ? '…' : '') + '</div></div>'; });
+    html += '</div>';
+    Modal.open({ title: 'Notificações', icon: Icons.bell, body: html, footer: '<button type="button" class="btn btn-primary" data-close>Fechar</button>' });
+  },
+  studentById(id) { return DB.state.students.find(s => s.id === id); },
+  classById(id) { return DB.state.classes.find(c => c.id === id); },
+  teacherById(id) { return DB.state.teachers.find(t => t.id === id); },
+  subjectById(id) { return DB.state.subjects.find(s => s.id === id); },
+  userById(id) { return DB.state.users.find(u => u.id === id); },
+  studentsOfClass(cid) { return DB.state.students.filter(s => s.classId === cid && s.status === 'Ativo'); },
+  attendanceStats(sid) {
+    const r = DB.state.attendance.filter(a => a.studentId === sid);
+    const total = r.length;
+    const pres = r.filter(a => a.status === 'Presente').length;
+    const just = r.filter(a => a.status === 'Justificada').length;
+    const faltas = r.filter(a => a.status === 'Falta').length;
+    return { total, pres, just, faltas, freq: total ? ((pres + just * 0.5) / total) * 100 : 0 };
+  },
+  averageOf(sid) { const g = DB.state.grades.filter(x => x.studentId === sid); return g.length ? Util.avg(g.map(x => Number(x.value))) : 0; },
+  averagesBySubject(sid) {
+    const map = {};
+    DB.state.grades.filter(g => g.studentId === sid).forEach(g => {
+      const s = this.subjectById(g.subjectId);
+      const k = s ? s.name : g.subjectId;
+      if (!map[k]) map[k] = [];
+      map[k].push(Number(g.value));
+    });
+    const o = {}; Object.keys(map).forEach(k => o[k] = Util.avg(map[k]));
+    return o;
+  },
+  classAverage(cid) {
+    const sts = this.studentsOfClass(cid); if (!sts.length) return 0;
+    const m = sts.map(s => this.averageOf(s.id)).filter(x => x > 0);
+    return m.length ? Util.avg(m) : 0;
+  },
+  validateForm(form) {
+    let ok = true;
+    form.querySelectorAll('.field-group').forEach(g => g.classList.remove('invalid'));
+    form.querySelectorAll('[required]').forEach(i => { const g = i.closest('.field-group'); if (!i.value.trim()) { if (g) g.classList.add('invalid'); ok = false; } });
+    return ok;
+  },
+  emptyState(iconName, title, message) {
+    return '<div class="empty"><div class="empty-icon">' + (Icons[iconName] || Icons.alert) + '</div><h4>' + Util.esc(title) + '</h4><p>' + Util.esc(message) + '</p></div>';
+  },
+  statCard(iconName, color, label, value) {
+    return '<div class="stat-card"><div class="stat-icon ' + color + '">' + Icons[iconName] + '</div><div class="stat-info"><div class="label">' + Util.esc(label) + '</div><div class="value">' + Util.esc(String(value)) + '</div></div></div>';
+  },
+  views: {}
+};
+
+App.views.dashboard = function (el) {
+  const u = Auth.currentUser;
+  if (u.role === 'diretor') return this.dashboardDiretor(el);
+  if (u.role === 'coordenador') return this.dashboardCoordenador(el);
+  if (u.role === 'professor') return this.dashboardProfessor(el);
+  if (u.role === 'aluno') return this.dashboardAluno(el);
+  if (u.role === 'responsavel') return this.dashboardResponsavel(el);
+};
+
+App.dashboardDiretor = function (el) {
+  this.setTitle('Dashboard', 'Visão geral da instituição');
+  const totA = DB.state.students.filter(s => s.status === 'Ativo').length;
+  const totP = DB.state.teachers.length;
+  const totT = DB.state.classes.length;
+  const totO = DB.state.occurrences.length;
+  const att = DB.state.attendance;
+  const t = att.length;
+  const p = att.filter(a => a.status === 'Presente').length;
+  const j = att.filter(a => a.status === 'Justificada').length;
+  const freq = t ? ((p + j * 0.5) / t) * 100 : 0;
+  const m = DB.state.students.filter(s => s.status === 'Ativo').map(s => this.averageOf(s.id)).filter(x => x > 0);
+  const media = m.length ? Util.avg(m) : 0;
+  el.innerHTML = '<div class="stats-grid">' +
+      this.statCard('student', 'blue', 'Alunos ativos', totA) +
+      this.statCard('teacher', 'amber', 'Professores', totP) +
+      this.statCard('building', 'blue', 'Turmas', totT) +
+      this.statCard('checkCircle', 'green', 'Frequência média', Util.fmtNum(freq, 1) + '%') +
+      this.statCard('edit', 'amber', 'Média geral', Util.fmtNum(media, 1)) +
+      this.statCard('alert', 'red', 'Ocorrências', totO) +
+    '</div>' +
+    '<div class="grid-2 mb-24">' +
+      '<div class="card"><div class="card-header"><h3>' + Icons.chart + ' Frequência por turma</h3></div><div class="card-body">' + this.freqBarsByClass() + '</div></div>' +
+      '<div class="card"><div class="card-header"><h3>' + Icons.chart + ' Média por turma</h3></div><div class="card-body">' + this.gradeBarsByClass() + '</div></div>' +
+    '</div>' +
+    '<div class="grid-2">' +
+      '<div class="card"><div class="card-header"><h3>' + Icons.alert + ' Ocorrências recentes</h3></div><div class="card-body">' + this.recentOccurrences(5) + '</div></div>' +
+      '<div class="card"><div class="card-header"><h3>' + Icons.megaphone + ' Comunicados</h3></div><div class="card-body">' + this.recentAnnouncements(4) + '</div></div>' +
+    '</div>';
+};
+
+App.dashboardCoordenador = function (el) {
+  this.setTitle('Dashboard', 'Acompanhamento de alunos e turmas');
+  const totA = DB.state.students.filter(s => s.status === 'Ativo').length;
+  const totT = DB.state.classes.length;
+  const totO = DB.state.occurrences.length;
+  const att = DB.state.attendance;
+  const t = att.length;
+  const p = att.filter(a => a.status === 'Presente').length;
+  const freq = t ? (p / t) * 100 : 0;
+  const m = DB.state.students.filter(s => s.status === 'Ativo').map(s => this.averageOf(s.id)).filter(x => x > 0);
+  const media = m.length ? Util.avg(m) : 0;
+  const risky = DB.state.students.filter(s => s.status === 'Ativo').map(s => ({ s, st: this.attendanceStats(s.id) })).filter(o => o.st.freq < 85 && o.st.total > 0).sort((a, b) => a.st.freq - b.st.freq).slice(0, 5);
+  const low = DB.state.students.filter(s => s.status === 'Ativo').map(s => ({ s, m: this.averageOf(s.id) })).filter(o => o.m > 0 && o.m < 6).sort((a, b) => a.m - b.m).slice(0, 5);
+  el.innerHTML = '<div class="stats-grid">' +
+      this.statCard('student', 'blue', 'Alunos', totA) +
+      this.statCard('building', 'blue', 'Turmas', totT) +
+      this.statCard('checkCircle', 'green', 'Frequência geral', Util.fmtNum(freq, 1) + '%') +
+      this.statCard('edit', 'amber', 'Média geral', Util.fmtNum(media, 1)) +
+      this.statCard('alert', 'red', 'Ocorrências', totO) +
+      this.statCard('megaphone', 'amber', 'Comunicados', DB.state.announcements.length) +
+    '</div>' +
+    '<div class="grid-2 mb-24">' +
+      '<div class="card"><div class="card-header"><h3>' + Icons.alert + ' Maior índice de faltas</h3><button type="button" class="btn btn-ghost btn-sm" data-goto="alunos">Ver todos</button></div><div class="card-body" style="padding:0;">' + (risky.length ? this.riskyTable(risky) : '<div class="empty" style="padding:32px;"><p>Nenhum aluno em situação crítica.</p></div>') + '</div></div>' +
+      '<div class="card"><div class="card-header"><h3>' + Icons.trendUp + ' Baixo rendimento</h3></div><div class="card-body" style="padding:0;">' + (low.length ? this.lowGradeTable(low) : '<div class="empty" style="padding:32px;"><p>Nenhum aluno abaixo da média.</p></div>') + '</div></div>' +
+    '</div>' +
+    '<div class="card"><div class="card-header"><h3>' + Icons.megaphone + ' Comunicados recentes</h3><button type="button" class="btn btn-secondary btn-sm" data-goto="comunicados">Gerenciar</button></div><div class="card-body">' + this.recentAnnouncements(5) + '</div></div>';
+  this.wireGotos(el);
+};
+
+App.dashboardProfessor = function (el) {
+  const u = Auth.currentUser;
+  const prof = DB.state.teachers.find(t => t.userId === u.id || t.email === u.email);
+  this.setTitle('Dashboard', 'Bem-vindo, ' + u.name.split(' ')[0]);
+  const turmas = prof ? DB.state.classes.filter(c => c.teacherId === prof.id) : [];
+  let totalAlunos = 0;
+  turmas.forEach(c => { totalAlunos += this.studentsOfClass(c.id).length; });
+  const abertas = DB.state.activities.filter(a => a.status !== 'Encerrada').length;
+  const ocorr = DB.state.occurrences.filter(o => o.teacherId === (prof ? prof.id : '')).length;
+  el.innerHTML = '<div class="stats-grid">' +
+      this.statCard('building', 'blue', 'Minhas turmas', turmas.length) +
+      this.statCard('student', 'blue', 'Alunos', totalAlunos) +
+      this.statCard('clipboard', 'amber', 'Atividades abertas', abertas) +
+      this.statCard('alert', 'red', 'Ocorrências', ocorr) +
+    '</div>' +
+    '<div class="grid-2 mb-24">' +
+      '<div class="card"><div class="card-header"><h3>' + Icons.building + ' Minhas turmas</h3><button type="button" class="btn btn-ghost btn-sm" data-goto="minhas-turmas">Ver todas</button></div><div class="card-body">' + (turmas.length ? this.turmasMiniCards(turmas) : this.emptyState('building', 'Sem turmas', 'Você ainda não está vinculado a turmas.')) + '</div></div>' +
+      '<div class="card"><div class="card-header"><h3>' + Icons.megaphone + ' Comunicados</h3></div><div class="card-body">' + this.recentAnnouncements(4) + '</div></div>' +
+    '</div>' +
+    '<div class="grid-2">' +
+      '<div class="card"><div class="card-header"><h3>' + Icons.clipboard + ' Atividades recentes</h3><button type="button" class="btn btn-ghost btn-sm" data-goto="atividades">Gerenciar</button></div><div class="card-body">' + this.recentActivities(4) + '</div></div>' +
+      '<div class="card"><div class="card-header"><h3>' + Icons.alert + ' Ocorrências recentes</h3><button type="button" class="btn btn-ghost btn-sm" data-goto="ocorrencias">Ver todas</button></div><div class="card-body">' + this.recentOccurrences(4) + '</div></div>' +
+    '</div>';
+  this.wireGotos(el);
+};
+
+App.dashboardAluno = function (el) {
+  const u = Auth.currentUser;
+  const st = u.studentId ? this.studentById(u.studentId) : null;
+  if (!st) { this.setTitle('Portal do Aluno', 'Bem-vindo'); el.innerHTML = this.emptyState('student', 'Perfil não vinculado', 'Sua conta de aluno ainda não está vinculada a um cadastro.'); return; }
+  this.setTitle('Meu Portal', 'Bem-vindo, ' + st.name.split(' ')[0]);
+  const turma = this.classById(st.classId);
+  const a = this.attendanceStats(st.id);
+  const media = this.averageOf(st.id);
+  const porDisc = this.averagesBySubject(st.id);
+  const ativs = DB.state.activities.filter(x => x.classId === st.classId && x.status !== 'Encerrada');
+  const ocorr = DB.state.occurrences.filter(o => o.studentId === st.id);
+  el.innerHTML = '<div class="card card-pad mb-24" style="background:linear-gradient(135deg,var(--blue-dark) 0%,var(--blue) 100%);color:#fff;border:none;">' +
+      '<div class="flex items-center gap-16">' +
+        '<div style="width:60px;height:60px;border-radius:12px;background:var(--yellow);color:var(--blue-dark);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;letter-spacing:-0.02em;">' + Util.initials(st.name) + '</div>' +
+        '<div><h2 style="font-size:22px;font-weight:700;letter-spacing:-0.02em;">' + Util.esc(st.name) + '</h2>' +
+        '<p style="color:#cbd5e1;font-size:13px;margin-top:4px;">Matrícula ' + Util.esc(st.matricula) + ' · ' + (turma ? Util.esc(turma.name) : '—') + ' · ' + Util.esc(st.period || '') + '</p></div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="stats-grid">' +
+      this.statCard('edit', 'blue', 'Média geral', Util.fmtNum(media, 1)) +
+      this.statCard('checkCircle', 'green', 'Frequência', Util.fmtNum(a.freq, 1) + '%') +
+      this.statCard('alert', 'red', 'Faltas', a.faltas) +
+      this.statCard('clipboard', 'amber', 'Atividades', ativs.length) +
+    '</div>' +
+    '<div class="grid-2 mb-24">' +
+      '<div class="card"><div class="card-header"><h3>' + Icons.chart + ' Desempenho por disciplina</h3></div><div class="card-body">' + this.subjectBars(porDisc) + '</div></div>' +
+      '<div class="card"><div class="card-header"><h3>' + Icons.clipboard + ' Atividades pendentes</h3></div><div class="card-body">' + (ativs.length ? this.activitiesList(ativs.slice(0, 4)) : '<div class="empty"><p>Nenhuma atividade pendente.</p></div>') + '</div></div>' +
+    '</div>' +
+    '<div class="grid-2">' +
+      '<div class="card"><div class="card-header"><h3>' + Icons.megaphone + ' Comunicados</h3></div><div class="card-body">' + this.recentAnnouncements(3) + '</div></div>' +
+      '<div class="card"><div class="card-header"><h3>' + Icons.alert + ' Minhas ocorrências</h3></div><div class="card-body">' + (ocorr.length ? this.occurrencesList(ocorr.slice(0, 4)) : '<div class="empty"><p>Nenhuma ocorrência registrada.</p></div>') + '</div></div>' +
+    '</div>';
+};
+
+App.dashboardResponsavel = function (el) {
+  const u = Auth.currentUser;
+  const st = u.studentId ? this.studentById(u.studentId) : null;
+  if (!st) { this.setTitle('Portal do Responsável', 'Bem-vindo'); el.innerHTML = this.emptyState('users', 'Sem aluno vinculado', 'Sua conta ainda não está associada a um aluno.'); return; }
+  this.setTitle('Acompanhamento', 'Aluno: ' + st.name.split(' ')[0]);
+  const turma = this.classById(st.classId);
+  const a = this.attendanceStats(st.id);
+  const media = this.averageOf(st.id);
+  const porDisc = this.averagesBySubject(st.id);
+  const ativs = DB.state.activities.filter(x => x.classId === st.classId);
+  const ocorr = DB.state.occurrences.filter(o => o.studentId === st.id);
+  el.innerHTML = '<div class="card card-pad mb-24" style="background:linear-gradient(135deg,var(--blue-dark) 0%,var(--blue) 100%);color:#fff;border:none;">' +
+      '<div class="flex items-center gap-16">' +
+        '<div style="width:60px;height:60px;border-radius:12px;background:var(--yellow);color:var(--blue-dark);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;">' + Util.initials(st.name) + '</div>' +
+        '<div><p style="color:#cbd5e1;font-size:11px;text-transform:uppercase;letter-spacing:0.12em;font-weight:600;">Aluno(a)</p>' +
+        '<h2 style="font-size:22px;font-weight:700;letter-spacing:-0.02em;margin-top:2px;">' + Util.esc(st.name) + '</h2>' +
+        '<p style="color:#cbd5e1;font-size:13px;margin-top:4px;">Turma ' + (turma ? Util.esc(turma.name) : '—') + ' · Matrícula ' + Util.esc(st.matricula) + '</p></div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="stats-grid">' +
+      this.statCard('edit', 'blue', 'Média', Util.fmtNum(media, 1)) +
+      this.statCard('checkCircle', 'green', 'Frequência', Util.fmtNum(a.freq, 1) + '%') +
+      this.statCard('alert', 'red', 'Faltas', a.faltas) +
+      this.statCard('alert', 'amber', 'Ocorrências', ocorr.length) +
+    '</div>' +
+    '<div class="grid-2 mb-24">' +
+      '<div class="card"><div class="card-header"><h3>' + Icons.chart + ' Desempenho por disciplina</h3></div><div class="card-body">' + this.subjectBars(porDisc) + '</div></div>' +
+      '<div class="card"><div class="card-header"><h3>' + Icons.checkCircle + ' Situação de frequência</h3></div><div class="card-body">' +
+          '<div class="donut" style="background:conic-gradient(var(--blue) 0% ' + a.freq.toFixed(1) + '%, var(--border) 0);"><div class="hole"><strong>' + Util.fmtNum(a.freq, 0) + '%</strong><span>Frequência</span></div></div>' +
+          '<div class="grid-3 mt-24" style="text-align:center;">' +
+            '<div><div class="text-bold mono" style="font-size:20px;color:var(--success);">' + a.pres + '</div><div class="text-xs text-muted">Presenças</div></div>' +
+            '<div><div class="text-bold mono" style="font-size:20px;color:var(--yellow-dark);">' + a.just + '</div><div class="text-xs text-muted">Justificadas</div></div>' +
+            '<div><div class="text-bold mono" style="font-size:20px;color:var(--danger);">' + a.faltas + '</div><div class="text-xs text-muted">Faltas</div></div>' +
+          '</div>' +
+        '</div></div>' +
+    '</div>' +
+    '<div class="grid-2">' +
+      '<div class="card"><div class="card-header"><h3>' + Icons.clipboard + ' Atividades</h3></div><div class="card-body">' + (ativs.length ? this.activitiesList(ativs.slice(0, 4)) : '<div class="empty"><p>Nenhuma atividade disponível.</p></div>') + '</div></div>' +
+      '<div class="card"><div class="card-header"><h3>' + Icons.megaphone + ' Comunicados</h3></div><div class="card-body">' + this.recentAnnouncements(4) + '</div></div>' +
+    '</div>';
+};
+
+App.freqBarsByClass = function () {
+  const cs = DB.state.classes;
+  if (!cs.length) return this.emptyState('building', 'Nenhuma turma', 'Cadastre uma turma para ver os gráficos.');
+  let max = 0;
+  const data = cs.map(c => {
+    const sts = this.studentsOfClass(c.id);
+    let t = 0, p = 0, j = 0;
+    sts.forEach(s => {
+      const r = DB.state.attendance.filter(a => a.studentId === s.id && a.classId === c.id);
+      t += r.length; p += r.filter(a => a.status === 'Presente').length; j += r.filter(a => a.status === 'Justificada').length;
+    });
+    const f = t ? ((p + j * 0.5) / t) * 100 : 0;
+    max = Math.max(max, f);
+    return { name: c.name, f };
+  });
+  let h = '<div class="bar-chart">';
+  data.forEach(d => {
+    const pct = max ? (d.f / max) * 100 : 0;
+    const cls = d.f >= 90 ? 'green' : d.f >= 75 ? 'amber' : 'red';
+    h += '<div class="col"><div class="bar-fill ' + cls + '" style="height:' + pct.toFixed(1) + '%;" title="' + d.f.toFixed(1) + '%"></div><div class="lbl">' + Util.esc(d.name) + '</div></div>';
+  });
+  h += '</div>';
+  return h;
+};
+
+App.gradeBarsByClass = function () {
+  const cs = DB.state.classes;
+  if (!cs.length) return this.emptyState('building', 'Nenhuma turma', 'Cadastre uma turma para ver os gráficos.');
+  const data = cs.map(c => ({ name: c.name, m: this.classAverage(c.id) }));
+  const max = Math.max.apply(null, data.map(d => d.m).concat([10]));
+  let h = '<div class="bar-chart">';
+  data.forEach(d => {
+    const pct = (d.m / max) * 100;
+    const cls = d.m >= 7 ? 'green' : d.m >= 5 ? 'amber' : 'red';
+    h += '<div class="col"><div class="bar-fill ' + cls + '" style="height:' + pct.toFixed(1) + '%;" title="Média ' + d.m.toFixed(1) + '"></div><div class="lbl">' + Util.esc(d.name) + '</div></div>';
+  });
+  h += '</div>';
+  return h;
+};
+
+App.subjectBars = function (porDisc) {
+  const k = Object.keys(porDisc);
+  if (!k.length) return '<p class="text-muted text-sm">Sem notas registradas.</p>';
+  let h = '';
+  k.forEach(nome => {
+    const m = porDisc[nome];
+    const pct = Math.min(100, (m / 10) * 100);
+    const cls = m >= 7 ? 'green' : m >= 5 ? 'amber' : 'red';
+    h += '<div class="mb-16"><div class="flex items-center justify-between text-sm" style="margin-bottom:6px;"><strong>' + Util.esc(nome) + '</strong><span class="badge ' + cls + ' mono">' + Util.fmtNum(m, 1) + '</span></div><div class="progress ' + cls + '"><div class="bar" style="width:' + pct + '%;"></div></div></div>';
+  });
+  return h;
+};
+
+App.riskyTable = function (list) {
+  let h = '<table class="data"><thead><tr><th>Aluno</th><th>Turma</th><th>Frequência</th><th>Faltas</th></tr></thead><tbody>';
+  list.forEach(o => {
+    const t = this.classById(o.s.classId);
+    h += '<tr><td><div class="cell-user"><div class="avatar-sm" style="background:' + Util.colorFor(o.s.name) + '">' + Util.initials(o.s.name) + '</div><div class="u-meta"><strong>' + Util.esc(o.s.name) + '</strong><span>' + Util.esc(o.s.matricula) + '</span></div></div></td><td>' + (t ? Util.esc(t.name) : '—') + '</td><td><span class="badge red mono">' + Util.fmtNum(o.st.freq, 1) + '%</span></td><td class="mono">' + o.st.faltas + '</td></tr>';
+  });
+  h += '</tbody></table>';
+  return h;
+};
+
+App.lowGradeTable = function (list) {
+  let h = '<table class="data"><thead><tr><th>Aluno</th><th>Turma</th><th>Média</th></tr></thead><tbody>';
+  list.forEach(o => {
+    const t = this.classById(o.s.classId);
+    h += '<tr><td><div class="cell-user"><div class="avatar-sm" style="background:' + Util.colorFor(o.s.name) + '">' + Util.initials(o.s.name) + '</div><div class="u-meta"><strong>' + Util.esc(o.s.name) + '</strong><span>' + Util.esc(o.s.matricula) + '</span></div></div></td><td>' + (t ? Util.esc(t.name) : '—') + '</td><td><span class="badge ' + Util.notaBadge(o.m) + ' mono">' + Util.fmtNum(o.m, 1) + '</span></td></tr>';
+  });
+  h += '</tbody></table>';
+  return h;
+};
+
+App.recentOccurrences = function (limit) {
+  const list = DB.state.occurrences.slice().sort((a, b) => (b.date || '').localeCompare(a.date || '')).slice(0, limit || 5);
+  if (!list.length) return '<div class="empty"><p>Nenhuma ocorrência registrada.</p></div>';
+  let h = '<div class="timeline">';
+  list.forEach(o => {
+    const st = this.studentById(o.studentId);
+    const cls = o.situation === 'Positiva' ? 'success' : 'warning';
+    h += '<div class="timeline-item ' + cls + '"><div class="t-title">' + Util.esc(o.category || 'Ocorrência') + ' — ' + (st ? Util.esc(st.name) : '—') + '</div><div class="t-time mono">' + Util.fmtDate(o.date) + '</div><div class="t-desc">' + Util.esc(o.description) + '</div></div>';
+  });
+  h += '</div>';
+  return h;
+};
+
+App.recentAnnouncements = function (limit) {
+  const list = DB.state.announcements.slice().sort((a, b) => (b.date || '').localeCompare(a.date || '')).slice(0, limit || 4);
+  if (!list.length) return '<div class="empty"><p>Nenhum comunicado publicado.</p></div>';
+  let h = '';
+  list.forEach((a, i) => {
+    h += '<div class="mb-16" style="' + (i < list.length - 1 ? 'padding-bottom:16px;border-bottom:1px solid var(--border);' : '') + '"><div class="flex items-center justify-between mb-8"><strong style="font-size:13.5px;">' + Util.esc(a.title) + '</strong><span class="text-xs text-muted mono">' + Util.fmtDate(a.date) + '</span></div><p class="text-sm text-muted" style="line-height:1.55;">' + Util.esc(a.message.slice(0, 180)) + (a.message.length > 180 ? '…' : '') + '</p><div class="mt-8 flex items-center gap-8"><span class="chip">' + Util.esc(a.author) + '</span><span class="chip">' + Util.esc(a.target) + '</span></div></div>';
+  });
+  return h;
+};
+
+App.recentActivities = function (limit) {
+  const list = DB.state.activities.slice().sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')).slice(0, limit || 4);
+  if (!list.length) return '<div class="empty"><p>Nenhuma atividade cadastrada.</p></div>';
+  return this.activitiesList(list);
+};
+
+App.activitiesList = function (list) {
+  let h = '';
+  list.forEach(a => {
+    h += '<div class="flex items-center gap-12 mb-12" style="padding:12px;border:1px solid var(--border);border-radius:var(--radius);"><div class="stat-icon amber" style="width:36px;height:36px;border-radius:var(--radius);">' + Icons.clipboard + '</div><div style="flex:1;min-width:0;"><strong style="display:block;font-size:13.5px;">' + Util.esc(a.title) + '</strong><span class="text-xs text-muted">' + Util.esc(a.subject) + ' · Entrega ' + Util.fmtDate(a.dueDate) + '</span></div><span class="badge ' + Util.statusClass(a.status) + '">' + Util.esc(a.status) + '</span></div>';
+  });
+  return h;
+};
+
+App.occurrencesList = function (list) {
+  let h = '';
+  list.forEach(o => {
+    h += '<div class="flex items-start gap-12 mb-12" style="padding:12px;border:1px solid var(--border);border-radius:var(--radius);"><div class="stat-icon red" style="width:36px;height:36px;border-radius:var(--radius);flex-shrink:0;">' + Icons.alert + '</div><div style="flex:1;min-width:0;"><strong style="display:block;font-size:13.5px;">' + Util.esc(o.category || 'Ocorrência') + '</strong><span class="text-xs text-muted mono">' + Util.fmtDate(o.date) + '</span><p class="text-sm mt-8" style="color:var(--muted);">' + Util.esc(o.description) + '</p></div></div>';
+  });
+  return h;
+};
+
+App.turmasMiniCards = function (turmas) {
+  let h = '<div class="grid-2">';
+  turmas.forEach(c => {
+    const q = this.studentsOfClass(c.id).length;
+    h += '<div class="turma-card" data-view-class="' + c.id + '"><div class="t-head"><div><div class="t-code">' + Util.esc(c.name) + '</div><div class="t-sub">' + Util.esc(c.period) + ' · ' + Util.esc(c.room || '') + '</div></div><span class="badge blue">' + q + ' alunos</span></div></div>';
+  });
+  h += '</div>';
+  return h;
+};
+
+App.wireGotos = function (el) {
+  el.querySelectorAll('[data-goto]').forEach(b => b.addEventListener('click', () => App.navigate(b.dataset.goto)));
+  el.querySelectorAll('[data-view-class]').forEach(b => b.addEventListener('click', () => App.verTurma(b.dataset.viewClass)));
+};
+
+App.views.alunos = function (el) {
+  const canEdit = ['diretor','coordenador'].includes(Auth.currentUser.role);
+  this.setTitle('Alunos', DB.state.students.length + ' registros');
+  el.innerHTML = '<div class="card"><div class="card-header"><h3>' + Icons.student + ' Lista de alunos</h3>' + (canEdit ? '<button type="button" class="btn btn-primary btn-sm" id="btn-novo-aluno">' + Icons.plus + ' Cadastrar aluno</button>' : '') + '</div><div class="card-body"><div class="toolbar"><div class="search">' + Icons.search + '<input type="text" id="busca-aluno" placeholder="Buscar por nome, matrícula ou e-mail..."></div><select id="filtro-turma"><option value="">Todas as turmas</option>' + DB.state.classes.map(c => '<option value="' + c.id + '">' + Util.esc(c.name) + '</option>').join('') + '</select><select id="filtro-situacao"><option value="">Todas as situações</option><option>Ativo</option><option>Inativo</option><option>Transferido</option><option>Concluído</option></select></div><div id="tabela-alunos"></div></div></div>';
+  this.renderAlunosTable();
+  document.getElementById('busca-aluno').addEventListener('input', Util.debounce(() => this.renderAlunosTable(), 200));
+  document.getElementById('filtro-turma').addEventListener('change', () => this.renderAlunosTable());
+  document.getElementById('filtro-situacao').addEventListener('change', () => this.renderAlunosTable());
+  if (canEdit) { const b = document.getElementById('btn-novo-aluno'); if (b) b.addEventListener('click', () => this.modalAluno()); }
+};
+
+App.renderAlunosTable = function () {
+  const busca = (document.getElementById('busca-aluno') || {}).value || '';
+  const ft = (document.getElementById('filtro-turma') || {}).value || '';
+  const fs = (document.getElementById('filtro-situacao') || {}).value || '';
+  let list = DB.state.students.slice();
+  if (busca) { const q = busca.toLowerCase(); list = list.filter(s => s.name.toLowerCase().includes(q) || String(s.matricula).toLowerCase().includes(q) || (s.email || '').toLowerCase().includes(q)); }
+  if (ft) list = list.filter(s => s.classId === ft);
+  if (fs) list = list.filter(s => s.status === fs);
+  const canEdit = ['diretor','coordenador'].includes(Auth.currentUser.role);
+  const ct = document.getElementById('tabela-alunos');
+  if (!ct) return;
+  if (!list.length) {
+    ct.innerHTML = DB.state.students.length === 0 ? this.emptyState('student', 'Nenhum aluno cadastrado', 'Comece cadastrando o primeiro aluno da instituição.') : '<div class="empty"><div class="empty-icon">' + Icons.search + '</div><h4>Nenhum resultado</h4><p>Ajuste os filtros e tente novamente.</p></div>';
+    return;
+  }
+  let h = '<div class="table-wrap"><table class="data"><thead><tr><th>Matrícula</th><th>Nome</th><th>Turma</th><th>Curso</th><th>Situação</th>' + (canEdit ? '<th style="text-align:right;">Ações</th>' : '') + '</tr></thead><tbody>';
+  list.forEach(s => {
+    const t = this.classById(s.classId);
+    h += '<tr><td><span class="mono" style="font-size:12.5px;">' + Util.esc(s.matricula) + '</span></td><td><div class="cell-user"><div class="avatar-sm" style="background:' + Util.colorFor(s.name) + '">' + Util.initials(s.name) + '</div><div class="u-meta"><strong>' + Util.esc(s.name) + '</strong><span>' + Util.esc(s.email || '—') + '</span></div></div></td><td>' + (t ? Util.esc(t.name) : '—') + '</td><td class="text-sm text-muted">' + Util.esc(s.course || '—') + '</td><td><span class="badge ' + Util.statusClass(s.status) + '">' + Util.esc(s.status) + '</span></td>' + (canEdit ? '<td><div class="actions"><button type="button" class="btn btn-ghost btn-xs" data-ver="' + s.id + '">Ver</button><button type="button" class="btn btn-secondary btn-xs" data-edit="' + s.id + '">Editar</button><button type="button" class="btn btn-danger btn-xs" data-del="' + s.id + '">Excluir</button></div></td>' : '') + '</tr>';
+  });
+  h += '</tbody></table></div>';
+  ct.innerHTML = h;
+  Util.on(ct, 'click', '[data-ver]', (e, t) => this.verAluno(t.dataset.ver));
+  if (canEdit) {
+    Util.on(ct, 'click', '[data-edit]', (e, t) => this.modalAluno(t.dataset.edit));
+    Util.on(ct, 'click', '[data-del]', (e, t) => {
+      const s = this.studentById(t.dataset.del);
+      if (!s) return;
+      Modal.confirm('Excluir aluno', 'Deseja realmente excluir "' + s.name + '"?', () => {
+        DB.state.students = DB.state.students.filter(x => x.id !== s.id);
+        DB.state.grades = DB.state.grades.filter(g => g.studentId !== s.id);
+        DB.state.attendance = DB.state.attendance.filter(a => a.studentId !== s.id);
+        DB.state.occurrences = DB.state.occurrences.filter(o => o.studentId !== s.id);
+        DB.state.users.forEach(u => { if (u.studentId === s.id) delete u.studentId; });
+        DB.save(); this.renderAlunosTable(); Toast.success('Aluno excluído com sucesso.');
+      }, 'Excluir aluno');
+    });
+  }
+};
+
+App.modalAluno = function (id) {
+  const s = id ? this.studentById(id) : null;
+  const editing = !!s;
+  if (!DB.state.classes.length) { Toast.warning('Cadastre uma turma antes de adicionar alunos.'); this.navigate('turmas'); return; }
+  const body = '<form id="form-aluno" novalidate><div class="form-grid">' +
+    '<div class="field-group full"><label>Nome completo <span class="req">*</span></label><input name="name" value="' + Util.esc(s ? s.name : '') + '" required autofocus><div class="err">Informe o nome completo.</div></div>' +
+    '<div class="field-group"><label>Matrícula <span class="req">*</span></label><input name="matricula" value="' + Util.esc(s ? s.matricula : '') + '" required placeholder="Ex: 2024011"><div class="err">Informe a matrícula.</div></div>' +
+    '<div class="field-group"><label>Data de nascimento</label><input type="date" name="birth" value="' + Util.esc(s ? (s.birth || '') : '') + '"></div>' +
+    '<div class="field-group"><label>E-mail</label><input type="email" name="email" value="' + Util.esc(s ? s.email : '') + '" placeholder="aluno@escola.com"></div>' +
+    '<div class="field-group"><label>Telefone</label><input type="text" name="phone" value="' + Util.esc(s ? s.phone : '') + '" placeholder="(11) 99999-9999"></div>' +
+    '<div class="field-group"><label>Turma <span class="req">*</span></label><select name="classId" required><option value="">Selecione...</option>' + DB.state.classes.map(c => '<option value="' + c.id + '"' + (s && s.classId === c.id ? ' selected' : '') + '>' + Util.esc(c.name) + ' — ' + Util.esc(c.period) + '</option>').join('') + '</select><div class="err">Selecione uma turma.</div></div>' +
+    '<div class="field-group"><label>Curso</label><input name="course" value="' + Util.esc(s ? s.course : '') + '" placeholder="Ex: Técnico em Informática"></div>' +
+    '<div class="field-group"><label>Período</label><select name="period">' + ['Manhã','Tarde','Noite'].map(p => '<option' + (s && s.period === p ? ' selected' : '') + '>' + p + '</option>').join('') + '</select></div>' +
+    '<div class="field-group"><label>Nome do responsável</label><input name="guardian" value="' + Util.esc(s ? s.guardian : '') + '"></div>' +
+    '<div class="field-group"><label>Telefone do responsável</label><input name="guardianPhone" value="' + Util.esc(s ? s.guardianPhone : '') + '"></div>' +
+    '<div class="field-group"><label>Situação</label><select name="status">' + ['Ativo','Inativo','Transferido','Concluído'].map(x => '<option' + (s && s.status === x ? ' selected' : '') + '>' + x + '</option>').join('') + '</select></div>' +
+    '</div></form>';
+  Modal.open({
+    title: editing ? 'Editar aluno' : 'Cadastrar novo aluno', icon: Icons.student, body: body, size: 'lg',
+    footer: '<button type="button" class="btn btn-secondary" data-close>Cancelar</button><button type="button" class="btn btn-primary" data-save>' + (editing ? 'Salvar alterações' : 'Cadastrar aluno') + '</button>',
+    onMount: (bd, close) => {
+      const form = bd.querySelector('#form-aluno');
+      bd.querySelector('[data-save]').addEventListener('click', () => {
+        if (!this.validateForm(form)) { Toast.error('Preencha os campos obrigatórios.'); return; }
+        const data = Object.fromEntries(new FormData(form).entries());
+        const dup = DB.state.students.find(x => x.matricula === data.matricula && x.id !== (s ? s.id : ''));
+        if (dup) { Toast.error('Já existe um aluno com esta matrícula.'); return; }
+        if (editing) { Object.assign(s, data); Toast.success('Aluno atualizado com sucesso.'); }
+        else { data.id = DB.id('s'); DB.state.students.push(data); Toast.success('Aluno cadastrado com sucesso.'); }
+        DB.save(); close(); this.renderAlunosTable();
+      });
+    }
+  });
+};
+
+App.verAluno = function (id) {
+  const s = this.studentById(id);
+  if (!s) return;
+  const t = this.classById(s.classId);
+  const a = this.attendanceStats(s.id);
+  const m = this.averageOf(s.id);
+  const body = '<div class="flex items-center gap-16 mb-24"><div style="width:60px;height:60px;border-radius:12px;background:' + Util.colorFor(s.name) + ';display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;color:#fff;">' + Util.initials(s.name) + '</div><div><h2 style="font-size:20px;font-weight:700;letter-spacing:-0.02em;">' + Util.esc(s.name) + '</h2><p class="text-muted text-sm mono">' + Util.esc(s.matricula) + '</p></div></div>' +
+    '<div class="grid-2 mb-24"><div><span class="text-xs text-muted text-bold" style="text-transform:uppercase;letter-spacing:0.08em;">Turma</span><div>' + (t ? Util.esc(t.name) : '—') + '</div></div><div><span class="text-xs text-muted text-bold" style="text-transform:uppercase;letter-spacing:0.08em;">Curso</span><div>' + Util.esc(s.course || '—') + '</div></div><div><span class="text-xs text-muted text-bold" style="text-transform:uppercase;letter-spacing:0.08em;">Período</span><div>' + Util.esc(s.period || '—') + '</div></div><div><span class="text-xs text-muted text-bold" style="text-transform:uppercase;letter-spacing:0.08em;">Situação</span><div><span class="badge ' + Util.statusClass(s.status) + '">' + Util.esc(s.status) + '</span></div></div><div><span class="text-xs text-muted text-bold" style="text-transform:uppercase;letter-spacing:0.08em;">E-mail</span><div>' + Util.esc(s.email || '—') + '</div></div><div><span class="text-xs text-muted text-bold" style="text-transform:uppercase;letter-spacing:0.08em;">Telefone</span><div>' + Util.esc(s.phone || '—') + '</div></div><div><span class="text-xs text-muted text-bold" style="text-transform:uppercase;letter-spacing:0.08em;">Responsável</span><div>' + Util.esc(s.guardian || '—') + '</div></div><div><span class="text-xs text-muted text-bold" style="text-transform:uppercase;letter-spacing:0.08em;">Tel. responsável</span><div>' + Util.esc(s.guardianPhone || '—') + '</div></div></div>' +
+    '<div class="divider"></div>' +
+    '<div class="grid-3" style="text-align:center;"><div><div class="mono" style="font-size:24px;font-weight:700;color:var(--blue);">' + Util.fmtNum(m, 1) + '</div><div class="text-xs text-muted" style="text-transform:uppercase;letter-spacing:0.08em;">Média</div></div><div><div class="mono" style="font-size:24px;font-weight:700;color:var(--success);">' + Util.fmtNum(a.freq, 0) + '%</div><div class="text-xs text-muted" style="text-transform:uppercase;letter-spacing:0.08em;">Frequência</div></div><div><div class="mono" style="font-size:24px;font-weight:700;color:var(--danger);">' + a.faltas + '</div><div class="text-xs text-muted" style="text-transform:uppercase;letter-spacing:0.08em;">Faltas</div></div></div>';
+  Modal.open({ title: 'Ficha do aluno', icon: Icons.student, body: body, size: 'lg', footer: '<button type="button" class="btn btn-primary" data-close>Fechar</button>' });
+};
+
+App.views.turmas = function (el) {
+  const canEdit = ['diretor','coordenador'].includes(Auth.currentUser.role);
+  this.setTitle('Turmas', DB.state.classes.length + ' turmas cadastradas');
+  el.innerHTML = '<div class="card"><div class="card-header"><h3>' + Icons.building + ' Turmas da instituição</h3>' + (canEdit ? '<button type="button" class="btn btn-primary btn-sm" id="btn-nova-turma">' + Icons.plus + ' Nova turma</button>' : '') + '</div><div class="card-body">' + (DB.state.classes.length ? '<div class="grid-cards" id="grid-turmas">' + this.turmasCards() + '</div>' : this.emptyState('building', 'Nenhuma turma cadastrada', 'Cadastre a primeira turma da instituição para começar.')) + '</div></div>';
+  Util.on(el, 'click', '[data-view-class]', (e, t) => this.verTurma(t.dataset.viewClass));
+  if (canEdit) { const b = document.getElementById('btn-nova-turma'); if (b) b.addEventListener('click', () => this.modalTurma()); }
+};
+
+App.turmasCards = function () {
+  return DB.state.classes.map(c => {
+    const q = this.studentsOfClass(c.id).length;
+    const p = this.teacherById(c.teacherId);
+    const m = this.classAverage(c.id);
+    return '<div class="turma-card" data-view-class="' + c.id + '"><div class="t-head"><div><div class="t-code">' + Util.esc(c.name) + '</div><div class="t-sub">' + Util.esc(c.course) + '</div></div><span class="badge blue">' + q + '</span></div><div class="t-meta"><span>' + Util.esc(c.semester) + '</span><span>' + Util.esc(c.period) + '</span><span>' + Util.esc(c.room || '—') + '</span>' + (p ? '<span>' + Util.esc(p.name) + '</span>' : '') + '<span>Média ' + Util.fmtNum(m, 1) + '</span></div></div>';
+  }).join('');
+};
+
+App.modalTurma = function (id) {
+  const c = id ? this.classById(id) : null;
+  const editing = !!c;
+  const body = '<form id="form-turma" novalidate><div class="form-grid">' +
+    '<div class="field-group"><label>Nome da turma <span class="req">*</span></label><input name="name" value="' + Util.esc(c ? c.name : '') + '" required placeholder="Ex: TDS2A"><div class="err">Informe o nome.</div></div>' +
+    '<div class="field-group"><label>Curso</label><input name="course" value="' + Util.esc(c ? c.course : '') + '" placeholder="Ex: Técnico em Informática"></div>' +
+    '<div class="field-group"><label>Semestre</label><input name="semester" value="' + Util.esc(c ? c.semester : '') + '" placeholder="Ex: 2º Semestre"></div>' +
+    '<div class="field-group"><label>Período</label><select name="period">' + ['Manhã','Tarde','Noite'].map(p => '<option' + (c && c.period === p ? ' selected' : '') + '>' + p + '</option>').join('') + '</select></div>' +
+    '<div class="field-group"><label>Sala</label><input name="room" value="' + Util.esc(c ? c.room : '') + '" placeholder="Ex: Sala 12"></div>' +
+    '<div class="field-group"><label>Professor responsável</label><select name="teacherId"><option value="">—</option>' + DB.state.teachers.map(t => '<option value="' + t.id + '"' + (c && c.teacherId === t.id ? ' selected' : '') + '>' + Util.esc(t.name) + '</option>').join('') + '</select></div>' +
+    '</div></form>';
+  Modal.open({
+    title: editing ? 'Editar turma' : 'Nova turma', icon: Icons.building, body: body, size: 'lg',
+    footer: '<button type="button" class="btn btn-secondary" data-close>Cancelar</button><button type="button" class="btn btn-primary" data-save>' + (editing ? 'Salvar' : 'Cadastrar') + '</button>',
+    onMount: (bd, close) => {
+      const form = bd.querySelector('#form-turma');
+      bd.querySelector('[data-save]').addEventListener('click', () => {
+        if (!this.validateForm(form)) { Toast.error('Preencha os campos obrigatórios.'); return; }
+        const data = Object.fromEntries(new FormData(form).entries());
+        if (editing) { Object.assign(c, data); Toast.success('Turma atualizada.'); }
+        else { data.id = DB.id('c'); DB.state.classes.push(data); Toast.success('Turma cadastrada.'); }
+        DB.save(); close(); this.navigate('turmas');
+      });
+    }
+  });
+};
+
+App.verTurma = function (id) {
+  const c = this.classById(id);
+  if (!c) return;
+  const alunos = this.studentsOfClass(c.id);
+  const p = this.teacherById(c.teacherId);
+  const m = this.classAverage(c.id);
+  let tab = '';
+  if (!alunos.length) tab = this.emptyState('student', 'Nenhum aluno', 'Esta turma não possui alunos ativos.');
+  else {
+    tab = '<div class="table-wrap"><table class="data"><thead><tr><th>Aluno</th><th>Matrícula</th><th>Média</th><th>Frequência</th></tr></thead><tbody>';
+    alunos.forEach(s => {
+      const a = this.attendanceStats(s.id);
+      const mm = this.averageOf(s.id);
+      tab += '<tr><td><div class="cell-user"><div class="avatar-sm" style="background:' + Util.colorFor(s.name) + '">' + Util.initials(s.name) + '</div><div class="u-meta"><strong>' + Util.esc(s.name) + '</strong></div></div></td><td class="mono text-sm">' + Util.esc(s.matricula) + '</td><td><span class="badge ' + Util.notaBadge(mm) + ' mono">' + Util.fmtNum(mm, 1) + '</span></td><td class="mono">' + Util.fmtNum(a.freq, 0) + '%</td></tr>';
+    });
+    tab += '</tbody></table></div>';
+  }
+  const body = '<div class="grid-2 mb-24"><div><span class="text-xs text-muted text-bold" style="text-transform:uppercase;letter-spacing:0.08em;">Curso</span><div>' + Util.esc(c.course) + '</div></div><div><span class="text-xs text-muted text-bold" style="text-transform:uppercase;letter-spacing:0.08em;">Semestre</span><div>' + Util.esc(c.semester) + '</div></div><div><span class="text-xs text-muted text-bold" style="text-transform:uppercase;letter-spacing:0.08em;">Período</span><div>' + Util.esc(c.period) + '</div></div><div><span class="text-xs text-muted text-bold" style="text-transform:uppercase;letter-spacing:0.08em;">Sala</span><div>' + Util.esc(c.room || '—') + '</div></div><div><span class="text-xs text-muted text-bold" style="text-transform:uppercase;letter-spacing:0.08em;">Professor</span><div>' + (p ? Util.esc(p.name) : '—') + '</div></div><div><span class="text-xs text-muted text-bold" style="text-transform:uppercase;letter-spacing:0.08em;">Média</span><div><span class="badge ' + Util.notaBadge(m) + ' mono">' + Util.fmtNum(m, 1) + '</span></div></div></div><h4 style="font-size:13px;font-weight:600;margin-bottom:14px;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);">Alunos (' + alunos.length + ')</h4>' + tab;
+  Modal.open({ title: Util.esc(c.name), icon: Icons.building, body: body, size: 'lg', footer: '<button type="button" class="btn btn-primary" data-close>Fechar</button>' });
+};
+
+App.views.professores = function (el) {
+  const canEdit = ['diretor','coordenador'].includes(Auth.currentUser.role);
+  this.setTitle('Professores', DB.state.teachers.length + ' cadastrados');
+  let h = '<div class="card"><div class="card-header"><h3>' + Icons.teacher + ' Corpo docente</h3>' + (canEdit ? '<button type="button" class="btn btn-primary btn-sm" id="btn-novo-prof">' + Icons.plus + ' Novo professor</button>' : '') + '</div><div class="card-body">';
+  if (!DB.state.teachers.length) h += this.emptyState('teacher', 'Nenhum professor cadastrado', 'Cadastre o primeiro professor da instituição.');
+  else {
+    h += '<div class="grid-cards">';
+    DB.state.teachers.forEach(t => {
+      const turmas = DB.state.classes.filter(c => c.teacherId === t.id);
+      h += '<div class="turma-card" style="cursor:default;"><div class="t-head"><div class="flex items-center gap-12"><div style="width:44px;height:44px;font-size:13px;background:' + Util.colorFor(t.name) + ';border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;">' + Util.initials(t.name) + '</div><div><div class="t-code" style="font-size:15px;">' + Util.esc(t.name) + '</div><div class="t-sub">' + Util.esc(t.subject) + '</div></div></div>' + (canEdit ? '<button class="icon-btn" data-del-prof="' + t.id + '" style="width:30px;height:30px;">' + Icons.trash + '</button>' : '') + '</div><div class="t-meta"><span>' + Util.esc(t.email) + '</span><span>' + Util.esc(t.phone || '—') + '</span><span>' + turmas.length + ' turma(s)</span></div></div>';
+    });
+    h += '</div>';
+  }
+  h += '</div></div>';
+  el.innerHTML = h;
+  if (canEdit) {
+    const b = document.getElementById('btn-novo-prof');
+    if (b) b.addEventListener('click', () => this.modalProfessor());
+    Util.on(el, 'click', '[data-del-prof]', (e, t) => {
+      const p = this.teacherById(t.dataset.delProf);
+      if (!p) return;
+      Modal.confirm('Excluir professor', 'Deseja excluir "' + p.name + '"?', () => {
+        DB.state.teachers = DB.state.teachers.filter(x => x.id !== p.id);
+        DB.state.classes.forEach(c => { if (c.teacherId === p.id) c.teacherId = ''; });
+        DB.state.users = DB.state.users.filter(u => !(u.email === p.email && u.role === 'professor'));
+        DB.save(); this.navigate('professores'); Toast.success('Professor excluído.');
+      }, 'Excluir');
+    });
+  }
+};
+
+App.modalProfessor = function () {
+  const body = '<form id="form-prof" novalidate><div class="form-grid">' +
+    '<div class="field-group full"><label>Nome completo <span class="req">*</span></label><input name="name" required><div class="err">Informe o nome.</div></div>' +
+    '<div class="field-group"><label>E-mail <span class="req">*</span></label><input type="email" name="email" required><div class="err">Informe o e-mail.</div></div>' +
+    '<div class="field-group"><label>Telefone</label><input name="phone"></div>' +
+    '<div class="field-group full"><label>Disciplina principal</label><input name="subject" placeholder="Ex: Desenvolvimento Web"></div>' +
+    '</div></form>';
+  Modal.open({
+    title: 'Novo professor', icon: Icons.teacher, body: body, size: 'lg',
+    footer: '<button type="button" class="btn btn-secondary" data-close>Cancelar</button><button type="button" class="btn btn-primary" data-save>Cadastrar</button>',
+    onMount: (bd, close) => {
+      const form = bd.querySelector('#form-prof');
+      bd.querySelector('[data-save]').addEventListener('click', () => {
+        if (!this.validateForm(form)) { Toast.error('Preencha os campos obrigatórios.'); return; }
+        const d = Object.fromEntries(new FormData(form).entries());
+        if (DB.state.teachers.find(t => t.email === d.email)) { Toast.error('E-mail já cadastrado.'); return; }
+        d.id = DB.id('t');
+        DB.state.teachers.push(d);
+        DB.save(); close(); this.navigate('professores'); Toast.success('Professor cadastrado.');
+      });
+    }
+  });
+};
+
+App.views.disciplinas = function (el) {
+  const canEdit = ['diretor','coordenador'].includes(Auth.currentUser.role);
+  this.setTitle('Disciplinas', DB.state.subjects.length + ' cadastradas');
+  let h = '<div class="card"><div class="card-header"><h3>' + Icons.bookOpen + ' Grade de disciplinas</h3>' + (canEdit ? '<button type="button" class="btn btn-primary btn-sm" id="btn-nova-disc">' + Icons.plus + ' Nova disciplina</button>' : '') + '</div><div class="card-body">';
+  if (!DB.state.subjects.length) h += this.emptyState('bookOpen', 'Nenhuma disciplina', 'Cadastre as disciplinas oferecidas pela instituição.');
+  else {
+    h += '<div class="grid-cards">';
+    DB.state.subjects.forEach(s => {
+      h += '<div class="turma-card" style="cursor:default;"><div class="t-head"><div><div class="t-code" style="font-size:15px;">' + Util.esc(s.name) + '</div><div class="t-sub">Código: ' + Util.esc(s.code || '—') + '</div></div>' + (canEdit ? '<button class="icon-btn" data-del-disc="' + s.id + '" style="width:30px;height:30px;">' + Icons.trash + '</button>' : '') + '</div></div>';
+    });
+    h += '</div>';
+  }
+  h += '</div></div>';
+  el.innerHTML = h;
+  if (canEdit) {
+    const b = document.getElementById('btn-nova-disc');
+    if (b) b.addEventListener('click', () => this.modalDisciplina());
+    Util.on(el, 'click', '[data-del-disc]', (e, t) => {
+      const s = DB.state.subjects.find(x => x.id === t.dataset.delDisc);
+      if (!s) return;
+      Modal.confirm('Excluir disciplina', 'Deseja excluir "' + s.name + '"?', () => {
+        DB.state.subjects = DB.state.subjects.filter(x => x.id !== s.id);
+        DB.save(); this.navigate('disciplinas'); Toast.success('Disciplina excluída.');
+      }, 'Excluir');
+    });
+  }
+};
+
+App.modalDisciplina = function () {
+  const body = '<form id="form-disc" novalidate><div class="form-grid">' +
+    '<div class="field-group"><label>Nome <span class="req">*</span></label><input name="name" required><div class="err">Informe o nome.</div></div>' +
+    '<div class="field-group"><label>Código</label><input name="code" placeholder="Ex: DWEB"></div>' +
+    '</div></form>';
+  Modal.open({
+    title: 'Nova disciplina', icon: Icons.bookOpen, body: body,
+    footer: '<button type="button" class="btn btn-secondary" data-close>Cancelar</button><button type="button" class="btn btn-primary" data-save>Cadastrar</button>',
+    onMount: (bd, close) => {
+      const form = bd.querySelector('#form-disc');
+      bd.querySelector('[data-save]').addEventListener('click', () => {
+        if (!this.validateForm(form)) { Toast.error('Preencha os campos.'); return; }
+        const d = Object.fromEntries(new FormData(form).entries());
+        d.id = DB.id('d');
+        DB.state.subjects.push(d);
+        DB.save(); close(); this.navigate('disciplinas'); Toast.success('Disciplina cadastrada.');
+      });
+    }
+  });
+};
+
+App.views.usuarios = function (el) {
+  if (!Auth.isAdmin()) { el.innerHTML = this.emptyState('lock', 'Acesso restrito', 'Apenas o diretor pode acessar este painel.'); return; }
+  this.setTitle('Usuários', DB.state.users.length + ' contas cadastradas');
+  let h = '<div class="card"><div class="card-header"><h3>' + Icons.users + ' Gerenciamento de usuários</h3><button type="button" class="btn btn-primary btn-sm" id="btn-novo-user">' + Icons.plus + ' Novo usuário</button></div><div class="card-body" style="padding:0;"><div class="table-wrap"><table class="data"><thead><tr><th>Usuário</th><th>E-mail</th><th>Perfil</th><th>Vínculo</th><th style="text-align:right;">Ações</th></tr></thead><tbody>';
+  DB.state.users.forEach(u => {
+    const st = u.studentId ? this.studentById(u.studentId) : null;
+    const isMe = u.id === Auth.currentUser.id;
+    h += '<tr><td><div class="cell-user"><div class="avatar-sm" style="background:' + Util.colorFor(u.name) + '">' + Util.initials(u.name) + '</div><div class="u-meta"><strong>' + Util.esc(u.name) + (isMe ? ' <span style="color:var(--blue);font-size:11px;">(você)</span>' : '') + '</strong><span class="mono" style="font-size:11px;">ID ' + Util.esc(u.id.slice(0, 8)) + '</span></div></div></td><td>' + Util.esc(u.email) + '</td><td><span class="badge ' + (u.role === 'diretor' ? 'purple' : u.role === 'coordenador' ? 'blue' : u.role === 'professor' ? 'sky' : u.role === 'aluno' ? 'green' : 'amber') + '">' + Util.roleLabel(u.role) + '</span></td><td>' + (st ? Util.esc(st.name) + ' <span class="text-xs text-muted mono">(' + Util.esc(st.matricula) + ')</span>' : '—') + '</td><td><div class="actions"><button type="button" class="btn btn-secondary btn-xs" data-edit-user="' + u.id + '">Editar</button>' + (isMe ? '' : '<button type="button" class="btn btn-danger btn-xs" data-del-user="' + u.id + '">Excluir</button>') + '</div></td></tr>';
+  });
+  h += '</tbody></table></div></div></div>';
+  el.innerHTML = h;
+  const b = document.getElementById('btn-novo-user');
+  if (b) b.addEventListener('click', () => this.modalUser());
+  Util.on(el, 'click', '[data-del-user]', (e, t) => {
+    const u = this.userById(t.dataset.delUser);
+    if (!u) return;
+    Modal.confirm('Excluir usuário', 'Deseja realmente excluir a conta de "' + u.name + '"?', () => {
+      DB.state.users = DB.state.users.filter(x => x.id !== u.id);
+      DB.save(); this.navigate('usuarios'); Toast.success('Usuário excluído.');
+    }, 'Excluir');
+  });
+  Util.on(el, 'click', '[data-edit-user]', (e, t) => this.modalUser(t.dataset.editUser));
+};
+
+App.modalUser = function (id) {
+  const u = id ? this.userById(id) : null;
+  const editing = !!u;
+  const matriculas = DB.state.students.map(s => s.matricula).filter(Boolean);
+  const body = '<form id="form-user" novalidate><div class="form-grid">' +
+    '<div class="field-group full"><label>Nome completo <span class="req">*</span></label><input name="name" value="' + Util.esc(u ? u.name : '') + '" required><div class="err">Informe o nome.</div></div>' +
+    '<div class="field-group"><label>E-mail <span class="req">*</span></label><input type="email" name="email" value="' + Util.esc(u ? u.email : '') + '" required><div class="err">Informe o e-mail.</div></div>' +
+    '<div class="field-group"><label>Perfil de acesso <span class="req">*</span></label><select name="role" required>' + ['diretor','coordenador','professor','aluno','responsavel'].map(r => '<option value="' + r + '"' + (u && u.role === r ? ' selected' : '') + '>' + Util.roleLabel(r) + '</option>').join('') + '</select></div>' +
+    '<div class="field-group"><label>Senha ' + (editing ? '(deixe em branco para manter)' : '<span class="req">*</span>') + '</label><input type="text" name="password" ' + (editing ? '' : 'required') + ' placeholder="Mínimo 4 caracteres"><div class="err">Informe a senha.</div></div>' +
+    '<div class="field-group full"><label>Matrícula do aluno (para aluno/responsável)</label><input name="matricula" list="matriculas-existentes" placeholder="Ex: 2024011" value="' + Util.esc((u && u.matricula) ? u.matricula : (u && u.studentId && this.studentById(u.studentId) ? this.studentById(u.studentId).matricula : '')) + '"><datalist id="matriculas-existentes">' + matriculas.map(m => '<option value="' + Util.esc(m) + '"></option>').join('') + '</datalist></div>' +
+    '</div></form>';
+  Modal.open({
+    title: editing ? 'Editar usuário' : 'Novo usuário', icon: Icons.users, body: body, size: 'lg',
+    footer: '<button type="button" class="btn btn-secondary" data-close>Cancelar</button><button type="button" class="btn btn-primary" data-save>' + (editing ? 'Salvar' : 'Criar conta') + '</button>',
+    onMount: (bd, close) => {
+      const form = bd.querySelector('#form-user');
+      bd.querySelector('[data-save]').addEventListener('click', () => {
+        if (!this.validateForm(form)) { Toast.error('Preencha os campos obrigatórios.'); return; }
+        const d = Object.fromEntries(new FormData(form).entries());
+        const dup = DB.state.users.find(x => x.email.toLowerCase() === d.email.toLowerCase() && (!editing || x.id !== u.id));
+        if (dup) { Toast.error('Este e-mail já está em uso.'); return; }
+        if (d.role === 'aluno' || d.role === 'responsavel') {
+          d.matricula = d.matricula ? String(d.matricula).trim() : '';
+          const st = DB.state.students.find(s => String(s.matricula) === d.matricula);
+          if (st) d.studentId = st.id; else delete d.studentId;
+        } else { delete d.matricula; delete d.studentId; }
+        if (editing) { if (!d.password) d.password = u.password; Object.assign(u, d); Toast.success('Usuário atualizado.'); }
+        else {
+          if (d.password.length < 4) { Toast.error('Senha deve ter pelo menos 4 caracteres.'); return; }
+          d.id = DB.id('u'); d.avatar = d.name.split(/\s+/).map(n => n[0]).slice(0, 2).join('').toUpperCase(); d.createdAt = new Date().toISOString();
+          DB.state.users.push(d);
+          Toast.success('Usuário criado com sucesso.');
+        }
+        DB.save(); close(); this.navigate('usuarios');
+      });
+    }
+  });
+};
+
+App.views.admin = function (el) {
+  if (!Auth.isAdmin()) { el.innerHTML = this.emptyState('lock', 'Acesso restrito', 'Apenas o diretor pode acessar este painel.'); return; }
+  this.setTitle('Painel Administrativo', 'Gerenciamento geral do sistema');
+  const totA = DB.state.students.length, totT = DB.state.classes.length, totP = DB.state.teachers.length, totD = DB.state.subjects.length, totU = DB.state.users.length;
+  el.innerHTML = '<div class="stats-grid mb-24">' +
+      this.statCard('student', 'blue', 'Alunos', totA) +
+      this.statCard('building', 'blue', 'Turmas', totT) +
+      this.statCard('teacher', 'amber', 'Professores', totP) +
+      this.statCard('bookOpen', 'blue', 'Disciplinas', totD) +
+      this.statCard('users', 'green', 'Usuários', totU) +
+    '</div>' +
+    '<div class="grid-2 mb-24">' +
+      '<div class="card"><div class="card-header"><h3>' + Icons.student + ' Gerenciar alunos</h3></div><div class="card-body"><p class="text-sm text-muted mb-16">Cadastre, edite, pesquise e exclua alunos da instituição.</p><div class="flex gap-8"><button type="button" class="btn btn-primary btn-sm" data-goto="alunos">' + Icons.student + ' Ir para alunos</button><button type="button" class="btn btn-secondary btn-sm" id="admin-add-aluno">' + Icons.plus + ' Adicionar</button></div></div></div>' +
+      '<div class="card"><div class="card-header"><h3>' + Icons.users + ' Gerenciar usuários</h3></div><div class="card-body"><p class="text-sm text-muted mb-16">Crie contas, altere perfis de acesso e remova usuários.</p><button type="button" class="btn btn-primary btn-sm" data-goto="usuarios">' + Icons.users + ' Ir para usuários</button></div></div>' +
+    '</div>' +
+    '<div class="grid-2 mb-24">' +
+      '<div class="card"><div class="card-header"><h3>' + Icons.building + ' Turmas</h3></div><div class="card-body"><p class="text-sm text-muted mb-16">Gerencie turmas, cursos e professores responsáveis.</p><button type="button" class="btn btn-primary btn-sm" data-goto="turmas">' + Icons.building + ' Ir para turmas</button></div></div>' +
+      '<div class="card"><div class="card-header"><h3>' + Icons.bookOpen + ' Disciplinas</h3></div><div class="card-body"><p class="text-sm text-muted mb-16">Configure as disciplinas oferecidas pela instituição.</p><button type="button" class="btn btn-primary btn-sm" data-goto="disciplinas">' + Icons.bookOpen + ' Ir para disciplinas</button></div></div>' +
+    '</div>' +
+    '<div class="card" style="border-color:#fecaca;"><div class="card-header" style="background:var(--danger-soft);border-bottom-color:#fecaca;"><h3 style="color:var(--danger);">' + Icons.alert + ' Zona de risco</h3></div><div class="card-body"><p class="text-sm text-muted mb-16">Estas ações são irreversíveis. Use com cautela.</p><div class="flex gap-8 flex-wrap"><button type="button" class="btn btn-danger btn-sm" id="admin-clear-students">Apagar todos os alunos</button><button type="button" class="btn btn-danger btn-sm" id="admin-clear-all">Resetar todo o sistema</button></div></div></div>';
+  this.wireGotos(el);
+  const b1 = document.getElementById('admin-add-aluno');
+  if (b1) b1.addEventListener('click', () => this.modalAluno());
+  const bc = document.getElementById('admin-clear-students');
+  if (bc) bc.addEventListener('click', () => {
+    Modal.confirm('Apagar todos os alunos', 'Isso removerá TODOS os alunos, notas, frequências e ocorrências associadas.', () => {
+      DB.state.students = []; DB.state.grades = []; DB.state.attendance = []; DB.state.occurrences = [];
+      DB.state.users.forEach(u => { delete u.studentId; });
+      DB.save(); Toast.success('Todos os alunos foram removidos.'); this.navigate('admin');
+    }, 'Apagar tudo');
+  });
+  const ba = document.getElementById('admin-clear-all');
+  if (ba) ba.addEventListener('click', () => {
+    Modal.confirm('Resetar sistema completo', 'Isso apagará TODOS os dados e voltará ao estado inicial. Você será desconectado.', () => { DB.reset(); }, 'Resetar sistema');
+  });
+};
+
+App.views.relatorios = function (el) {
+  this.setTitle('Relatórios', 'Indicadores e estatísticas');
+  const totA = DB.state.students.filter(s => s.status === 'Ativo').length;
+  const totT = DB.state.classes.length;
+  const totP = DB.state.teachers.length;
+  const att = DB.state.attendance;
+  const t = att.length;
+  const p = att.filter(a => a.status === 'Presente').length;
+  const j = att.filter(a => a.status === 'Justificada').length;
+  const f = att.filter(a => a.status === 'Falta').length;
+  const freq = t ? ((p + j * 0.5) / t) * 100 : 0;
+  el.innerHTML = '<div class="stats-grid mb-24">' +
+      this.statCard('student', 'blue', 'Alunos ativos', totA) +
+      this.statCard('building', 'blue', 'Turmas', totT) +
+      this.statCard('teacher', 'amber', 'Professores', totP) +
+      this.statCard('checkCircle', 'green', 'Frequência geral', Util.fmtNum(freq, 1) + '%') +
+    '</div>' +
+    '<div class="grid-2 mb-24">' +
+      '<div class="card"><div class="card-header"><h3>' + Icons.checkCircle + ' Distribuição de frequência</h3></div><div class="card-body">' +
+        '<div class="grid-3 text-center mb-16"><div><div class="mono" style="font-size:24px;font-weight:700;color:var(--success);">' + p + '</div><div class="text-xs text-muted" style="text-transform:uppercase;letter-spacing:0.08em;margin-top:4px;">Presenças</div></div><div><div class="mono" style="font-size:24px;font-weight:700;color:var(--yellow-dark);">' + j + '</div><div class="text-xs text-muted" style="text-transform:uppercase;letter-spacing:0.08em;margin-top:4px;">Justificadas</div></div><div><div class="mono" style="font-size:24px;font-weight:700;color:var(--danger);">' + f + '</div><div class="text-xs text-muted" style="text-transform:uppercase;letter-spacing:0.08em;margin-top:4px;">Faltas</div></div></div>' +
+        '<div class="progress mt-16" style="height:8px;"><div class="bar green" style="width:' + (p / Math.max(t, 1) * 100) + '%;"></div></div>' +
+        '<div class="progress mt-8" style="height:8px;"><div class="bar amber" style="width:' + (j / Math.max(t, 1) * 100) + '%;"></div></div>' +
+        '<div class="progress mt-8" style="height:8px;"><div class="bar" style="width:' + (f / Math.max(t, 1) * 100) + '%;background:var(--danger);"></div></div>' +
+      '</div></div>' +
+      '<div class="card"><div class="card-header"><h3>' + Icons.chart + ' Média por turma</h3></div><div class="card-body">' + this.gradeBarsByClass() + '</div></div>' +
+    '</div>' +
+    '<div class="card"><div class="card-header"><h3>' + Icons.building + ' Panorama das turmas</h3></div><div class="card-body" style="padding:0;">' + this.panoramaTurmas() + '</div></div>';
+};
+
+App.panoramaTurmas = function () {
+  if (!DB.state.classes.length) return this.emptyState('building', 'Nenhuma turma', 'Cadastre turmas para gerar relatórios.');
+  let h = '<div class="table-wrap"><table class="data"><thead><tr><th>Turma</th><th>Curso</th><th>Período</th><th>Alunos</th><th>Média</th><th>Frequência</th></tr></thead><tbody>';
+  DB.state.classes.forEach(c => {
+    const alunos = this.studentsOfClass(c.id);
+    const m = this.classAverage(c.id);
+    let t = 0, p = 0, j = 0;
+    alunos.forEach(s => {
+      const r = DB.state.attendance.filter(a => a.studentId === s.id && a.classId === c.id);
+      t += r.length; p += r.filter(a => a.status === 'Presente').length; j += r.filter(a => a.status === 'Justificada').length;
+    });
+    const f = t ? ((p + j * 0.5) / t) * 100 : 0;
+    h += '<tr><td><strong>' + Util.esc(c.name) + '</strong></td><td class="text-sm text-muted">' + Util.esc(c.course) + '</td><td>' + Util.esc(c.period) + '</td><td class="mono">' + alunos.length + '</td><td><span class="badge ' + Util.notaBadge(m) + ' mono">' + Util.fmtNum(m, 1) + '</span></td><td><span class="badge ' + (f >= 90 ? 'green' : f >= 75 ? 'amber' : 'red') + ' mono">' + Util.fmtNum(f, 1) + '%</span></td></tr>';
+  });
+  h += '</tbody></table></div>';
+  return h;
+};
+
+App.views['minhas-turmas'] = function (el) {
+  const u = Auth.currentUser;
+  const prof = DB.state.teachers.find(t => t.userId === u.id || t.email === u.email);
+  const turmas = prof ? DB.state.classes.filter(c => c.teacherId === prof.id) : [];
+  this.setTitle('Minhas Turmas', turmas.length + ' turma(s)');
+  el.innerHTML = '<div class="card"><div class="card-header"><h3>' + Icons.building + ' Turmas sob sua responsabilidade</h3></div><div class="card-body">' +
+    (turmas.length ? '<div class="grid-cards">' + turmas.map(c => {
+      const q = this.studentsOfClass(c.id).length;
+      const m = this.classAverage(c.id);
+      return '<div class="turma-card" data-view-class="' + c.id + '"><div class="t-head"><div><div class="t-code">' + Util.esc(c.name) + '</div><div class="t-sub">' + Util.esc(c.course) + '</div></div><span class="badge blue">' + q + ' alunos</span></div><div class="t-meta"><span>' + Util.esc(c.period) + '</span><span>' + Util.esc(c.room || '—') + '</span><span>Média ' + Util.fmtNum(m, 1) + '</span></div></div>';
+    }).join('') + '</div>' : this.emptyState('building', 'Sem turmas atribuídas', 'Você ainda não está vinculado como professor responsável por nenhuma turma.')) +
+    '</div></div>';
+  Util.on(el, 'click', '[data-view-class]', (e, t) => this.verTurma(t.dataset.viewClass));
+};
+
+App.views.diario = function (el) {
+  const u = Auth.currentUser;
+  const isStaff = ['diretor','coordenador'].includes(u.role);
+
+  let turmas;
+  if (isStaff) {
+    turmas = DB.state.classes.slice();
+  } else {
+    const prof = DB.state.teachers.find(t => t.userId === u.id || t.email === u.email);
+    turmas = prof ? DB.state.classes.filter(c => c.teacherId === prof.id) : [];
+    if (!turmas.length) turmas = DB.state.classes;
+  }
+
+  if (!turmas.length) {
+    this.setTitle('Diário de Classe', 'Registro de frequência');
+    el.innerHTML = this.emptyState('book', 'Sem turmas', 'Cadastre turmas antes de usar o diário de classe.');
+    return;
+  }
+
+  this.setTitle('Diário de Classe', 'Escolha a turma, disciplina e data para fazer a chamada');
+
+  const today = Util.todayISO();
+
+  el.innerHTML =
+    '<div class="card mb-24">' +
+      '<div class="card-header">' +
+        '<h3>' + Icons.book + ' Selecionar aula</h3>' +
+        '<span class="chip">' + turmas.length + ' turma(s) disponível(is)</span>' +
+      '</div>' +
+      '<div class="card-body">' +
+        '<div class="form-grid">' +
+          '<div class="field-group">' +
+            '<label>Turma <span class="req">*</span></label>' +
+            '<select id="diario-turma">' +
+              turmas.map(c => '<option value="' + c.id + '">' + Util.esc(c.name) + ' — ' + Util.esc(c.course || '') + ' — ' + Util.esc(c.period) + '</option>').join('') +
+            '</select>' +
+          '</div>' +
+          '<div class="field-group">' +
+            '<label>Disciplina</label>' +
+            '<select id="diario-disc">' +
+              '<option value="">— Sem disciplina específica —</option>' +
+              DB.state.subjects.map(s => '<option value="' + s.id + '">' + Util.esc(s.name) + '</option>').join('') +
+            '</select>' +
+          '</div>' +
+          '<div class="field-group">' +
+            '<label>Data da aula <span class="req">*</span></label>' +
+            '<input type="date" id="diario-data" value="' + today + '">' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+    '</div>' +
+
+    '<div class="diary-summary mb-24" id="diario-resumo"></div>' +
+
+    '<div class="card mb-24">' +
+      '<div class="card-header">' +
+        '<h3>' + Icons.checkCircle + ' Chamada — marque a presença de cada aluno</h3>' +
+        '<div class="flex gap-8 flex-wrap">' +
+          '<button type="button" class="btn btn-secondary btn-sm" id="marcar-todos">' + Icons.check + ' Todos presentes</button>' +
+          '<button type="button" class="btn btn-secondary btn-sm" id="limpar-todos">Limpar</button>' +
+          '<button type="button" class="btn btn-primary btn-sm" id="salvar-chamada">' + Icons.checkCircle + ' Salvar chamada</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="card-body" id="chamada-corpo" style="padding:0;"></div>' +
+    '</div>' +
+
+    '<div class="card">' +
+      '<div class="card-header"><h3>' + Icons.bookOpen + ' Conteúdo da aula (opcional)</h3></div>' +
+      '<div class="card-body">' +
+        '<div class="field-group mb-12"><label>Conteúdo trabalhado</label>' +
+          '<textarea id="aula-conteudo" placeholder="Descreva o conteúdo lecionado nesta aula..."></textarea></div>' +
+        '<div class="field-group mb-12"><label>Observações</label>' +
+          '<input id="aula-obs" type="text" placeholder="Observações adicionais (opcional)"></div>' +
+        '<button type="button" class="btn btn-primary" id="salvar-conteudo">' + Icons.checkCircle + ' Salvar conteúdo</button>' +
+      '</div>' +
+    '</div>';
+
+  document.getElementById('diario-turma').addEventListener('change', () => this.renderChamada());
+  document.getElementById('diario-disc').addEventListener('change', () => this.renderChamada());
+  document.getElementById('diario-data').addEventListener('change', () => this.renderChamada());
+  document.getElementById('marcar-todos').addEventListener('click', () => {
+    document.querySelectorAll('#chamada-corpo .attendance-row').forEach(r =>
+      this.setAttendanceRow(r, r.dataset.sid, 'Presente'));
+    this.updateDiarioResumo();
+  });
+  document.getElementById('limpar-todos').addEventListener('click', () => {
+    document.querySelectorAll('#chamada-corpo .attendance-row').forEach(r => {
+      r.querySelectorAll('.att-btn').forEach(b => b.classList.remove('active-present', 'active-absent', 'active-just'));
+    });
+    this.updateDiarioResumo();
+  });
+  document.getElementById('salvar-chamada').addEventListener('click', () => this.salvarChamada());
+  document.getElementById('salvar-conteudo').addEventListener('click', () => this.salvarConteudo());
+
+  this.renderChamada();
+};
+
+App.renderChamada = function () {
+  const tEl = document.getElementById('diario-turma');
+  const dEl = document.getElementById('diario-disc');
+  const dtEl = document.getElementById('diario-data');
+  if (!tEl || !dtEl) return;
+  const tid = tEl.value;
+  const did = dEl ? dEl.value : '';
+  const date = dtEl.value;
+  const ct = document.getElementById('chamada-corpo');
+  const alunos = this.studentsOfClass(tid);
+
+  if (!alunos.length) {
+    ct.innerHTML = this.emptyState('student', 'Sem alunos', 'Esta turma não possui alunos ativos.');
+    this.updateDiarioResumo();
+    return;
+  }
+
+  let h = '';
+  alunos.forEach((s, idx) => {
+    h += '<div class="attendance-row" data-sid="' + s.id + '" style="animation: fadeUp .4s ' + (idx * 0.03) + 's both;">' +
+      '<div class="a-name">' +
+        '<div class="avatar-sm" style="width:36px;height:36px;font-size:12px;background:' + Util.colorFor(s.name) + ';border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;">' + Util.initials(s.name) + '</div>' +
+        '<div style="min-width:0;">' +
+          '<strong>' + Util.esc(s.name) + '</strong><br>' +
+          '<span class="text-xs text-muted mono">' + Util.esc(s.matricula) + '</span>' +
+        '</div>' +
+      '</div>' +
+      '<div class="att-group">' +
+        '<button type="button" class="att-btn" data-status="Presente" data-sid="' + s.id + '">' + Icons.check + ' Presente</button>' +
+        '<button type="button" class="att-btn" data-status="Falta" data-sid="' + s.id + '">' + Icons.close + ' Falta</button>' +
+        '<button type="button" class="att-btn" data-status="Justificada" data-sid="' + s.id + '">' + Icons.clock + ' Justificada</button>' +
+      '</div>' +
+    '</div>';
+  });
+  ct.innerHTML = h;
+
+  alunos.forEach(s => {
+    const r = DB.state.attendance.find(a =>
+      a.studentId === s.id && a.date === date &&
+      ((did && a.subjectId === did) || (!did && !a.subjectId))
+    );
+    this.setAttendanceRow(ct.querySelector('[data-sid="' + s.id + '"]'), s.id, r ? r.status : 'Presente');
+  });
+
+  Util.on(ct, 'click', '.att-btn', (e, t) => {
+    this.setAttendanceRow(t.closest('.attendance-row'), t.dataset.sid, t.dataset.status);
+    this.updateDiarioResumo();
+  });
+
+  this.updateDiarioResumo();
+};
+
+App.setAttendanceRow = function (row, sid, status) {
+  if (!row) return;
+  row.querySelectorAll('.att-btn').forEach(b => b.classList.remove('active-present', 'active-absent', 'active-just'));
+  const b = row.querySelector('.att-btn[data-status="' + status + '"]');
+  if (!b) return;
+  if (status === 'Presente') b.classList.add('active-present');
+  if (status === 'Falta') b.classList.add('active-absent');
+  if (status === 'Justificada') b.classList.add('active-just');
+};
+
+App.updateDiarioResumo = function () {
+  const box = document.getElementById('diario-resumo');
+  if (!box) return;
+  const rows = document.querySelectorAll('#chamada-corpo .attendance-row');
+  let p = 0, f = 0, j = 0, sem = 0;
+  rows.forEach(r => {
+    if (r.querySelector('.att-btn.active-present')) p++;
+    else if (r.querySelector('.att-btn.active-absent')) f++;
+    else if (r.querySelector('.att-btn.active-just')) j++;
+    else sem++;
+  });
+  box.innerHTML =
+    '<div class="ds-item"><div class="ds-num" style="color:var(--blue);">' + rows.length + '</div><div class="ds-lbl">Total de alunos</div></div>' +
+    '<div class="ds-item"><div class="ds-num" style="color:var(--success);">' + p + '</div><div class="ds-lbl">Presentes</div></div>' +
+    '<div class="ds-item"><div class="ds-num" style="color:var(--danger);">' + f + '</div><div class="ds-lbl">Faltas</div></div>' +
+    '<div class="ds-item"><div class="ds-num" style="color:var(--yellow-dark);">' + j + '</div><div class="ds-lbl">Justificadas</div></div>' +
+    (sem > 0 ? '<div class="ds-item"><div class="ds-num" style="color:var(--muted);">' + sem + '</div><div class="ds-lbl">Sem marcação</div></div>' : '');
+};
+
+App.salvarChamada = function () {
+  const tEl = document.getElementById('diario-turma');
+  const dEl = document.getElementById('diario-disc');
+  const dtEl = document.getElementById('diario-data');
+  if (!tEl || !dtEl) return;
+  const tid = tEl.value;
+  const did = dEl ? dEl.value : '';
+  const date = dtEl.value;
+
+  if (!date) { Toast.error('Informe a data da aula.'); return; }
+
+  const rows = document.querySelectorAll('#chamada-corpo .attendance-row');
+  if (!rows.length) { Toast.error('Nenhum aluno para registrar.'); return; }
+
+  const u = Auth.currentUser;
+  const prof = DB.state.teachers.find(t => t.userId === u.id || t.email === u.email);
+  const teacherId = prof ? prof.id : '';
+
+  let c = 0, semMarcacao = 0;
+  rows.forEach(r => {
+    const sid = r.dataset.sid;
+    const a = r.querySelector('.att-btn.active-present, .att-btn.active-absent, .att-btn.active-just');
+    if (!a) { semMarcacao++; return; }
+    const status = a.dataset.status;
+
+    let ex = DB.state.attendance.find(x =>
+      x.studentId === sid && x.date === date &&
+      ((did && x.subjectId === did) || (!did && !x.subjectId))
+    );
+
+    if (ex) {
+      ex.status = status;
+      ex.classId = tid;
+      if (did) ex.subjectId = did;
+      if (teacherId) ex.teacherId = teacherId;
+    } else {
+      DB.state.attendance.push({
+        id: DB.id('att'),
+        studentId: sid,
+        classId: tid,
+        subjectId: did || '',
+        date: date,
+        status: status,
+        teacherId: teacherId
+      });
+    }
+    c++;
+  });
+
+  DB.save();
+  Toast.success('Chamada salva para ' + c + ' aluno(s).' + (semMarcacao ? ' ' + semMarcacao + ' sem marcação.' : ''));
+};
+
+App.salvarConteudo = function () {
+  const tEl = document.getElementById('diario-turma');
+  const dEl = document.getElementById('diario-disc');
+  const dtEl = document.getElementById('diario-data');
+  if (!tEl || !dtEl) return;
+  const tid = tEl.value;
+  const did = dEl ? dEl.value : '';
+  const date = dtEl.value;
+  const content = document.getElementById('aula-conteudo').value.trim();
+  const note = document.getElementById('aula-obs').value.trim();
+  if (!content) { Toast.error('Informe o conteúdo trabalhado.'); return; }
+  DB.state.lessons.push({ id: DB.id('l'), classId: tid, subjectId: did, date: date, content: content, note: note });
+  DB.save();
+  document.getElementById('aula-conteudo').value = '';
+  document.getElementById('aula-obs').value = '';
+  Toast.success('Conteúdo registrado.');
+};
+
+App.views.frequencia = function (el) {
+  this.setTitle('Frequência', 'Acompanhamento de presenças e faltas');
+  el.innerHTML = '<div class="card mb-24"><div class="card-header"><h3>' + Icons.search + ' Filtrar</h3></div><div class="card-body"><div class="toolbar"><div class="search">' + Icons.search + '<input type="text" id="freq-busca" placeholder="Buscar aluno..."></div><select id="freq-turma"><option value="">Todas as turmas</option>' + DB.state.classes.map(c => '<option value="' + c.id + '">' + Util.esc(c.name) + '</option>').join('') + '</select></div></div></div><div class="card"><div class="card-body" id="freq-tabela" style="padding:0;"></div></div>';
+  this.renderFrequenciaTabela();
+  document.getElementById('freq-busca').addEventListener('input', Util.debounce(() => this.renderFrequenciaTabela(), 200));
+  document.getElementById('freq-turma').addEventListener('change', () => this.renderFrequenciaTabela());
+};
+
+App.renderFrequenciaTabela = function () {
+  const busca = (document.getElementById('freq-busca') || {}).value || '';
+  const turma = (document.getElementById('freq-turma') || {}).value || '';
+  const ct = document.getElementById('freq-tabela');
+  if (!ct) return;
+  let list = DB.state.students.filter(s => s.status === 'Ativo');
+  if (busca) list = list.filter(s => s.name.toLowerCase().includes(busca.toLowerCase()));
+  if (turma) list = list.filter(s => s.classId === turma);
+  if (!list.length) { ct.innerHTML = DB.state.students.length === 0 ? this.emptyState('student', 'Nenhum aluno cadastrado', 'Cadastre alunos para acompanhar a frequência.') : '<div class="empty"><p>Nenhum aluno encontrado.</p></div>'; return; }
+  let h = '<div class="table-wrap"><table class="data"><thead><tr><th>Aluno</th><th>Turma</th><th>Aulas</th><th>Presenças</th><th>Faltas</th><th>Justificadas</th><th>Frequência</th></tr></thead><tbody>';
+  list.forEach(s => {
+    const a = this.attendanceStats(s.id);
+    const cls = a.freq >= 90 ? 'green' : a.freq >= 75 ? 'amber' : 'red';
+    const t = this.classById(s.classId);
+    h += '<tr><td><div class="cell-user"><div class="avatar-sm" style="background:' + Util.colorFor(s.name) + '">' + Util.initials(s.name) + '</div><div class="u-meta"><strong>' + Util.esc(s.name) + '</strong><span class="mono" style="font-size:11px;">' + Util.esc(s.matricula) + '</span></div></div></td><td>' + (t ? Util.esc(t.name) : '—') + '</td><td class="mono">' + a.total + '</td><td><span class="badge green mono">' + a.pres + '</span></td><td><span class="badge red mono">' + a.faltas + '</span></td><td><span class="badge amber mono">' + a.just + '</span></td><td><span class="badge ' + cls + ' mono">' + Util.fmtNum(a.freq, 1) + '%</span></td></tr>';
+  });
+  h += '</tbody></table></div>';
+  ct.innerHTML = h;
+};
+
+App.views.notas = function (el) {
+  const canEdit = ['diretor','coordenador','professor'].includes(Auth.currentUser.role);
+  this.setTitle('Notas', 'Lançamento e consulta de notas');
+  el.innerHTML = '<div class="card mb-24"><div class="card-header"><h3>' + Icons.search + ' Filtrar</h3>' + (canEdit ? '<button type="button" class="btn btn-primary btn-sm" id="btn-lancar-nota">' + Icons.plus + ' Lançar nota</button>' : '') + '</div><div class="card-body"><div class="toolbar"><div class="search">' + Icons.search + '<input type="text" id="notas-busca" placeholder="Buscar aluno..."></div><select id="notas-turma"><option value="">Todas as turmas</option>' + DB.state.classes.map(c => '<option value="' + c.id + '">' + Util.esc(c.name) + '</option>').join('') + '</select><select id="notas-disc"><option value="">Todas as disciplinas</option>' + DB.state.subjects.map(s => '<option value="' + s.id + '">' + Util.esc(s.name) + '</option>').join('') + '</select></div></div></div><div class="card"><div class="card-body" id="notas-tabela" style="padding:0;"></div></div>';
+  this.renderNotasTabela();
+  document.getElementById('notas-busca').addEventListener('input', Util.debounce(() => this.renderNotasTabela(), 200));
+  document.getElementById('notas-turma').addEventListener('change', () => this.renderNotasTabela());
+  document.getElementById('notas-disc').addEventListener('change', () => this.renderNotasTabela());
+  if (canEdit) { const b = document.getElementById('btn-lancar-nota'); if (b) b.addEventListener('click', () => this.modalNota()); }
+};
+
+App.renderNotasTabela = function () {
+  const busca = (document.getElementById('notas-busca') || {}).value || '';
+  const turma = (document.getElementById('notas-turma') || {}).value || '';
+  const disc = (document.getElementById('notas-disc') || {}).value || '';
+  const ct = document.getElementById('notas-tabela');
+  if (!ct) return;
+  let list = DB.state.students.filter(s => s.status === 'Ativo');
+  if (busca) list = list.filter(s => s.name.toLowerCase().includes(busca.toLowerCase()));
+  if (turma) list = list.filter(s => s.classId === turma);
+  if (!list.length) { ct.innerHTML = DB.state.students.length === 0 ? this.emptyState('student', 'Nenhum aluno', 'Cadastre alunos para lançar notas.') : '<div class="empty"><p>Nenhum aluno encontrado.</p></div>'; return; }
+  let h = '<div class="table-wrap"><table class="data"><thead><tr><th>Aluno</th><th>Turma</th><th>Avaliações</th><th>Média</th><th>Status</th></tr></thead><tbody>';
+  list.forEach(s => {
+    let g = DB.state.grades.filter(x => x.studentId === s.id);
+    if (disc) g = g.filter(x => x.subjectId === disc);
+    const m = g.length ? Util.avg(g.map(x => Number(x.value))) : 0;
+    const t = this.classById(s.classId);
+    h += '<tr><td><div class="cell-user"><div class="avatar-sm" style="background:' + Util.colorFor(s.name) + '">' + Util.initials(s.name) + '</div><div class="u-meta"><strong>' + Util.esc(s.name) + '</strong><span class="mono" style="font-size:11px;">' + Util.esc(s.matricula) + '</span></div></div></td><td>' + (t ? Util.esc(t.name) : '—') + '</td><td class="text-sm mono">' + g.length + '</td><td><strong class="mono" style="font-size:15px;">' + Util.fmtNum(m, 1) + '</strong></td><td><span class="badge ' + Util.notaBadge(m) + '">' + (m >= 7 ? 'Aprovado' : m >= 5 ? 'Recuperação' : m === 0 ? 'Sem nota' : 'Reprovado') + '</span></td></tr>';
+  });
+  h += '</tbody></table></div>';
+  ct.innerHTML = h;
+};
+
+App.modalNota = function () {
+  if (!DB.state.students.length) { Toast.warning('Cadastre um aluno antes.'); return; }
+  const body = '<form id="form-nota" novalidate><div class="form-grid">' +
+    '<div class="field-group full"><label>Aluno <span class="req">*</span></label><select name="studentId" required><option value="">Selecione...</option>' + DB.state.students.filter(s => s.status === 'Ativo').map(s => '<option value="' + s.id + '">' + Util.esc(s.name) + ' (' + Util.esc(s.matricula) + ')</option>').join('') + '</select><div class="err">Selecione um aluno.</div></div>' +
+    '<div class="field-group"><label>Disciplina <span class="req">*</span></label><select name="subjectId" required><option value="">Selecione...</option>' + DB.state.subjects.map(s => '<option value="' + s.id + '">' + Util.esc(s.name) + '</option>').join('') + '</select><div class="err">Selecione.</div></div>' +
+    '<div class="field-group"><label>Avaliação <span class="req">*</span></label><input name="assessment" required placeholder="Ex: Prova 1"><div class="err">Informe o nome.</div></div>' +
+    '<div class="field-group"><label>Nota (0 a 10) <span class="req">*</span></label><input type="number" name="value" min="0" max="10" step="0.1" required><div class="err">Informe a nota.</div></div>' +
+    '<div class="field-group"><label>Data</label><input type="date" name="date" value="' + Util.todayISO() + '"></div>' +
+    '</div></form>';
+  Modal.open({
+    title: 'Lançar nota', icon: Icons.edit, body: body, size: 'lg',
+    footer: '<button type="button" class="btn btn-secondary" data-close>Cancelar</button><button type="button" class="btn btn-primary" data-save>Salvar nota</button>',
+    onMount: (bd, close) => {
+      const form = bd.querySelector('#form-nota');
+      bd.querySelector('[data-save]').addEventListener('click', () => {
+        if (!this.validateForm(form)) { Toast.error('Preencha os campos.'); return; }
+        const d = Object.fromEntries(new FormData(form).entries());
+        d.value = Number(d.value);
+        if (isNaN(d.value) || d.value < 0 || d.value > 10) { Toast.error('Nota deve estar entre 0 e 10.'); return; }
+        d.id = DB.id('gr'); d.weight = 1;
+        DB.state.grades.push(d);
+        DB.save(); close(); this.renderNotasTabela();
+        Toast.success('Nota lançada.');
+      });
+    }
+  });
+};
+
+App.views.atividades = function (el) {
+  const canEdit = ['professor','coordenador','diretor'].includes(Auth.currentUser.role);
+  this.setTitle('Atividades', DB.state.activities.length + ' atividades');
+  el.innerHTML = '<div class="card"><div class="card-header"><h3>' + Icons.clipboard + ' Atividades cadastradas</h3>' + (canEdit ? '<button type="button" class="btn btn-primary btn-sm" id="btn-nova-atv">' + Icons.plus + ' Nova atividade</button>' : '') + '</div><div class="card-body" id="lista-atividades" style="padding:0;"></div></div>';
+  this.renderAtividades();
+  if (canEdit) { const b = document.getElementById('btn-nova-atv'); if (b) b.addEventListener('click', () => this.modalAtividade()); }
+};
+
+App.renderAtividades = function () {
+  const ct = document.getElementById('lista-atividades');
+  if (!ct) return;
+  const u = Auth.currentUser;
+  let list = DB.state.activities.slice();
+  if (u.role === 'aluno' || u.role === 'responsavel') { const s = this.studentById(u.studentId); if (s) list = list.filter(a => a.classId === s.classId); }
+  if (!list.length) { ct.innerHTML = this.emptyState('clipboard', 'Nenhuma atividade', 'Ainda não há atividades cadastradas.'); return; }
+  let h = '<div class="table-wrap"><table class="data"><thead><tr><th>Título</th><th>Disciplina</th><th>Entrega</th><th>Valor</th><th>Status</th></tr></thead><tbody>';
+  list.forEach(a => {
+    h += '<tr><td><strong>' + Util.esc(a.title) + '</strong><div class="text-xs text-muted" style="margin-top:3px;">' + Util.esc(a.description || '') + '</div></td><td>' + Util.esc(a.subject) + '</td><td class="mono text-sm">' + Util.fmtDate(a.dueDate) + '</td><td class="mono">' + a.value + ' pts</td><td><span class="badge ' + Util.statusClass(a.status) + '">' + Util.esc(a.status) + '</span></td></tr>';
+  });
+  h += '</tbody></table></div>';
+  ct.innerHTML = h;
+};
+
+App.modalAtividade = function () {
+  if (!DB.state.classes.length) { Toast.warning('Cadastre uma turma primeiro.'); return; }
+  const body = '<form id="form-atv" novalidate><div class="form-grid">' +
+    '<div class="field-group full"><label>Título <span class="req">*</span></label><input name="title" required><div class="err">Informe o título.</div></div>' +
+    '<div class="field-group"><label>Disciplina <span class="req">*</span></label><select name="subject" required><option value="">Selecione...</option>' + DB.state.subjects.map(s => '<option>' + Util.esc(s.name) + '</option>').join('') + '</select><div class="err">Selecione.</div></div>' +
+    '<div class="field-group"><label>Turma <span class="req">*</span></label><select name="classId" required><option value="">Selecione...</option>' + DB.state.classes.map(c => '<option value="' + c.id + '">' + Util.esc(c.name) + '</option>').join('') + '</select><div class="err">Selecione.</div></div>' +
+    '<div class="field-group"><label>Data de entrega <span class="req">*</span></label><input type="date" name="dueDate" required><div class="err">Informe a data.</div></div>' +
+    '<div class="field-group"><label>Valor (pontos)</label><input type="number" name="value" value="10" min="0"></div>' +
+    '<div class="field-group"><label>Status</label><select name="status"><option>Disponível</option><option>Em andamento</option><option>Encerrada</option></select></div>' +
+    '<div class="field-group full"><label>Descrição</label><textarea name="description"></textarea></div>' +
+    '</div></form>';
+  Modal.open({
+    title: 'Nova atividade', icon: Icons.clipboard, body: body, size: 'lg',
+    footer: '<button type="button" class="btn btn-secondary" data-close>Cancelar</button><button type="button" class="btn btn-primary" data-save>Cadastrar</button>',
+    onMount: (bd, close) => {
+      const form = bd.querySelector('#form-atv');
+      bd.querySelector('[data-save]').addEventListener('click', () => {
+        if (!this.validateForm(form)) { Toast.error('Preencha os campos.'); return; }
+        const d = Object.fromEntries(new FormData(form).entries());
+        d.id = DB.id('a'); d.createdAt = Util.todayISO(); d.value = Number(d.value) || 10;
+        DB.state.activities.push(d);
+        DB.save(); close(); this.renderAtividades(); Toast.success('Atividade cadastrada.');
+      });
+    }
+  });
+};
+
+App.views.ocorrencias = function (el) {
+  const canEdit = ['professor','coordenador','diretor'].includes(Auth.currentUser.role);
+  this.setTitle('Ocorrências', DB.state.occurrences.length + ' registradas');
+  el.innerHTML = '<div class="card"><div class="card-header"><h3>' + Icons.alert + ' Registro de ocorrências</h3>' + (canEdit ? '<button type="button" class="btn btn-primary btn-sm" id="btn-nova-oc">' + Icons.plus + ' Nova ocorrência</button>' : '') + '</div><div class="card-body" id="lista-oc" style="padding:0;"></div></div>';
+  this.renderOcorrencias();
+  if (canEdit) { const b = document.getElementById('btn-nova-oc'); if (b) b.addEventListener('click', () => this.modalOcorrencia()); }
+};
+
+App.renderOcorrencias = function () {
+  const ct = document.getElementById('lista-oc');
+  if (!ct) return;
+  const u = Auth.currentUser;
+  let list = DB.state.occurrences.slice();
+  if (u.role === 'aluno' || u.role === 'responsavel') { const s = this.studentById(u.studentId); if (s) list = list.filter(o => o.studentId === s.id); }
+  list.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  if (!list.length) { ct.innerHTML = this.emptyState('alert', 'Nenhuma ocorrência', 'Ainda não há ocorrências registradas.'); return; }
+  let h = '<div class="table-wrap"><table class="data"><thead><tr><th>Aluno</th><th>Data</th><th>Categoria</th><th>Descrição</th><th>Situação</th></tr></thead><tbody>';
+  list.forEach(o => {
+    const s = this.studentById(o.studentId);
+    h += '<tr><td>' + (s ? '<div class="cell-user"><div class="avatar-sm" style="background:' + Util.colorFor(s.name) + '">' + Util.initials(s.name) + '</div><div class="u-meta"><strong>' + Util.esc(s.name) + '</strong><span class="mono" style="font-size:11px;">' + Util.esc(s.matricula) + '</span></div></div>' : '—') + '</td><td class="mono text-sm">' + Util.fmtDate(o.date) + '</td><td>' + Util.esc(o.category || '—') + '</td><td class="text-sm">' + Util.esc(o.description) + '</td><td><span class="badge ' + Util.statusClass(o.situation) + '">' + Util.esc(o.situation) + '</span></td></tr>';
+  });
+  h += '</tbody></table></div>';
+  ct.innerHTML = h;
+};
+
+App.modalOcorrencia = function () {
+  if (!DB.state.students.length) { Toast.warning('Cadastre um aluno primeiro.'); return; }
+  const body = '<form id="form-oc" novalidate><div class="form-grid">' +
+    '<div class="field-group full"><label>Aluno <span class="req">*</span></label><select name="studentId" required><option value="">Selecione...</option>' + DB.state.students.filter(s => s.status === 'Ativo').map(s => '<option value="' + s.id + '">' + Util.esc(s.name) + ' (' + Util.esc(s.matricula) + ')</option>').join('') + '</select><div class="err">Selecione.</div></div>' +
+    '<div class="field-group"><label>Data <span class="req">*</span></label><input type="date" name="date" value="' + Util.todayISO() + '" required></div>' +
+    '<div class="field-group"><label>Categoria <span class="req">*</span></label><select name="category" required><option value="">Selecione...</option>' + ['Comportamento','Atraso','Falta','Uso inadequado de equipamento','Uso de celular','Desrespeito','Outros'].map(c => '<option>' + c + '</option>').join('') + '</select><div class="err">Selecione.</div></div>' +
+    '<div class="field-group"><label>Situação</label><select name="situation"><option>Registrada</option><option>Positiva</option><option>Resolvida</option></select></div>' +
+    '<div class="field-group full"><label>Descrição <span class="req">*</span></label><textarea name="description" required></textarea><div class="err">Descreva.</div></div>' +
+    '</div></form>';
+  Modal.open({
+    title: 'Nova ocorrência', icon: Icons.alert, body: body, size: 'lg',
+    footer: '<button type="button" class="btn btn-secondary" data-close>Cancelar</button><button type="button" class="btn btn-primary" data-save>Registrar</button>',
+    onMount: (bd, close) => {
+      const form = bd.querySelector('#form-oc');
+      bd.querySelector('[data-save]').addEventListener('click', () => {
+        if (!this.validateForm(form)) { Toast.error('Preencha os campos.'); return; }
+        const d = Object.fromEntries(new FormData(form).entries());
+        d.id = DB.id('o'); d.teacherId = '';
+        DB.state.occurrences.push(d);
+        DB.save(); close(); this.renderOcorrencias(); Toast.success('Ocorrência registrada.');
+      });
+    }
+  });
+};
+
+App.views.comunicados = function (el) {
+  const canPub = ['coordenador','diretor'].includes(Auth.currentUser.role);
+  this.setTitle('Comunicados', DB.state.announcements.length + ' publicados');
+  el.innerHTML = '<div class="card"><div class="card-header"><h3>' + Icons.megaphone + ' Mural de comunicados</h3>' + (canPub ? '<button type="button" class="btn btn-primary btn-sm" id="btn-novo-com">' + Icons.plus + ' Publicar</button>' : '') + '</div><div class="card-body" id="lista-com"></div></div>';
+  this.renderComunicados();
+  if (canPub) { const b = document.getElementById('btn-novo-com'); if (b) b.addEventListener('click', () => this.modalComunicado()); }
+};
+
+App.renderComunicados = function () {
+  const ct = document.getElementById('lista-com');
+  if (!ct) return;
+  const list = DB.state.announcements.slice().sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  if (!list.length) { ct.innerHTML = this.emptyState('megaphone', 'Nenhum comunicado', 'Ainda não há comunicados publicados.'); return; }
+  let h = '';
+  list.forEach((a, idx) => {
+    h += '<div class="card mb-16" style="border-left:3px solid var(--yellow);background:var(--blue-soft);animation: fadeUp .4s ' + (idx * 0.05) + 's both;"><div class="card-body"><div class="flex items-center justify-between mb-8"><h4 style="font-size:14.5px;font-weight:600;letter-spacing:-0.01em;">' + Util.esc(a.title) + '</h4><span class="text-xs text-muted mono">' + Util.fmtDateLong(a.date) + '</span></div><p class="text-sm" style="color:var(--ink-2);line-height:1.6;">' + Util.esc(a.message) + '</p><div class="mt-12 flex items-center gap-8"><span class="chip">' + Util.esc(a.author) + '</span><span class="chip">' + Util.esc(a.target) + '</span></div></div></div>';
+  });
+  ct.innerHTML = h;
+};
+
+App.modalComunicado = function () {
+  const body = '<form id="form-com" novalidate><div class="form-grid">' +
+    '<div class="field-group full"><label>Título <span class="req">*</span></label><input name="title" required><div class="err">Informe o título.</div></div>' +
+    '<div class="field-group"><label>Destinatário</label><select name="target"><option>Todos</option><option>Professores</option><option>Alunos</option><option>Responsáveis</option></select></div>' +
+    '<div class="field-group"><label>Autor</label><input name="author" value="' + Util.esc(Auth.currentUser.name) + '"></div>' +
+    '<div class="field-group full"><label>Mensagem <span class="req">*</span></label><textarea name="message" required></textarea><div class="err">Escreva a mensagem.</div></div>' +
+    '</div></form>';
+  Modal.open({
+    title: 'Novo comunicado', icon: Icons.megaphone, body: body, size: 'lg',
+    footer: '<button type="button" class="btn btn-secondary" data-close>Cancelar</button><button type="button" class="btn btn-primary" data-save>Publicar</button>',
+    onMount: (bd, close) => {
+      const form = bd.querySelector('#form-com');
+      bd.querySelector('[data-save]').addEventListener('click', () => {
+        if (!this.validateForm(form)) { Toast.error('Preencha os campos.'); return; }
+        const d = Object.fromEntries(new FormData(form).entries());
+        d.id = DB.id('n'); d.date = Util.todayISO();
+        DB.state.announcements.push(d);
+        DB.save(); close(); this.renderComunicados(); Toast.success('Comunicado publicado.');
+      });
+    }
+  });
+};
+
+App.views['minhas-notas'] = function (el) {
+  const u = Auth.currentUser;
+  const s = u.studentId ? this.studentById(u.studentId) : null;
+  if (!s) { this.setTitle('Notas', ''); el.innerHTML = this.emptyState('student', 'Perfil não vinculado', 'Sua conta ainda não está vinculada a um aluno.'); return; }
+  this.setTitle('Minhas Notas', s.name);
+  const m = this.averageOf(s.id);
+  const porDisc = this.averagesBySubject(s.id);
+  el.innerHTML = '<div class="stats-grid mb-24">' +
+      this.statCard('edit', 'blue', 'Média geral', Util.fmtNum(m, 1)) +
+      this.statCard('bookOpen', 'amber', 'Disciplinas', Object.keys(porDisc).length) +
+    '</div>' +
+    '<div class="card mb-24"><div class="card-header"><h3>' + Icons.chart + ' Desempenho por disciplina</h3></div><div class="card-body">' + this.subjectBars(porDisc) + '</div></div>' +
+    '<div class="card"><div class="card-header"><h3>' + Icons.edit + ' Detalhamento das avaliações</h3></div><div class="card-body" style="padding:0;">' + this.notasDetalhadas(s.id) + '</div></div>';
+};
+
+App.notasDetalhadas = function (sid) {
+  const gs = DB.state.grades.filter(g => g.studentId === sid);
+  if (!gs.length) return '<div class="empty" style="padding:32px;"><p>Nenhuma nota lançada.</p></div>';
+  let h = '<div class="table-wrap"><table class="data"><thead><tr><th>Disciplina</th><th>Avaliação</th><th>Data</th><th>Nota</th></tr></thead><tbody>';
+  gs.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  gs.forEach(g => {
+    const s = this.subjectById(g.subjectId);
+    h += '<tr><td>' + (s ? Util.esc(s.name) : '—') + '</td><td>' + Util.esc(g.assessment) + '</td><td class="mono text-sm">' + Util.fmtDate(g.date) + '</td><td><span class="badge ' + Util.notaBadge(Number(g.value)) + ' mono">' + Util.fmtNum(g.value, 1) + '</span></td></tr>';
+  });
+  h += '</tbody></table></div>';
+  return h;
+};
+
+App.views['minha-frequencia'] = function (el) {
+  const u = Auth.currentUser;
+  const s = u.studentId ? this.studentById(u.studentId) : null;
+  if (!s) { el.innerHTML = this.emptyState('student', 'Perfil não vinculado', 'Sua conta ainda não está vinculada a um aluno.'); return; }
+  this.setTitle('Minha Frequência', s.name);
+  const a = this.attendanceStats(s.id);
+  const recs = DB.state.attendance.filter(x => x.studentId === s.id).sort((x, y) => (y.date || '').localeCompare(x.date || ''));
+  el.innerHTML = '<div class="stats-grid mb-24">' +
+      this.statCard('checkCircle', 'green', 'Frequência', Util.fmtNum(a.freq, 1) + '%') +
+      this.statCard('book', 'blue', 'Total de aulas', a.total) +
+      this.statCard('check', 'green', 'Presenças', a.pres) +
+      this.statCard('clock', 'amber', 'Justificadas', a.just) +
+      this.statCard('alert', 'red', 'Faltas', a.faltas) +
+    '</div>' +
+    '<div class="card mb-24"><div class="card-body"><div class="progress ' + (a.freq >= 90 ? 'green' : a.freq >= 75 ? 'amber' : 'red') + '" style="height:8px;"><div class="bar" style="width:' + a.freq.toFixed(1) + '%;"></div></div><p class="text-sm text-muted mt-12">Mínimo de 75% de frequência para aprovação.</p></div></div>' +
+    '<div class="card"><div class="card-header"><h3>' + Icons.clock + ' Histórico de frequência</h3></div><div class="card-body" style="padding:0;">' + this.historicoFrequencia(recs) + '</div></div>';
+};
+
+App.historicoFrequencia = function (recs) {
+  if (!recs.length) return '<div class="empty" style="padding:32px;"><p>Nenhum registro.</p></div>';
+  let h = '<div class="table-wrap"><table class="data"><thead><tr><th>Data</th><th>Disciplina</th><th>Situação</th></tr></thead><tbody>';
+  recs.forEach(r => {
+    const s = this.subjectById(r.subjectId);
+    h += '<tr><td class="mono text-sm">' + Util.fmtDate(r.date) + '</td><td>' + (s ? Util.esc(s.name) : '—') + '</td><td><span class="badge ' + Util.statusClass(r.status) + '">' + Util.esc(r.status) + '</span></td></tr>';
+  });
+  h += '</tbody></table></div>';
+  return h;
+};
+
+App.views.conteudos = function (el) {
+  this.setTitle('Conteúdos das Aulas', DB.state.lessons.length + ' registros');
+  const list = DB.state.lessons.slice().sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  let h = '<div class="card"><div class="card-body">';
+  if (!list.length) h += this.emptyState('bookOpen', 'Nenhum conteúdo', 'Ainda não há registros de conteúdo de aulas.');
+  else {
+    h += '<div class="timeline">';
+    list.forEach(l => {
+      const c = this.classById(l.classId);
+      const s = this.subjectById(l.subjectId);
+      h += '<div class="timeline-item"><div class="t-title">' + (s ? Util.esc(s.name) : 'Sem disciplina') + ' · ' + (c ? Util.esc(c.name) : '—') + '</div><div class="t-time mono">' + Util.fmtDateLong(l.date) + '</div><div class="t-desc">' + Util.esc(l.content) + (l.note ? '<br><em class="text-muted">Obs.: ' + Util.esc(l.note) + '</em>' : '') + '</div></div>';
+    });
+    h += '</div>';
+  }
+  h += '</div></div>';
+  el.innerHTML = h;
+};
+
+App.views.perfil = function (el) {
+  const u = Auth.currentUser;
+  const s = u.studentId ? this.studentById(u.studentId) : null;
+  if (!s) { el.innerHTML = this.emptyState('user', 'Perfil não vinculado', 'Sua conta ainda não está associada a um aluno.'); return; }
+  this.setTitle('Meu Perfil', s.name);
+  const t = this.classById(s.classId);
+  el.innerHTML = '<div class="card mb-24"><div class="card-body">' +
+      '<div class="flex items-center gap-16">' +
+        '<div style="width:72px;height:72px;border-radius:12px;background:' + Util.colorFor(s.name) + ';display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:700;color:#fff;">' + Util.initials(s.name) + '</div>' +
+        '<div><h2 style="font-size:22px;font-weight:700;letter-spacing:-0.02em;">' + Util.esc(s.name) + '</h2>' +
+        '<p class="text-muted mt-8 mono" style="font-size:12.5px;">' + Util.esc(s.matricula) + ' · ' + (t ? Util.esc(t.name) : '—') + '</p>' +
+        '<div class="mt-12 flex gap-8"><span class="badge ' + Util.statusClass(s.status) + '">' + Util.esc(s.status) + '</span><span class="chip">' + Util.esc(s.period || '') + '</span></div></div>' +
+      '</div>' +
+    '</div></div>' +
+    '<div class="card"><div class="card-header"><h3>' + Icons.user + ' Dados pessoais</h3></div><div class="card-body"><div class="grid-2">' +
+      '<div><span class="text-xs text-muted text-bold" style="text-transform:uppercase;letter-spacing:0.08em;">Data de nascimento</span><div>' + Util.fmtDate(s.birth) + '</div></div>' +
+      '<div><span class="text-xs text-muted text-bold" style="text-transform:uppercase;letter-spacing:0.08em;">E-mail</span><div>' + Util.esc(s.email || '—') + '</div></div>' +
+      '<div><span class="text-xs text-muted text-bold" style="text-transform:uppercase;letter-spacing:0.08em;">Telefone</span><div>' + Util.esc(s.phone || '—') + '</div></div>' +
+      '<div><span class="text-xs text-muted text-bold" style="text-transform:uppercase;letter-spacing:0.08em;">Curso</span><div>' + Util.esc(s.course || '—') + '</div></div>' +
+      '<div><span class="text-xs text-muted text-bold" style="text-transform:uppercase;letter-spacing:0.08em;">Responsável</span><div>' + Util.esc(s.guardian || '—') + '</div></div>' +
+      '<div><span class="text-xs text-muted text-bold" style="text-transform:uppercase;letter-spacing:0.08em;">Tel. responsável</span><div>' + Util.esc(s.guardianPhone || '—') + '</div></div>' +
+    '</div></div></div>';
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+  try { DB.load(); App.init(); }
+  catch (e) { console.error('Erro na inicialização:', e); alert('Erro ao iniciar o sistema: ' + e.message); }
+});
+</script>
+</body>
+</html>
+
