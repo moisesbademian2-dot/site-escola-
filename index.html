@@ -58,100 +58,6 @@ body {
   overflow-x: hidden;
 }
 
-/* ORBS DE FUNDO */
-body::before {
-  content: '';
-  position: fixed;
-  inset: -15%;
-  background:
-    radial-gradient(circle at 15% 25%, rgba(59, 130, 246, .30), transparent 42%),
-    radial-gradient(circle at 85% 15%, rgba(30, 64, 175, .22), transparent 42%),
-    radial-gradient(circle at 25% 85%, rgba(251, 191, 36, .14), transparent 42%),
-    radial-gradient(circle at 80% 75%, rgba(37, 99, 235, .24), transparent 42%),
-    radial-gradient(circle at 50% 50%, rgba(219, 234, 254, .4), transparent 48%);
-  filter: blur(60px);
-  animation: bgOrbit 22s ease-in-out infinite;
-  pointer-events: none;
-  z-index: 0;
-  will-change: transform;
-}
-body::after {
-  content: '';
-  position: fixed;
-  top: -50%; left: -50%;
-  width: 200%; height: 200%;
-  background:
-    radial-gradient(circle at 30% 40%, rgba(59, 130, 246, .12), transparent 20%),
-    radial-gradient(circle at 70% 60%, rgba(251, 191, 36, .10), transparent 20%),
-    radial-gradient(circle at 50% 80%, rgba(30, 64, 175, .12), transparent 20%);
-  filter: blur(80px);
-  animation: bgRotate 70s linear infinite;
-  pointer-events: none;
-  z-index: 0;
-  will-change: transform;
-}
-@keyframes bgOrbit {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  25%      { transform: translate(60px, -50px) scale(1.12); }
-  50%      { transform: translate(-50px, 50px) scale(1.06); }
-  75%      { transform: translate(50px, 40px) scale(1.15); }
-}
-@keyframes bgRotate {
-  0%   { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-/* CANVAS DE LINHAS CONECTADAS */
-#network-canvas {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  opacity: .85;
-}
-
-/* LINHAS DIAGONAIS ANIMADAS */
-.diag-lines {
-  position: fixed;
-  inset: -30%;
-  z-index: 0;
-  pointer-events: none;
-  background: repeating-linear-gradient(115deg,
-    transparent 0,
-    transparent 120px,
-    rgba(59, 130, 246, .08) 120px,
-    rgba(59, 130, 246, .08) 121px,
-    transparent 121px,
-    transparent 300px,
-    rgba(251, 191, 36, .06) 300px,
-    rgba(251, 191, 36, .06) 301px);
-  animation: diagMove 24s linear infinite;
-  will-change: transform;
-}
-@keyframes diagMove {
-  0%   { transform: translate(0, 0); }
-  100% { transform: translate(120px, 120px); }
-}
-
-/* SCANLINE VARRENDO */
-.scanline {
-  position: fixed;
-  left: 0; right: 0;
-  height: 140px;
-  z-index: 0;
-  pointer-events: none;
-  background: linear-gradient(to bottom, transparent 0%, rgba(59, 130, 246, .12) 50%, transparent 100%);
-  filter: blur(6px);
-  animation: scanSweep 8s linear infinite;
-  will-change: transform;
-}
-@keyframes scanSweep {
-  0%   { transform: translateY(-200px); opacity: 0; }
-  10%  { opacity: 1; }
-  90%  { opacity: 1; }
-  100% { transform: translateY(110vh); opacity: 0; }
-}
-
 /* ============================================================================
    ✨ ANIMAÇÕES DE ENTRADA
    ============================================================================ */
@@ -163,10 +69,6 @@ body::after {
   from { opacity: 0; transform: translateX(-32px); }
   to   { opacity: 1; transform: translateX(0); }
 }
-@keyframes fadeLeft {
-  from { opacity: 0; transform: translateX(32px); }
-  to   { opacity: 1; transform: translateX(0); }
-}
 @keyframes popIn {
   0%   { opacity: 0; transform: scale(.85); }
   60%  { transform: scale(1.05); }
@@ -175,19 +77,6 @@ body::after {
 @keyframes glowPulse {
   0%, 100% { box-shadow: 0 0 0 0 rgba(251, 191, 36, .6), 0 4px 14px rgba(251, 191, 36, .35); }
   50%      { box-shadow: 0 0 0 12px rgba(251, 191, 36, 0), 0 4px 28px rgba(251, 191, 36, .8); }
-}
-@keyframes floatOrb {
-  0%, 100% { transform: translate(0, 0) rotate(0deg); }
-  33%      { transform: translate(30px, -20px) rotate(120deg); }
-  66%      { transform: translate(-20px, 30px) rotate(240deg); }
-}
-@keyframes logoRingSpin {
-  from { transform: rotate(0deg); }
-  to   { transform: rotate(360deg); }
-}
-@keyframes gradientShift {
-  0%, 100% { background-position: 0% 50%; }
-  50%      { background-position: 100% 50%; }
 }
 @keyframes barShine {
   0%   { transform: translateX(-100%); }
@@ -227,414 +116,196 @@ h1, h2, h3, h4 { letter-spacing: -0.02em; }
 }
 
 /* ============================================================================
-   🎨 NOVA TELA DE LOGIN
+   🎨 TELA DE LOGIN — CARTÃO ÚNICO
    ============================================================================ */
 .auth-screen {
-  display: grid;
-  grid-template-columns: 1.05fr 1fr;
   min-height: 100vh;
-  position: relative;
-  z-index: 1;
-  background: transparent;
-}
-
-.auth-left {
-  background: linear-gradient(135deg, rgba(15, 23, 42, .97) 0%, rgba(30, 58, 138, .95) 55%, rgba(30, 64, 175, .93) 100%);
-  background-size: 200% 200%;
-  animation: gradientShift 12s ease-in-out infinite;
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  color: #f5f4f1;
-  padding: 56px;
   display: flex;
-  flex-direction: column;
-  justify-content: space-between;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 20px;
   position: relative;
   overflow: hidden;
+  background:
+    radial-gradient(ellipse 120% 70% at 50% 115%, rgba(59, 130, 246, .38), transparent 60%),
+    radial-gradient(ellipse 70% 45% at 12% -8%, rgba(251, 191, 36, .14), transparent 60%),
+    linear-gradient(180deg, #05070d 0%, #0a0f1e 45%, #0d1428 100%);
 }
 
-/* Orbs flutuantes decorativas */
-.auth-left::before {
-  content: '';
-  position: absolute;
-  top: -200px; right: -200px;
-  width: 500px; height: 500px;
-  background: var(--yellow);
-  border-radius: 50%;
-  filter: blur(140px);
-  opacity: .22;
-  animation: floatOrb 20s ease-in-out infinite;
-}
-.auth-left::after {
-  content: '';
-  position: absolute;
-  bottom: -150px; left: -100px;
-  width: 400px; height: 400px;
-  background: var(--blue-light);
-  border-radius: 50%;
-  filter: blur(120px);
-  opacity: .25;
-  animation: floatOrb 25s ease-in-out infinite reverse;
-}
-
-/* Grid sutil no painel esquerdo */
-.auth-left .grid-overlay {
-  position: absolute;
-  inset: 0;
+.auth-stars {
+  position: absolute; inset: 0; z-index: 0; pointer-events: none;
   background-image:
-    linear-gradient(rgba(255,255,255,.045) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,.045) 1px, transparent 1px);
-  background-size: 44px 44px;
-  pointer-events: none;
-  mask-image: radial-gradient(circle at 30% 30%, black 0%, transparent 75%);
-  -webkit-mask-image: radial-gradient(circle at 30% 30%, black 0%, transparent 75%);
+    radial-gradient(1.5px 1.5px at 10% 20%, rgba(255,255,255,.9), transparent),
+    radial-gradient(1.5px 1.5px at 80% 12%, rgba(255,255,255,.7), transparent),
+    radial-gradient(1px 1px at 32% 72%, rgba(255,255,255,.8), transparent),
+    radial-gradient(1px 1px at 62% 38%, rgba(255,255,255,.6), transparent),
+    radial-gradient(1.5px 1.5px at 92% 62%, rgba(255,255,255,.7), transparent),
+    radial-gradient(1px 1px at 46% 88%, rgba(255,255,255,.5), transparent),
+    radial-gradient(1px 1px at 72% 92%, rgba(255,255,255,.6), transparent),
+    radial-gradient(1.5px 1.5px at 22% 46%, rgba(255,255,255,.5), transparent),
+    radial-gradient(1px 1px at 5% 55%, rgba(255,255,255,.5), transparent),
+    radial-gradient(1px 1px at 55% 8%, rgba(255,255,255,.6), transparent);
+  animation: starsTwinkle 5s ease-in-out infinite alternate;
 }
+@keyframes starsTwinkle { from { opacity: .5; } to { opacity: 1; } }
 
-.auth-brand-lg {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  position: relative;
-  z-index: 2;
-  animation: fadeRight .7s .1s cubic-bezier(.22, 1, .36, 1) both;
-}
-
-/* LOGO com anel girando */
-.auth-brand-lg .logo-wrap {
-  position: relative;
-  width: 60px; height: 60px;
-  flex-shrink: 0;
-}
-.auth-brand-lg .logo-ring {
-  position: absolute;
-  inset: -4px;
-  border-radius: 16px;
-  background: conic-gradient(from 0deg, var(--yellow), var(--blue-light), var(--yellow), var(--blue-light), var(--yellow));
-  animation: logoRingSpin 6s linear infinite;
-  filter: blur(2px);
-  opacity: .9;
-}
-.auth-brand-lg .logo-lg {
-  position: relative;
-  width: 60px; height: 60px;
-  border-radius: 14px;
-  background: #ffffff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 5px;
-  overflow: hidden;
-  z-index: 1;
-  animation: popIn .6s .15s cubic-bezier(.34, 1.56, .64, 1) both;
-}
-.auth-brand-lg h1 {
-  font-size: 21px;
-  font-weight: 800;
-  color: #fff;
-  letter-spacing: -0.025em;
-  background: linear-gradient(90deg, #fff, #cbd5e1);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-.auth-brand-lg p {
-  font-size: 10.5px;
+.auth-sparkle {
+  position: absolute; z-index: 1; pointer-events: none;
   color: var(--yellow);
-  margin-top: 3px;
-  letter-spacing: .18em;
-  text-transform: uppercase;
-  font-weight: 700;
+  filter: drop-shadow(0 0 10px rgba(251, 191, 36, .7));
+  animation: floatSparkle 7s ease-in-out infinite;
+}
+.auth-sparkle svg { width: 100%; height: 100%; }
+.auth-sparkle.s1 { top: 14%; left: 9%; width: 20px; height: 20px; animation-delay: 0s; }
+.auth-sparkle.s2 { top: 64%; right: 8%; width: 30px; height: 30px; animation-delay: 1.3s; }
+.auth-sparkle.s3 { bottom: 9%; left: 16%; width: 16px; height: 16px; animation-delay: 2.6s; }
+@keyframes floatSparkle {
+  0%, 100% { transform: translateY(0) rotate(0deg); opacity: .65; }
+  50%      { transform: translateY(-14px) rotate(15deg); opacity: 1; }
 }
 
-.auth-tagline {
-  position: relative;
-  z-index: 2;
-  max-width: 520px;
-}
-.auth-tagline .eyebrow {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: .16em;
-  text-transform: uppercase;
-  color: var(--yellow);
-  margin-bottom: 22px;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 14px;
-  border: 1px solid rgba(251, 191, 36, .5);
-  border-radius: 100px;
-  background: rgba(251, 191, 36, .08);
-  animation: fadeRight .6s .25s cubic-bezier(.22, 1, .36, 1) both;
-}
-.auth-tagline .eyebrow::before {
-  content: '';
-  width: 6px; height: 6px;
-  border-radius: 50%;
-  background: var(--yellow);
-  box-shadow: 0 0 12px var(--yellow);
-  animation: dotPulse 2s ease-in-out infinite;
-}
-
-.auth-tagline h2 {
-  font-size: 46px;
-  font-weight: 800;
-  line-height: 1.05;
-  letter-spacing: -0.035em;
-  color: #fff;
-  margin-bottom: 22px;
-  animation: fadeRight .7s .35s cubic-bezier(.22, 1, .36, 1) both;
-}
-.auth-tagline h2 em {
-  background: linear-gradient(120deg, var(--yellow) 0%, #fde68a 50%, var(--yellow) 100%);
-  background-size: 200% auto;
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  font-style: normal;
-  animation: gradientShift 4s ease-in-out infinite;
-}
-.auth-tagline p {
-  font-size: 15px;
-  color: #cbd5e1;
-  line-height: 1.65;
-  max-width: 420px;
-  animation: fadeRight .6s .5s cubic-bezier(.22, 1, .36, 1) both;
-}
-
-.auth-features {
-  position: relative;
-  z-index: 2;
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
-  font-size: 12.5px;
-  color: #e2e8f0;
-  max-width: 480px;
-}
-.auth-features .feature-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 14px;
-  background: rgba(255, 255, 255, .04);
+.auth-card {
+  position: relative; z-index: 2;
+  width: 100%; max-width: 440px;
+  background: rgba(15, 23, 42, .55);
+  backdrop-filter: blur(28px) saturate(160%);
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
   border: 1px solid rgba(255, 255, 255, .09);
-  border-radius: 10px;
-  backdrop-filter: blur(10px);
-  animation: fadeUp .5s both;
-  transition: var(--transition);
+  border-radius: 28px;
+  padding: 44px 40px 36px;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, .5), 0 0 0 1px rgba(255, 255, 255, .02) inset;
+  animation: popIn .5s cubic-bezier(.22, 1, .36, 1) both;
 }
-.auth-features .feature-item:hover {
-  background: rgba(255, 255, 255, .08);
-  border-color: rgba(251, 191, 36, .4);
-  transform: translateY(-2px);
-}
-.auth-features .feature-item .f-ico {
-  width: 28px; height: 28px;
-  border-radius: 7px;
-  background: linear-gradient(135deg, var(--yellow), var(--yellow-light));
-  color: var(--blue-dark);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-.auth-features .feature-item .f-ico .ico { width: 15px; height: 15px; stroke-width: 2.4; }
-.auth-features .feature-item:nth-child(1) { animation-delay: .6s; }
-.auth-features .feature-item:nth-child(2) { animation-delay: .68s; }
-.auth-features .feature-item:nth-child(3) { animation-delay: .76s; }
-.auth-features .feature-item:nth-child(4) { animation-delay: .84s; }
 
-/* Painel direito */
-.auth-right {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 56px 48px;
-  background: rgba(255, 255, 255, .78);
-  backdrop-filter: blur(28px) saturate(180%);
-  -webkit-backdrop-filter: blur(28px) saturate(180%);
-  position: relative;
+.auth-card-logo {
+  width: 72px; height: 72px;
+  margin: 0 auto 20px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, var(--blue-light), var(--yellow));
+  padding: 4px;
+  box-shadow: 0 10px 30px rgba(59, 130, 246, .35);
+}
+.auth-card-logo-inner {
+  width: 100%; height: 100%;
+  border-radius: 16px;
+  background: #fff;
+  display: flex; align-items: center; justify-content: center;
+  padding: 6px;
   overflow: hidden;
 }
-.auth-right::before {
-  content: '';
-  position: absolute;
-  top: -100px; right: -100px;
-  width: 300px; height: 300px;
-  background: radial-gradient(circle, rgba(59, 130, 246, .2), transparent 70%);
-  pointer-events: none;
-}
 
-.auth-form-wrap {
-  width: 100%;
-  max-width: 400px;
-  position: relative;
-  z-index: 1;
+.auth-card-title {
+  text-align: center;
+  font-size: 24px; font-weight: 800; letter-spacing: -0.02em;
+  color: #fff; margin-bottom: 6px;
 }
-
-.auth-form-wrap .form-eyebrow {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: .16em;
-  text-transform: uppercase;
-  color: var(--blue);
-  margin-bottom: 10px;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  animation: fadeLeft .5s .2s cubic-bezier(.22, 1, .36, 1) both;
-}
-.auth-form-wrap .form-eyebrow::before {
-  content: '';
-  width: 20px;
-  height: 2px;
-  background: var(--blue);
-  border-radius: 2px;
-}
-
-.auth-form-wrap h3 {
-  font-size: 28px;
-  font-weight: 800;
-  letter-spacing: -0.03em;
-  margin-bottom: 8px;
-  color: var(--ink);
-  animation: fadeLeft .6s .3s cubic-bezier(.22, 1, .36, 1) both;
-}
-.auth-form-wrap .form-sub {
-  font-size: 14px;
-  color: var(--muted);
-  margin-bottom: 36px;
-  animation: fadeLeft .5s .4s cubic-bezier(.22, 1, .36, 1) both;
+.auth-card-sub {
+  text-align: center;
+  font-size: 13px; color: #94a3b8; line-height: 1.6;
+  margin-bottom: 28px;
 }
 
 .setup-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
   padding: 8px 14px;
-  background: linear-gradient(135deg, var(--yellow-soft), #fff8e1);
-  color: var(--yellow-dark);
-  border: 1px solid rgba(251, 191, 36, .4);
+  background: rgba(251, 191, 36, .12);
+  color: var(--yellow-light);
+  border: 1px solid rgba(251, 191, 36, .3);
   border-radius: 100px;
-  font-size: 11.5px;
-  font-weight: 700;
+  font-size: 11.5px; font-weight: 700;
   margin-bottom: 22px;
   letter-spacing: .02em;
   animation: popIn .5s .3s cubic-bezier(.34, 1.56, .64, 1) both;
 }
 
 /* Campos com ícones */
-.auth-field {
-  display: block;
-  margin-bottom: 18px;
-  position: relative;
-  animation: fadeLeft .5s both;
-}
-.auth-field:nth-of-type(1) { animation-delay: .5s; }
-.auth-field:nth-of-type(2) { animation-delay: .58s; }
-
+.auth-field { display: block; margin-bottom: 16px; position: relative; }
 .auth-field > span {
   display: block;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--ink-2);
-  margin-bottom: 8px;
-  letter-spacing: -0.005em;
-  text-transform: uppercase;
-  font-size: 10.5px;
-  letter-spacing: .08em;
+  font-size: 10.5px; font-weight: 700;
+  color: #94a3b8; margin-bottom: 7px;
+  text-transform: uppercase; letter-spacing: .08em;
 }
-
-.auth-field .input-wrap {
-  position: relative;
-}
+.auth-field .input-wrap { position: relative; }
 .auth-field .input-ico {
-  position: absolute;
-  left: 14px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 18px; height: 18px;
-  color: var(--subtle);
-  pointer-events: none;
-  transition: var(--transition);
+  position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+  width: 17px; height: 17px; color: #64748b;
+  pointer-events: none; transition: var(--transition);
 }
 .auth-field input,
 .auth-field select {
   width: 100%;
-  padding: 13px 14px 13px 44px;
-  border: 1.5px solid var(--border-2);
-  border-radius: 10px;
-  background: rgba(255, 255, 255, .9);
-  color: var(--ink);
+  padding: 12px 14px 12px 42px;
+  border: 1px solid rgba(255, 255, 255, .12);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, .05);
+  color: #f1f5f9;
   outline: none;
   transition: var(--transition);
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 500;
 }
-.auth-field input::placeholder { color: var(--subtle); font-weight: 400; }
+.auth-field input::placeholder { color: #64748b; font-weight: 400; }
+.auth-field select { padding-left: 42px; cursor: pointer; }
+.auth-field select option { background: #0f172a; color: #f1f5f9; }
 .auth-field input:focus,
 .auth-field select:focus {
-  border-color: var(--blue);
-  background: #fff;
-  box-shadow: 0 0 0 4px var(--blue-glow), 0 4px 20px rgba(59, 130, 246, .15);
+  border-color: var(--yellow);
+  background: rgba(255, 255, 255, .08);
+  box-shadow: 0 0 0 4px rgba(251, 191, 36, .15);
 }
 .auth-field input:focus ~ .input-ico,
-.auth-field .input-wrap:focus-within .input-ico {
-  color: var(--blue);
-}
-.auth-field select { padding-left: 44px; cursor: pointer; }
+.auth-field .input-wrap:focus-within .input-ico { color: var(--yellow); }
 
-.auth-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.auth-row .auth-field { margin-bottom: 18px; }
+.auth-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.auth-row .auth-field { margin-bottom: 16px; }
 
 .auth-msg {
-  padding: 12px 14px;
+  padding: 11px 14px;
   border-radius: 10px;
   font-size: 12.5px;
   font-weight: 600;
-  margin-bottom: 18px;
+  margin-bottom: 16px;
   border-left: 3px solid;
   display: none;
 }
 .auth-msg.show { display: block; animation: fadeUp .3s ease; }
-.auth-msg.error { background: var(--danger-soft); color: var(--danger); border-color: var(--danger); }
-.auth-msg.success { background: var(--success-soft); color: var(--success); border-color: var(--success); }
+.auth-msg.error { background: rgba(239, 68, 68, .12); color: #fca5a5; border-color: #ef4444; }
+.auth-msg.success { background: rgba(34, 197, 94, .12); color: #86efac; border-color: #22c55e; }
 
 .btn-auth {
   width: 100%;
-  padding: 14px 18px;
+  padding: 13px 18px;
   border: none;
-  border-radius: 10px;
-  background: linear-gradient(135deg, var(--blue) 0%, var(--blue-dark) 100%);
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--yellow) 0%, var(--yellow-dark) 100%);
   background-size: 200% auto;
-  color: #fff;
+  color: var(--blue-dark);
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 800;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   transition: all .3s cubic-bezier(.22, 1, .36, 1);
-  margin-top: 8px;
+  margin-top: 6px;
   letter-spacing: -0.005em;
   position: relative;
   overflow: hidden;
-  box-shadow: 0 6px 20px rgba(30, 64, 175, .25);
-  animation: fadeLeft .5s .68s cubic-bezier(.22, 1, .36, 1) both;
+  box-shadow: 0 8px 24px rgba(251, 191, 36, .25);
 }
 .btn-auth::after {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(120deg, transparent 30%, rgba(255,255,255,.3) 50%, transparent 70%);
+  background: linear-gradient(120deg, transparent 30%, rgba(255,255,255,.45) 50%, transparent 70%);
   transform: translateX(-100%);
   transition: transform .6s;
 }
 .btn-auth:hover {
   background-position: 100% 0;
   transform: translateY(-2px);
-  box-shadow: 0 12px 32px rgba(30, 64, 175, .45);
+  box-shadow: 0 12px 32px rgba(251, 191, 36, .4);
 }
 .btn-auth:hover::after { transform: translateX(100%); }
 .btn-auth:active { transform: translateY(0) scale(.99); }
@@ -642,46 +313,17 @@ h1, h2, h3, h4 { letter-spacing: -0.02em; }
 .auth-hint {
   text-align: center;
   font-size: 11.5px;
-  color: var(--subtle);
-  margin-top: 26px;
+  color: #64748b;
+  margin-top: 22px;
   line-height: 1.6;
-  animation: fadeLeft .5s .78s cubic-bezier(.22, 1, .36, 1) both;
 }
+.auth-hint a { color: var(--yellow-light); font-weight: 600; }
 
-.auth-form-wrap .divider-auth {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin: 22px 0 18px;
-  color: var(--subtle);
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: .1em;
-  animation: fadeLeft .5s .75s cubic-bezier(.22, 1, .36, 1) both;
-}
-.auth-form-wrap .divider-auth::before,
-.auth-form-wrap .divider-auth::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: var(--border);
-}
-
-@media (max-width: 900px) {
-  .auth-screen { grid-template-columns: 1fr; }
-  .auth-left { padding: 40px 32px; min-height: auto; }
-  .auth-tagline h2 { font-size: 32px; }
-  .auth-right { padding: 40px 32px; }
-  .auth-features { grid-template-columns: 1fr 1fr; }
-}
-
-@media (max-width: 560px) {
-  .auth-left { display: none; }
-  .auth-screen { grid-template-columns: 1fr; }
-  .auth-right { padding: 32px 24px; background: rgba(255, 255, 255, .92); }
-  .auth-form-wrap { max-width: none; }
-  .auth-features { grid-template-columns: 1fr; }
+@media (max-width: 480px) {
+  .auth-screen { padding: 20px 14px; }
+  .auth-card { padding: 32px 22px 26px; border-radius: 22px; }
+  .auth-row { grid-template-columns: 1fr; }
+  .auth-row .auth-field { margin-bottom: 16px; }
 }
 
 /* ============================================================================
@@ -946,7 +588,10 @@ h1, h2, h3, h4 { letter-spacing: -0.02em; }
 }
 .stat-card:hover .stat-icon { transform: scale(1.1) rotate(-5deg); }
 .stat-icon .ico { width: 17px; height: 17px; stroke-width: 2; }
-.stat-icon.blue, .stat-icon.sky, .stat-icon.purple, .stat-icon.pink { background: var(--blue-soft); color: var(--blue); }
+.stat-icon.blue { background: var(--blue-soft); color: var(--blue); }
+.stat-icon.sky { background: #cffafe; color: #0e7490; }
+.stat-icon.purple { background: #ede9fe; color: #6d28d9; }
+.stat-icon.pink { background: #fce7f3; color: #be185d; }
 .stat-icon.green { background: var(--success-soft); color: var(--success); }
 .stat-icon.amber { background: var(--yellow-soft); color: var(--yellow-dark); }
 .stat-icon.red { background: var(--danger-soft); color: var(--danger); }
@@ -1363,68 +1008,21 @@ table.data tbody td strong { color: var(--ink); font-weight: 600; }
 </head>
 <body>
 
-<!-- ==================== CANVAS DE LINHAS CONECTADAS ==================== -->
-<canvas id="network-canvas"></canvas>
-<div class="diag-lines" aria-hidden="true"></div>
-<div class="scanline" aria-hidden="true"></div>
-
 <!-- ==================== TELA DE LOGIN ==================== -->
 <div id="auth-screen" class="auth-screen">
-  <div class="auth-left">
-    <div class="grid-overlay"></div>
+  <div class="auth-stars" aria-hidden="true"></div>
+  <span class="auth-sparkle s1" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c.9 5.7 2.9 8.4 8.6 9.7-5.7 1.3-7.7 4-8.6 9.7-.9-5.7-2.9-8.4-8.6-9.7C9.1 8.4 11.1 5.7 12 0z"/></svg></span>
+  <span class="auth-sparkle s2" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c.9 5.7 2.9 8.4 8.6 9.7-5.7 1.3-7.7 4-8.6 9.7-.9-5.7-2.9-8.4-8.6-9.7C9.1 8.4 11.1 5.7 12 0z"/></svg></span>
+  <span class="auth-sparkle s3" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c.9 5.7 2.9 8.4 8.6 9.7-5.7 1.3-7.7 4-8.6 9.7-.9-5.7-2.9-8.4-8.6-9.7C9.1 8.4 11.1 5.7 12 0z"/></svg></span>
 
-    <div class="auth-brand-lg">
-      <div class="logo-wrap">
-        <div class="logo-ring"></div>
-        <div class="logo-lg">
-          <img src="WhatsApp Image 2026-09-15 at 11.57.35.jpeg" alt="Portal of Future" class="logo-img">
-        </div>
-      </div>
-      <div>
-        <h1>Portal of Future</h1>
-        <p>Portal Acadêmico</p>
+  <div class="auth-card">
+    <div class="auth-card-logo">
+      <div class="auth-card-logo-inner">
+        <img src="logo2.0-quadrada.png" alt="Portal of Future" class="logo-img">
       </div>
     </div>
-
-    <div class="auth-tagline">
-      <span class="eyebrow">Sistema Escolar</span>
-      <h2>Gestão acadêmica <em>completa</em> em um só lugar.</h2>
-      <p>Acompanhe alunos, turmas, notas, frequência e comunicados de forma simples, organizada e integrada.</p>
-    </div>
-
-    <div class="auth-features">
-      <div class="feature-item">
-        <div class="f-ico">
-          <svg class="ico" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
-        </div>
-        <span>Diário digital</span>
-      </div>
-      <div class="feature-item">
-        <div class="f-ico">
-          <svg class="ico" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
-        </div>
-        <span>Controle de frequência</span>
-      </div>
-      <div class="feature-item">
-        <div class="f-ico">
-          <svg class="ico" viewBox="0 0 24 24"><path d="M3 11l18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>
-        </div>
-        <span>Mural de comunicados</span>
-      </div>
-      <div class="feature-item">
-        <div class="f-ico">
-          <svg class="ico" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-        </div>
-        <span>Boletim de notas</span>
-      </div>
-    </div>
-  </div>
-
-  <div class="auth-right">
-    <div class="auth-form-wrap">
-      <p class="form-eyebrow">Acesso ao sistema</p>
-      <h3>Entrar na sua conta</h3>
-      <p class="form-sub">Use suas credenciais institucionais para continuar.</p>
+    <h1 class="auth-card-title">Portal of Future</h1>
+    <p class="auth-card-sub">Gestão acadêmica completa em um só lugar.</p>
 
       <div id="setup-notice" class="setup-badge hidden">
         <svg class="ico ico-sm" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
@@ -1460,6 +1058,112 @@ table.data tbody td strong { color: var(--ink); font-weight: 600; }
           Acessar painel
           <svg class="ico ico-sm" viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
         </button>
+
+        <p class="auth-hint" style="margin-top:18px;">Não tem conta? <a href="#" id="link-to-signup">Cadastre-se</a></p>
+      </form>
+
+      <form id="signup-form" class="hidden" novalidate>
+        <div id="signup-msg" class="auth-msg"></div>
+
+        <label class="auth-field">
+          <span>Eu sou</span>
+          <div class="input-wrap">
+            <svg class="input-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+              <circle cx="12" cy="7" r="4"/>
+            </svg>
+            <select id="signup-role" required>
+              <option value="aluno">Aluno</option>
+              <option value="responsavel">Responsável</option>
+              <option value="professor">Professor</option>
+              <option value="coordenador">Coordenador</option>
+            </select>
+          </div>
+        </label>
+
+        <label class="auth-field">
+          <span>Nome completo</span>
+          <div class="input-wrap">
+            <svg class="input-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+              <circle cx="12" cy="7" r="4"/>
+            </svg>
+            <input type="text" id="signup-nome" placeholder="Seu nome completo" autocomplete="name" required>
+          </div>
+        </label>
+
+        <div class="auth-row">
+          <label class="auth-field">
+            <span>E-mail</span>
+            <div class="input-wrap">
+              <svg class="input-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                <polyline points="22,6 12,13 2,6"/>
+              </svg>
+              <input type="email" id="signup-email" placeholder="nome@escola.com" autocomplete="email" required>
+            </div>
+          </label>
+
+          <label class="auth-field">
+            <span>Celular</span>
+            <div class="input-wrap">
+              <svg class="input-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.362 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
+              </svg>
+              <input type="tel" id="signup-celular" placeholder="(00) 00000-0000" autocomplete="tel" required>
+            </div>
+          </label>
+        </div>
+
+        <label class="auth-field hidden" id="signup-matricula-field">
+          <span>Matrícula do aluno</span>
+          <div class="input-wrap">
+            <svg class="input-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+            </svg>
+            <input type="text" id="signup-matricula" placeholder="Ex: 2024011">
+          </div>
+        </label>
+
+        <div class="auth-row">
+          <label class="auth-field" id="signup-curso-field">
+            <span>Curso</span>
+            <div class="input-wrap">
+              <svg class="input-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 10v6"/><path d="M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/>
+              </svg>
+              <select id="signup-curso"><option value="">Selecione...</option></select>
+            </div>
+          </label>
+
+          <label class="auth-field" id="signup-turno-field">
+            <span>Turno</span>
+            <div class="input-wrap">
+              <svg class="input-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+              </svg>
+              <select id="signup-turno"><option value="">Selecione...</option><option>Manhã</option><option>Tarde</option><option>Noite</option></select>
+            </div>
+          </label>
+        </div>
+
+        <label class="auth-field">
+          <span>Senha</span>
+          <div class="input-wrap">
+            <svg class="input-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+            <input type="password" id="signup-senha" placeholder="Mín. 4 caracteres" autocomplete="new-password" required>
+          </div>
+        </label>
+
+        <button type="submit" class="btn-auth">
+          Enviar cadastro
+          <svg class="ico ico-sm" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+        </button>
+
+        <p class="auth-hint" style="margin-top:18px;">Já tem conta? <a href="#" id="link-to-login">Entrar</a></p>
       </form>
 
       <form id="setup-form" class="hidden" novalidate>
@@ -1516,8 +1220,7 @@ table.data tbody td strong { color: var(--ink); font-weight: 600; }
         </button>
       </form>
 
-      <p class="auth-hint">🔒 Dados salvos localmente no navegador · v9</p>
-    </div>
+    <p class="auth-hint">🔒 Conexão segura com o servidor da escola</p>
   </div>
 </div>
 
@@ -1536,145 +1239,7 @@ table.data tbody td strong { color: var(--ink); font-weight: 600; }
 <script>
 'use strict';
 
-// ============================================================================
-// 🎨 CANVAS — REDE DE LINHAS CONECTADAS (efeito constelação viva)
-// ============================================================================
-(function initNetwork() {
-  const canvas = document.getElementById('network-canvas');
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-  let w, h, particles = [], rafId;
-  const mouse = { x: -9999, y: -9999 };
-
-  function resize() {
-    w = canvas.width = window.innerWidth;
-    h = canvas.height = window.innerHeight;
-    buildParticles();
-  }
-
-  function buildParticles() {
-    const density = window.innerWidth < 768 ? 40 : 90;
-    particles = [];
-    for (let i = 0; i < density; i++) {
-      particles.push({
-        x: Math.random() * w,
-        y: Math.random() * h,
-        vx: (Math.random() - 0.5) * 0.6,
-        vy: (Math.random() - 0.5) * 0.6,
-        r: Math.random() * 1.8 + 0.8,
-        yellow: Math.random() > 0.85
-      });
-    }
-  }
-
-  function step() {
-    ctx.clearRect(0, 0, w, h);
-
-    // Atualiza posições
-    for (let i = 0; i < particles.length; i++) {
-      const p = particles[i];
-      p.x += p.vx;
-      p.y += p.vy;
-
-      // Bounce nas bordas
-      if (p.x < 0 || p.x > w) p.vx *= -1;
-      if (p.y < 0 || p.y > h) p.vy *= -1;
-
-      // Atração leve do mouse
-      const mdx = mouse.x - p.x;
-      const mdy = mouse.y - p.y;
-      const md = Math.sqrt(mdx * mdx + mdy * mdy);
-      if (md < 160 && md > 0) {
-        p.x += (mdx / md) * 0.6;
-        p.y += (mdy / md) * 0.6;
-      }
-    }
-
-    // Desenha linhas entre partículas próximas
-    const MAX_DIST = 140;
-    for (let i = 0; i < particles.length; i++) {
-      const a = particles[i];
-      for (let j = i + 1; j < particles.length; j++) {
-        const b = particles[j];
-        const dx = a.x - b.x;
-        const dy = a.y - b.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < MAX_DIST) {
-          const alpha = (1 - dist / MAX_DIST) * 0.5;
-          ctx.strokeStyle = 'rgba(59, 130, 246, ' + alpha + ')';
-          ctx.lineWidth = 1;
-          ctx.beginPath();
-          ctx.moveTo(a.x, a.y);
-          ctx.lineTo(b.x, b.y);
-          ctx.stroke();
-        }
-      }
-    }
-
-    // Desenha partículas
-    for (let i = 0; i < particles.length; i++) {
-      const p = particles[i];
-      if (p.yellow) {
-        ctx.fillStyle = 'rgba(251, 191, 36, .85)';
-        ctx.shadowColor = 'rgba(251, 191, 36, 1)';
-      } else {
-        ctx.fillStyle = 'rgba(59, 130, 246, .85)';
-        ctx.shadowColor = 'rgba(59, 130, 246, 1)';
-      }
-      ctx.shadowBlur = 10;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    ctx.shadowBlur = 0;
-
-    // Linhas do mouse para partículas próximas
-    if (mouse.x > 0 && mouse.y > 0) {
-      for (let i = 0; i < particles.length; i++) {
-        const p = particles[i];
-        const dx = mouse.x - p.x;
-        const dy = mouse.y - p.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < 180) {
-          const alpha = (1 - dist / 180) * 0.7;
-          ctx.strokeStyle = 'rgba(251, 191, 36, ' + alpha + ')';
-          ctx.lineWidth = 1.2;
-          ctx.beginPath();
-          ctx.moveTo(mouse.x, mouse.y);
-          ctx.lineTo(p.x, p.y);
-          ctx.stroke();
-        }
-      }
-    }
-
-    rafId = requestAnimationFrame(step);
-  }
-
-  window.addEventListener('resize', resize);
-  window.addEventListener('mousemove', e => {
-    mouse.x = e.clientX;
-    mouse.y = e.clientY;
-  });
-  window.addEventListener('mouseleave', () => {
-    mouse.x = -9999;
-    mouse.y = -9999;
-  });
-  window.addEventListener('touchmove', e => {
-    if (e.touches.length) {
-      mouse.x = e.touches[0].clientX;
-      mouse.y = e.touches[0].clientY;
-    }
-  });
-  window.addEventListener('touchend', () => {
-    mouse.x = -9999;
-    mouse.y = -9999;
-  });
-
-  resize();
-  step();
-})();
-
-const LOGO_IMG = '<img src="WhatsApp Image 2026-09-15 at 11.57.35.jpeg" alt="Portal of Future" class="logo-img">';
+const LOGO_IMG = '<img src="logo2.0-quadrada.png" alt="Portal of Future" class="logo-img">';
 
 const Icons = {
   dashboard: '<svg class="ico" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>',
@@ -1694,7 +1259,7 @@ const Icons = {
   bookOpen: '<svg class="ico" viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>',
   bell: '<svg class="ico" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>',
   refresh: '<svg class="ico" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>',
-  search: '<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>',
+  search: '<svg class="ico" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>',
   plus: '<svg class="ico ico-sm" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
   trash: '<svg class="ico" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>',
   close: '<svg class="ico ico-sm" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
@@ -1706,73 +1271,92 @@ const Icons = {
 };
 
 const DB = {
-  KEY: 'educontrol_db_v9',
+  API: 'api/',
   state: { users: [], students: [], classes: [], teachers: [], subjects: [], attendance: [], grades: [], activities: [], occurrences: [], announcements: [], lessons: [] },
-  load() {
+  async load() {
     try {
-      const raw = localStorage.getItem(this.KEY);
-      if (raw) this.state = Object.assign(this.state, JSON.parse(raw));
-      else { this.seed(); this.save(); }
-    } catch (e) { console.error(e); this.seed(); this.save(); }
+      const res = await fetch(this.API + 'state.php', { credentials: 'include' });
+      if (!res.ok) throw new Error('request failed');
+      this.state = Object.assign(this.state, await res.json());
+    } catch (e) { console.error(e); Toast.error('Não foi possível carregar os dados do servidor.'); }
   },
-  save() { try { localStorage.setItem(this.KEY, JSON.stringify(this.state)); } catch (e) {} },
-  reset() { localStorage.removeItem(this.KEY); location.reload(); },
-  id(p) { return p + '-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); },
-  seed() {
-    this.state = { users: [], students: [], classes: [], teachers: [], subjects: [], attendance: [], grades: [], activities: [], occurrences: [], announcements: [], lessons: [] };
-    this.state.subjects = [
-      { id: 'd1', name: 'Desenvolvimento Web', code: 'DWEB' },
-      { id: 'd2', name: 'Programação Mobile', code: 'PMOB' },
-      { id: 'd3', name: 'Banco de Dados', code: 'BDAD' },
-      { id: 'd4', name: 'Análise de Sistemas', code: 'ANSI' },
-      { id: 'd5', name: 'Matemática Aplicada', code: 'MATE' },
-      { id: 'd6', name: 'Português Instrumental', code: 'PORT' }
-    ];
-  }
+  save() {
+    fetch(this.API + 'state.php', {
+      method: 'POST', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(this.state)
+    }).catch(() => Toast.error('Falha ao salvar no servidor. Verifique sua conexão.'));
+  },
+  reset() {
+    fetch(this.API + 'reset.php', { method: 'POST', credentials: 'include' }).finally(() => location.reload());
+  },
+  id(p) { return p + '-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 };
 
 const Auth = {
   currentUser: null,
-  isFirstUser() { return DB.state.users.length === 0; },
-  login(email, password) {
-    const u = DB.state.users.find(x => x.email.toLowerCase() === String(email).toLowerCase().trim() && x.password === password);
-    if (!u) return { ok: false, error: 'E-mail ou senha inválidos.' };
-    this.currentUser = u;
-    try { sessionStorage.setItem('educontrol_v9', u.id); } catch (e) {}
-    return { ok: true, user: u };
-  },
-  register(data) {
-    const exists = DB.state.users.find(u => u.email.toLowerCase() === data.email.toLowerCase().trim());
-    if (exists) return { ok: false, error: 'Este e-mail já está cadastrado.' };
-    const firstUser = this.isFirstUser();
-    const role = firstUser ? 'diretor' : data.role;
-    const newUser = {
-      id: DB.id('u'), name: data.name, email: data.email.trim(), password: data.password, role: role,
-      avatar: data.name.trim().split(/\s+/).map(n => n[0]).slice(0, 2).join('').toUpperCase(),
-      createdAt: new Date().toISOString(), matricula: data.matricula ? String(data.matricula).trim() : ''
-    };
-    if ((role === 'aluno' || role === 'responsavel') && data.matricula) {
-      const st = DB.state.students.find(s => String(s.matricula) === String(data.matricula).trim());
-      if (st) newUser.studentId = st.id;
-    }
-    DB.state.users.push(newUser);
-    if (role === 'professor') {
-      if (!DB.state.teachers.find(t => t.email === newUser.email)) {
-        DB.state.teachers.push({ id: DB.id('t'), name: data.name, email: data.email.trim(), subject: 'A definir', phone: '', userId: newUser.id });
-      }
-    }
-    DB.save();
-    return { ok: true, user: newUser, firstUser: firstUser };
-  },
-  logout() { this.currentUser = null; try { sessionStorage.removeItem('educontrol_v9'); } catch (e) {} },
-  restore() {
+  async isFirstUser() {
     try {
-      const id = sessionStorage.getItem('educontrol_v9');
-      if (!id) return null;
-      const u = DB.state.users.find(x => x.id === id);
-      if (u) { this.currentUser = u; return u; }
+      const res = await fetch(DB.API + 'bootstrap.php', { credentials: 'include' });
+      const d = await res.json();
+      return !!d.isFirstUser;
+    } catch (e) { return false; }
+  },
+  async login(email, password) {
+    try {
+      const res = await fetch(DB.API + 'login.php', {
+        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      const d = await res.json();
+      if (!d.ok) return { ok: false, error: d.error || 'E-mail ou senha inválidos.' };
+      this.currentUser = d.user;
+      return { ok: true, user: d.user };
+    } catch (e) { return { ok: false, error: 'Não foi possível conectar ao servidor.' }; }
+  },
+  async register(data) {
+    try {
+      const res = await fetch(DB.API + 'register.php', {
+        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      const d = await res.json();
+      if (!d.ok) return { ok: false, error: d.error || 'Não foi possível criar o administrador.' };
+      return { ok: true, user: d.user };
+    } catch (e) { return { ok: false, error: 'Não foi possível conectar ao servidor.' }; }
+  },
+  async signup(data) {
+    try {
+      const res = await fetch(DB.API + 'signup.php', {
+        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      const d = await res.json();
+      if (!d.ok) return { ok: false, error: d.error || 'Não foi possível enviar o cadastro.' };
+      return { ok: true };
+    } catch (e) { return { ok: false, error: 'Não foi possível conectar ao servidor.' }; }
+  },
+  async logout() {
+    this.currentUser = null;
+    try { await fetch(DB.API + 'logout.php', { method: 'POST', credentials: 'include' }); } catch (e) {}
+  },
+  async restore() {
+    try {
+      const res = await fetch(DB.API + 'session.php', { credentials: 'include' });
+      const d = await res.json();
+      if (d.user) { this.currentUser = d.user; return d.user; }
     } catch (e) {}
     return null;
+  },
+  async verifyPassword(password) {
+    try {
+      const res = await fetch(DB.API + 'verify_password.php', {
+        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password })
+      });
+      const d = await res.json();
+      return !!d.ok;
+    } catch (e) { return false; }
   },
   isAdmin() { return this.currentUser && this.currentUser.role === 'diretor'; }
 };
@@ -1840,9 +1424,10 @@ const Modal = {
     const size = opts.size === 'lg' ? ' modal-lg' : '';
     bd.innerHTML = '<div class="modal' + size + '"><div class="modal-header"><h3>' + (opts.icon || '') + Util.esc(opts.title || '') + '</h3><button type="button" class="close" data-close>' + Icons.close + '</button></div><div class="modal-body">' + (opts.body || '') + '</div>' + (opts.footer ? '<div class="modal-footer">' + opts.footer + '</div>' : '') + '</div>';
     document.body.appendChild(bd);
-    const close = () => { bd.style.opacity = '0'; setTimeout(() => { if (bd.parentNode) bd.parentNode.removeChild(bd); }, 200); if (opts.onClose) opts.onClose(); };
+    const onKeydown = e => { if (e.key === 'Escape') close(); };
+    const close = () => { bd.style.opacity = '0'; setTimeout(() => { if (bd.parentNode) bd.parentNode.removeChild(bd); }, 200); document.removeEventListener('keydown', onKeydown); if (opts.onClose) opts.onClose(); };
     bd.addEventListener('click', e => { if (e.target === bd) close(); if (e.target.closest('[data-close]')) close(); });
-    document.addEventListener('keydown', function h(e) { if (e.key === 'Escape') { document.removeEventListener('keydown', h); close(); } });
+    document.addEventListener('keydown', onKeydown);
     if (opts.onMount) opts.onMount(bd, close);
   },
   confirm(title, message, onConfirm, label) {
@@ -1884,34 +1469,93 @@ const MENUS = {
 
 const App = {
   currentView: 'dashboard',
-  init() {
+  async init() {
     Toast.init();
     this.bindAuth();
     this.bindShell();
-    this.refreshAuthUI();
-    const restored = Auth.restore();
-    if (restored) this.startApp();
+    await this.refreshAuthUI();
+    const restored = await Auth.restore();
+    if (restored) { await DB.load(); this.startApp(); }
   },
-  refreshAuthUI() {
-    const first = Auth.isFirstUser();
+  async refreshAuthUI() {
+    const first = await Auth.isFirstUser();
     document.getElementById('setup-notice').classList.toggle('hidden', !first);
     document.getElementById('login-form').classList.toggle('hidden', first);
     document.getElementById('setup-form').classList.toggle('hidden', !first);
+    document.getElementById('signup-form').classList.add('hidden');
   },
   bindAuth() {
-    document.getElementById('login-form').addEventListener('submit', e => {
+    let coursesLoaded = false;
+    const loadCourses = async () => {
+      if (coursesLoaded) return;
+      coursesLoaded = true;
+      try {
+        const res = await fetch(DB.API + 'public_courses.php');
+        const d = await res.json();
+        const sel = document.getElementById('signup-curso');
+        (d.courses || []).forEach(c => { sel.insertAdjacentHTML('beforeend', '<option value="' + Util.esc(c) + '">' + Util.esc(c) + '</option>'); });
+      } catch (e) {}
+    };
+    const syncSignupFields = () => {
+      const role = document.getElementById('signup-role').value;
+      document.getElementById('signup-matricula-field').classList.toggle('hidden', role !== 'responsavel');
+      document.getElementById('signup-curso-field').classList.toggle('hidden', role !== 'aluno');
+      document.getElementById('signup-turno-field').classList.toggle('hidden', role !== 'aluno');
+    };
+    document.getElementById('link-to-signup').addEventListener('click', e => {
+      e.preventDefault();
+      document.getElementById('login-form').classList.add('hidden');
+      document.getElementById('signup-form').classList.remove('hidden');
+      loadCourses();
+      syncSignupFields();
+    });
+    document.getElementById('link-to-login').addEventListener('click', e => {
+      e.preventDefault();
+      document.getElementById('signup-form').classList.add('hidden');
+      document.getElementById('login-form').classList.remove('hidden');
+    });
+    document.getElementById('signup-role').addEventListener('change', syncSignupFields);
+    document.getElementById('signup-form').addEventListener('submit', async e => {
+      e.preventDefault();
+      const msg = document.getElementById('signup-msg');
+      msg.classList.remove('show');
+      const role = document.getElementById('signup-role').value;
+      const name = document.getElementById('signup-nome').value.trim();
+      const email = document.getElementById('signup-email').value.trim();
+      const celular = document.getElementById('signup-celular').value.trim();
+      const senha = document.getElementById('signup-senha').value;
+      const matricula = document.getElementById('signup-matricula').value.trim();
+      const curso = document.getElementById('signup-curso').value;
+      const turno = document.getElementById('signup-turno').value;
+      if (!name || !email || !celular || !senha) { msg.textContent = 'Preencha todos os campos obrigatórios.'; msg.className = 'auth-msg error show'; return; }
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { msg.textContent = 'Informe um e-mail válido.'; msg.className = 'auth-msg error show'; return; }
+      if (senha.length < 4) { msg.textContent = 'A senha deve ter no mínimo 4 caracteres.'; msg.className = 'auth-msg error show'; return; }
+      if (role === 'aluno' && (!curso || !turno)) { msg.textContent = 'Selecione o curso e o turno.'; msg.className = 'auth-msg error show'; return; }
+      const r = await Auth.signup({ role, name, email, celular, password: senha, matricula, curso, turno });
+      if (!r.ok) { msg.textContent = r.error; msg.className = 'auth-msg error show'; return; }
+      msg.textContent = 'Cadastro enviado! Aguarde a aprovação do diretor para conseguir entrar.';
+      msg.className = 'auth-msg success show';
+      document.getElementById('signup-form').reset();
+      setTimeout(() => {
+        document.getElementById('signup-form').classList.add('hidden');
+        document.getElementById('login-form').classList.remove('hidden');
+        syncSignupFields();
+      }, 2200);
+    });
+    document.getElementById('login-form').addEventListener('submit', async e => {
       e.preventDefault();
       const msg = document.getElementById('login-msg');
       msg.classList.remove('show');
       const email = document.getElementById('login-email').value.trim();
       const senha = document.getElementById('login-senha').value;
       if (!email || !senha) { msg.textContent = 'Preencha e-mail e senha para continuar.'; msg.className = 'auth-msg error show'; return; }
-      const r = Auth.login(email, senha);
+      const r = await Auth.login(email, senha);
       if (!r.ok) { msg.textContent = r.error; msg.className = 'auth-msg error show'; return; }
       Toast.success('Bem-vindo(a), ' + r.user.name.split(' ')[0] + '!');
+      await DB.load();
       this.startApp();
     });
-    document.getElementById('setup-form').addEventListener('submit', e => {
+    document.getElementById('setup-form').addEventListener('submit', async e => {
       e.preventDefault();
       const msg = document.getElementById('setup-msg');
       msg.classList.remove('show');
@@ -1923,13 +1567,13 @@ const App = {
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { msg.textContent = 'Informe um e-mail válido.'; msg.className = 'auth-msg error show'; return; }
       if (senha.length < 4) { msg.textContent = 'A senha deve ter no mínimo 4 caracteres.'; msg.className = 'auth-msg error show'; return; }
       if (senha !== senha2) { msg.textContent = 'As senhas não coincidem.'; msg.className = 'auth-msg error show'; return; }
-      const r = Auth.register({ name, email, role: 'diretor', password: senha });
+      const r = await Auth.register({ name, email, role: 'diretor', password: senha });
       if (!r.ok) { msg.textContent = r.error; msg.className = 'auth-msg error show'; return; }
       msg.textContent = 'Administrador criado com sucesso!';
       msg.className = 'auth-msg success show';
       document.getElementById('setup-form').reset();
-      setTimeout(() => {
-        this.refreshAuthUI();
+      setTimeout(async () => {
+        await this.refreshAuthUI();
         document.getElementById('login-email').value = email;
         document.getElementById('login-senha').value = senha;
         document.getElementById('login-senha').focus();
@@ -2000,9 +1644,9 @@ const App = {
       document.getElementById('overlay').classList.toggle('hidden');
     });
     document.getElementById('btn-logout').addEventListener('click', () => {
-      Modal.confirm('Encerrar sessão', 'Deseja realmente sair do sistema?', () => { Auth.logout(); location.reload(); }, 'Sair');
+      Modal.confirm('Encerrar sessão', 'Deseja realmente sair do sistema?', async () => { await Auth.logout(); location.reload(); }, 'Sair');
     });
-    document.getElementById('btn-refresh').addEventListener('click', () => { DB.load(); this.navigate(this.currentView); Toast.info('Dados recarregados.'); });
+    document.getElementById('btn-refresh').addEventListener('click', async () => { await DB.load(); this.navigate(this.currentView); Toast.info('Dados recarregados.'); });
     document.getElementById('btn-notif').addEventListener('click', () => this.showNotifications());
   },
   setTitle(t, s) { const el = document.getElementById('page-title'); if (!el) return; el.innerHTML = Util.esc(t) + (s ? '<small>' + Util.esc(s) + '</small>' : ''); },
@@ -2152,7 +1796,8 @@ App.dashboardProfessor = function (el) {
   const turmas = prof ? DB.state.classes.filter(c => c.teacherId === prof.id) : [];
   let totalAlunos = 0;
   turmas.forEach(c => { totalAlunos += this.studentsOfClass(c.id).length; });
-  const abertas = DB.state.activities.filter(a => a.status !== 'Encerrada').length;
+  const turmaIds = turmas.map(c => c.id);
+  const abertas = DB.state.activities.filter(a => turmaIds.includes(a.classId) && a.status !== 'Encerrada').length;
   const ocorr = DB.state.occurrences.filter(o => o.teacherId === (prof ? prof.id : '')).length;
   el.innerHTML = '<div class="stats-grid">' +
       this.statCard('building', 'blue', 'Minhas turmas', turmas.length) +
@@ -2419,14 +2064,20 @@ App.renderAlunosTable = function () {
     Util.on(ct, 'click', '[data-del]', (e, t) => {
       const s = this.studentById(t.dataset.del);
       if (!s) return;
-      Modal.confirm('Excluir aluno', 'Deseja realmente excluir "' + s.name + '"?', () => {
-        DB.state.students = DB.state.students.filter(x => x.id !== s.id);
-        DB.state.grades = DB.state.grades.filter(g => g.studentId !== s.id);
-        DB.state.attendance = DB.state.attendance.filter(a => a.studentId !== s.id);
-        DB.state.occurrences = DB.state.occurrences.filter(o => o.studentId !== s.id);
-        DB.state.users.forEach(u => { if (u.studentId === s.id) delete u.studentId; });
-        DB.save(); this.renderAlunosTable(); Toast.success('Aluno excluído com sucesso.');
-      }, 'Excluir aluno');
+      this.confirmarExclusaoSegura({
+        titulo: 'Excluir aluno',
+        aviso: 'Esta ação é <strong style="color:var(--danger);">irreversível</strong>. O aluno "' + Util.esc(s.name) + '" e todas as notas, frequências e ocorrências vinculadas serão excluídos permanentemente.',
+        mensagem: 'Para concluir a exclusão de "' + Util.esc(s.name) + '", digite o código de verificação abaixo.',
+        label: 'Excluir aluno',
+        onConfirm: () => {
+          DB.state.students = DB.state.students.filter(x => x.id !== s.id);
+          DB.state.grades = DB.state.grades.filter(g => g.studentId !== s.id);
+          DB.state.attendance = DB.state.attendance.filter(a => a.studentId !== s.id);
+          DB.state.occurrences = DB.state.occurrences.filter(o => o.studentId !== s.id);
+          DB.state.users.forEach(u => { if (u.studentId === s.id) delete u.studentId; });
+          DB.save(); this.renderAlunosTable(); Toast.success('Aluno excluído com sucesso.');
+        }
+      });
     });
   }
 };
@@ -2541,7 +2192,81 @@ App.verTurma = function (id) {
     tab += '</tbody></table></div>';
   }
   const body = '<div class="grid-2 mb-24"><div><span class="text-xs text-muted text-bold" style="text-transform:uppercase;letter-spacing:0.08em;">Curso</span><div>' + Util.esc(c.course) + '</div></div><div><span class="text-xs text-muted text-bold" style="text-transform:uppercase;letter-spacing:0.08em;">Semestre</span><div>' + Util.esc(c.semester) + '</div></div><div><span class="text-xs text-muted text-bold" style="text-transform:uppercase;letter-spacing:0.08em;">Período</span><div>' + Util.esc(c.period) + '</div></div><div><span class="text-xs text-muted text-bold" style="text-transform:uppercase;letter-spacing:0.08em;">Sala</span><div>' + Util.esc(c.room || '—') + '</div></div><div><span class="text-xs text-muted text-bold" style="text-transform:uppercase;letter-spacing:0.08em;">Professor</span><div>' + (p ? Util.esc(p.name) : '—') + '</div></div><div><span class="text-xs text-muted text-bold" style="text-transform:uppercase;letter-spacing:0.08em;">Média</span><div><span class="badge ' + Util.notaBadge(m) + ' mono">' + Util.fmtNum(m, 1) + '</span></div></div></div><h4 style="font-size:13px;font-weight:600;margin-bottom:14px;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);">Alunos (' + alunos.length + ')</h4>' + tab;
-  Modal.open({ title: Util.esc(c.name), icon: Icons.building, body: body, size: 'lg', footer: '<button type="button" class="btn btn-primary" data-close>Fechar</button>' });
+  const canEdit = ['diretor','coordenador'].includes(Auth.currentUser.role);
+  Modal.open({
+    title: Util.esc(c.name), icon: Icons.building, body: body, size: 'lg',
+    footer: '<button type="button" class="btn btn-secondary" data-close>Fechar</button>' + (canEdit ? '<button type="button" class="btn btn-primary" data-edit-turma>Editar turma</button><button type="button" class="btn btn-danger" data-del-turma>Excluir turma</button>' : ''),
+    onMount: (bd, close) => {
+      const be = bd.querySelector('[data-edit-turma]');
+      if (be) be.addEventListener('click', () => { close(); this.modalTurma(c.id); });
+      const bx = bd.querySelector('[data-del-turma]');
+      if (bx) bx.addEventListener('click', () => { close(); this.excluirTurmaFluxo(c); });
+    }
+  });
+};
+
+App.confirmarExclusaoSegura = function (opts) {
+  const step2 = () => {
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    const body = '<p style="font-size:14px;line-height:1.65;color:var(--muted);margin-bottom:18px;">' + opts.mensagem + '</p>' +
+      '<div style="text-align:center;background:var(--surface-2);border:1px dashed var(--border-2);border-radius:10px;padding:16px;margin-bottom:18px;"><span class="mono" style="font-size:28px;font-weight:700;letter-spacing:.3em;color:var(--ink);">' + code + '</span></div>' +
+      '<div class="field-group"><label>Código de verificação <span class="req">*</span></label><input type="text" id="del-seguro-codigo" class="mono" placeholder="000000" inputmode="numeric" maxlength="6" autocomplete="off"><div class="err">Código incorreto.</div></div>';
+    Modal.open({
+      title: opts.titulo + ' — etapa 2 de 2', icon: Icons.alert, body: body,
+      footer: '<button type="button" class="btn btn-secondary" data-close>Cancelar</button><button type="button" class="btn btn-danger" data-confirm>' + Util.esc(opts.label || 'Excluir definitivamente') + '</button>',
+      onMount: (bd, close) => {
+        const input = bd.querySelector('#del-seguro-codigo');
+        const group = input.closest('.field-group');
+        input.focus();
+        input.addEventListener('input', () => group.classList.remove('invalid'));
+        input.addEventListener('keydown', e => { if (e.key === 'Enter') bd.querySelector('[data-confirm]').click(); });
+        bd.querySelector('[data-confirm]').addEventListener('click', () => {
+          if (input.value.trim() !== code) { group.classList.add('invalid'); return; }
+          close();
+          opts.onConfirm();
+        });
+      }
+    });
+  };
+  const body = '<p style="font-size:14px;line-height:1.65;color:var(--muted);margin-bottom:18px;">' + opts.aviso + '</p>' +
+    '<div class="field-group"><label>Confirme sua senha para continuar <span class="req">*</span></label><input type="password" id="del-seguro-senha" placeholder="Sua senha" autocomplete="current-password"><div class="err">Senha incorreta.</div></div>';
+  Modal.open({
+    title: opts.titulo + ' — etapa 1 de 2', icon: Icons.alert, body: body,
+    footer: '<button type="button" class="btn btn-secondary" data-close>Cancelar</button><button type="button" class="btn btn-danger" data-next>Continuar</button>',
+    onMount: (bd, close) => {
+      const input = bd.querySelector('#del-seguro-senha');
+      const group = input.closest('.field-group');
+      input.focus();
+      input.addEventListener('input', () => group.classList.remove('invalid'));
+      input.addEventListener('keydown', e => { if (e.key === 'Enter') bd.querySelector('[data-next]').click(); });
+      bd.querySelector('[data-next]').addEventListener('click', async () => {
+        const btn = bd.querySelector('[data-next]');
+        btn.disabled = true;
+        const ok = await Auth.verifyPassword(input.value);
+        btn.disabled = false;
+        if (!ok) { group.classList.add('invalid'); return; }
+        close();
+        step2();
+      });
+    }
+  });
+};
+
+App.excluirTurmaFluxo = function (c) {
+  this.confirmarExclusaoSegura({
+    titulo: 'Excluir turma',
+    aviso: 'Esta ação é <strong style="color:var(--danger);">irreversível</strong>. A turma "' + Util.esc(c.name) + '", suas aulas, chamadas e atividades serão excluídas permanentemente. Os alunos não serão excluídos, apenas desvinculados da turma.',
+    mensagem: 'Para concluir a exclusão de "' + Util.esc(c.name) + '", digite o código de verificação abaixo.',
+    label: 'Excluir definitivamente',
+    onConfirm: () => {
+      DB.state.classes = DB.state.classes.filter(x => x.id !== c.id);
+      DB.state.attendance = DB.state.attendance.filter(a => a.classId !== c.id);
+      DB.state.lessons = DB.state.lessons.filter(l => l.classId !== c.id);
+      DB.state.activities = DB.state.activities.filter(a => a.classId !== c.id);
+      DB.state.students.forEach(s => { if (s.classId === c.id) s.classId = ''; });
+      DB.save(); App.navigate('turmas'); Toast.success('Turma excluída com sucesso.');
+    }
+  });
 };
 
 App.views.professores = function (el) {
@@ -2565,12 +2290,18 @@ App.views.professores = function (el) {
     Util.on(el, 'click', '[data-del-prof]', (e, t) => {
       const p = this.teacherById(t.dataset.delProf);
       if (!p) return;
-      Modal.confirm('Excluir professor', 'Deseja excluir "' + p.name + '"?', () => {
-        DB.state.teachers = DB.state.teachers.filter(x => x.id !== p.id);
-        DB.state.classes.forEach(c => { if (c.teacherId === p.id) c.teacherId = ''; });
-        DB.state.users = DB.state.users.filter(u => !(u.email === p.email && u.role === 'professor'));
-        DB.save(); this.navigate('professores'); Toast.success('Professor excluído.');
-      }, 'Excluir');
+      this.confirmarExclusaoSegura({
+        titulo: 'Excluir professor',
+        aviso: 'Esta ação é <strong style="color:var(--danger);">irreversível</strong>. O professor "' + Util.esc(p.name) + '" será removido e desvinculado de todas as turmas.',
+        mensagem: 'Para concluir a exclusão de "' + Util.esc(p.name) + '", digite o código de verificação abaixo.',
+        label: 'Excluir professor',
+        onConfirm: () => {
+          DB.state.teachers = DB.state.teachers.filter(x => x.id !== p.id);
+          DB.state.classes.forEach(c => { if (c.teacherId === p.id) c.teacherId = ''; });
+          DB.state.users = DB.state.users.filter(u => !(u.email === p.email && u.role === 'professor'));
+          DB.save(); this.navigate('professores'); Toast.success('Professor excluído.');
+        }
+      });
     });
   }
 };
@@ -2650,9 +2381,22 @@ App.modalDisciplina = function () {
 
 App.views.usuarios = function (el) {
   if (!Auth.isAdmin()) { el.innerHTML = this.emptyState('lock', 'Acesso restrito', 'Apenas o diretor pode acessar este painel.'); return; }
-  this.setTitle('Usuários', DB.state.users.length + ' contas cadastradas');
-  let h = '<div class="card"><div class="card-header"><h3>' + Icons.users + ' Gerenciamento de usuários</h3><button type="button" class="btn btn-primary btn-sm" id="btn-novo-user">' + Icons.plus + ' Novo usuário</button></div><div class="card-body" style="padding:0;"><div class="table-wrap"><table class="data"><thead><tr><th>Usuário</th><th>E-mail</th><th>Perfil</th><th>Vínculo</th><th style="text-align:right;">Ações</th></tr></thead><tbody>';
-  DB.state.users.forEach(u => {
+  const pendentes = DB.state.users.filter(u => u.status === 'pendente');
+  const ativos = DB.state.users.filter(u => u.status !== 'pendente');
+  this.setTitle('Usuários', ativos.length + ' contas cadastradas' + (pendentes.length ? ' · ' + pendentes.length + ' pendente(s)' : ''));
+
+  let h = '';
+  if (pendentes.length) {
+    h += '<div class="card mb-24" style="border-color:#fde68a;"><div class="card-header" style="background:var(--yellow-soft);border-bottom-color:#fde68a;"><h3 style="color:var(--yellow-dark);">' + Icons.alert + ' Cadastros aguardando aprovação (' + pendentes.length + ')</h3></div><div class="card-body" style="padding:0;"><div class="table-wrap"><table class="data"><thead><tr><th>Nome</th><th>E-mail</th><th>Celular</th><th>Perfil pretendido</th><th style="text-align:right;">Ações</th></tr></thead><tbody>';
+    pendentes.forEach(u => {
+      const contexto = [u.cursoPretendido, u.turnoPretendido].filter(Boolean).join(' · ');
+      h += '<tr><td><div class="cell-user"><div class="avatar-sm" style="background:' + Util.colorFor(u.name) + '">' + Util.initials(u.name) + '</div><div class="u-meta"><strong>' + Util.esc(u.name) + '</strong></div></div></td><td>' + Util.esc(u.email) + '</td><td class="mono text-sm">' + Util.esc(u.phone || '—') + '</td><td><span class="badge amber">' + Util.roleLabel(u.role) + '</span>' + (contexto ? '<div class="text-xs text-muted mt-4">' + Util.esc(contexto) + '</div>' : '') + '</td><td><div class="actions"><button type="button" class="btn btn-primary btn-xs" data-aprovar-user="' + u.id + '">Aprovar</button><button type="button" class="btn btn-danger btn-xs" data-rejeitar-user="' + u.id + '">Rejeitar</button></div></td></tr>';
+    });
+    h += '</tbody></table></div></div></div>';
+  }
+
+  h += '<div class="card"><div class="card-header"><h3>' + Icons.users + ' Gerenciamento de usuários</h3><button type="button" class="btn btn-primary btn-sm" id="btn-novo-user">' + Icons.plus + ' Novo usuário</button></div><div class="card-body" style="padding:0;"><div class="table-wrap"><table class="data"><thead><tr><th>Usuário</th><th>E-mail</th><th>Perfil</th><th>Vínculo</th><th style="text-align:right;">Ações</th></tr></thead><tbody>';
+  ativos.forEach(u => {
     const st = u.studentId ? this.studentById(u.studentId) : null;
     const isMe = u.id === Auth.currentUser.id;
     h += '<tr><td><div class="cell-user"><div class="avatar-sm" style="background:' + Util.colorFor(u.name) + '">' + Util.initials(u.name) + '</div><div class="u-meta"><strong>' + Util.esc(u.name) + (isMe ? ' <span style="color:var(--blue);font-size:11px;">(você)</span>' : '') + '</strong><span class="mono" style="font-size:11px;">ID ' + Util.esc(u.id.slice(0, 8)) + '</span></div></div></td><td>' + Util.esc(u.email) + '</td><td><span class="badge ' + (u.role === 'diretor' ? 'purple' : u.role === 'coordenador' ? 'blue' : u.role === 'professor' ? 'sky' : u.role === 'aluno' ? 'green' : 'amber') + '">' + Util.roleLabel(u.role) + '</span></td><td>' + (st ? Util.esc(st.name) + ' <span class="text-xs text-muted mono">(' + Util.esc(st.matricula) + ')</span>' : '—') + '</td><td><div class="actions"><button type="button" class="btn btn-secondary btn-xs" data-edit-user="' + u.id + '">Editar</button>' + (isMe ? '' : '<button type="button" class="btn btn-danger btn-xs" data-del-user="' + u.id + '">Excluir</button>') + '</div></td></tr>';
@@ -2670,38 +2414,95 @@ App.views.usuarios = function (el) {
     }, 'Excluir');
   });
   Util.on(el, 'click', '[data-edit-user]', (e, t) => this.modalUser(t.dataset.editUser));
+  Util.on(el, 'click', '[data-aprovar-user]', (e, t) => {
+    const u = this.userById(t.dataset.aprovarUser);
+    if (!u) return;
+    if (u.role === 'aluno') { this.aprovarAlunoComVinculo(u); return; }
+    u.status = 'aprovado';
+    if (u.role === 'professor' && !DB.state.teachers.find(x => x.email === u.email)) {
+      DB.state.teachers.push({ id: DB.id('t'), name: u.name, email: u.email, subject: 'A definir', phone: u.phone || '', userId: u.id });
+    }
+    DB.save(); this.navigate('usuarios'); Toast.success('Cadastro de "' + u.name + '" aprovado.');
+  });
+  Util.on(el, 'click', '[data-rejeitar-user]', (e, t) => {
+    const u = this.userById(t.dataset.rejeitarUser);
+    if (!u) return;
+    Modal.confirm('Rejeitar cadastro', 'Deseja realmente rejeitar o cadastro de "' + u.name + '"? A solicitação será removida.', () => {
+      DB.state.users = DB.state.users.filter(x => x.id !== u.id);
+      DB.save(); this.navigate('usuarios'); Toast.success('Cadastro rejeitado.');
+    }, 'Rejeitar');
+  });
+};
+
+App.aprovarAlunoComVinculo = function (u) {
+  const candidatos = DB.state.students.filter(s => {
+    const c = this.classById(s.classId);
+    if (!c) return false;
+    return (!u.cursoPretendido || c.course === u.cursoPretendido) && (!u.turnoPretendido || c.period === u.turnoPretendido);
+  });
+  const lista = candidatos.length ? candidatos : DB.state.students;
+  const contexto = [u.cursoPretendido, u.turnoPretendido].filter(Boolean).join(' · ');
+  const body = '<p style="font-size:14px;line-height:1.65;color:var(--muted);margin-bottom:18px;">"' + Util.esc(u.name) + '" se cadastrou como aluno' + (contexto ? ' (' + Util.esc(contexto) + ')' : '') + '. Selecione qual aluno já cadastrado corresponde a essa pessoa, ou aprove sem vincular.</p>' +
+    '<div class="field-group"><label>Aluno correspondente</label><select id="aprovar-student-select"><option value="">— Aprovar sem vincular —</option>' +
+    lista.map(s => { const c = this.classById(s.classId); return '<option value="' + s.id + '">' + Util.esc(s.name) + ' — ' + Util.esc(s.matricula) + (c ? ' — ' + Util.esc(c.name) : '') + '</option>'; }).join('') +
+    '</select></div>';
+  Modal.open({
+    title: 'Aprovar cadastro de aluno', icon: Icons.checkCircle, body: body,
+    footer: '<button type="button" class="btn btn-secondary" data-close>Cancelar</button><button type="button" class="btn btn-primary" data-confirm>Aprovar</button>',
+    onMount: (bd, close) => {
+      bd.querySelector('[data-confirm]').addEventListener('click', () => {
+        const sid = bd.querySelector('#aprovar-student-select').value;
+        u.status = 'aprovado';
+        delete u.cursoPretendido; delete u.turnoPretendido;
+        if (sid) {
+          u.studentId = sid;
+          const st = this.studentById(sid);
+          u.matricula = st ? st.matricula : '';
+        }
+        DB.save(); close(); this.navigate('usuarios'); Toast.success('Cadastro de "' + u.name + '" aprovado.');
+      });
+    }
+  });
 };
 
 App.modalUser = function (id) {
   const u = id ? this.userById(id) : null;
   const editing = !!u;
-  const matriculas = DB.state.students.map(s => s.matricula).filter(Boolean);
+  const alunoRoles = ['aluno', 'responsavel'];
+  const currentStudentId = u ? (u.studentId || '') : '';
   const body = '<form id="form-user" novalidate><div class="form-grid">' +
     '<div class="field-group full"><label>Nome completo <span class="req">*</span></label><input name="name" value="' + Util.esc(u ? u.name : '') + '" required><div class="err">Informe o nome.</div></div>' +
     '<div class="field-group"><label>E-mail <span class="req">*</span></label><input type="email" name="email" value="' + Util.esc(u ? u.email : '') + '" required><div class="err">Informe o e-mail.</div></div>' +
-    '<div class="field-group"><label>Perfil de acesso <span class="req">*</span></label><select name="role" required>' + ['diretor','coordenador','professor','aluno','responsavel'].map(r => '<option value="' + r + '"' + (u && u.role === r ? ' selected' : '') + '>' + Util.roleLabel(r) + '</option>').join('') + '</select></div>' +
+    '<div class="field-group"><label>Perfil de acesso <span class="req">*</span></label><select name="role" id="user-role-select" required>' + ['diretor','coordenador','professor','aluno','responsavel'].map(r => '<option value="' + r + '"' + (u && u.role === r ? ' selected' : '') + '>' + Util.roleLabel(r) + '</option>').join('') + '</select></div>' +
     '<div class="field-group"><label>Senha ' + (editing ? '(deixe em branco para manter)' : '<span class="req">*</span>') + '</label><input type="text" name="password" ' + (editing ? '' : 'required') + ' placeholder="Mínimo 4 caracteres"><div class="err">Informe a senha.</div></div>' +
-    '<div class="field-group full"><label>Matrícula do aluno (para aluno/responsável)</label><input name="matricula" list="matriculas-existentes" placeholder="Ex: 2024011" value="' + Util.esc((u && u.matricula) ? u.matricula : (u && u.studentId && this.studentById(u.studentId) ? this.studentById(u.studentId).matricula : '')) + '"><datalist id="matriculas-existentes">' + matriculas.map(m => '<option value="' + Util.esc(m) + '"></option>').join('') + '</datalist></div>' +
+    '<div class="field-group full' + (u && !alunoRoles.includes(u.role) ? ' hidden' : '') + '" id="user-aluno-field"><label>Aluno vinculado (para aluno/responsável)</label><select name="studentId"><option value="">— Nenhum vínculo —</option>' + DB.state.students.map(s => { const c = this.classById(s.classId); return '<option value="' + s.id + '"' + (currentStudentId === s.id ? ' selected' : '') + '>' + Util.esc(s.name) + ' — ' + Util.esc(s.matricula) + (c ? ' — ' + Util.esc(c.name) : '') + '</option>'; }).join('') + '</select></div>' +
     '</div></form>';
   Modal.open({
     title: editing ? 'Editar usuário' : 'Novo usuário', icon: Icons.users, body: body, size: 'lg',
     footer: '<button type="button" class="btn btn-secondary" data-close>Cancelar</button><button type="button" class="btn btn-primary" data-save>' + (editing ? 'Salvar' : 'Criar conta') + '</button>',
     onMount: (bd, close) => {
       const form = bd.querySelector('#form-user');
+      bd.querySelector('#user-role-select').addEventListener('change', e => {
+        bd.querySelector('#user-aluno-field').classList.toggle('hidden', !alunoRoles.includes(e.target.value));
+      });
       bd.querySelector('[data-save]').addEventListener('click', () => {
         if (!this.validateForm(form)) { Toast.error('Preencha os campos obrigatórios.'); return; }
         const d = Object.fromEntries(new FormData(form).entries());
         const dup = DB.state.users.find(x => x.email.toLowerCase() === d.email.toLowerCase() && (!editing || x.id !== u.id));
         if (dup) { Toast.error('Este e-mail já está em uso.'); return; }
-        if (d.role === 'aluno' || d.role === 'responsavel') {
-          d.matricula = d.matricula ? String(d.matricula).trim() : '';
-          const st = DB.state.students.find(s => String(s.matricula) === d.matricula);
-          if (st) d.studentId = st.id; else delete d.studentId;
-        } else { delete d.matricula; delete d.studentId; }
-        if (editing) { if (!d.password) d.password = u.password; Object.assign(u, d); Toast.success('Usuário atualizado.'); }
+        if (alunoRoles.includes(d.role) && d.studentId) {
+          const st = DB.state.students.find(s => s.id === d.studentId);
+          d.matricula = st ? st.matricula : '';
+        } else { delete d.studentId; d.matricula = ''; }
+        if (editing) {
+          if (!d.password) d.password = u.password;
+          if (!('studentId' in d)) delete u.studentId;
+          Object.assign(u, d);
+          Toast.success('Usuário atualizado.');
+        }
         else {
           if (d.password.length < 4) { Toast.error('Senha deve ter pelo menos 4 caracteres.'); return; }
-          d.id = DB.id('u'); d.avatar = d.name.split(/\s+/).map(n => n[0]).slice(0, 2).join('').toUpperCase(); d.createdAt = new Date().toISOString();
+          d.id = DB.id('u'); d.avatar = d.name.split(/\s+/).map(n => n[0]).slice(0, 2).join('').toUpperCase(); d.createdAt = new Date().toISOString(); d.status = 'aprovado';
           DB.state.users.push(d);
           Toast.success('Usuário criado com sucesso.');
         }
@@ -2820,12 +2621,12 @@ App.views.diario = function (el) {
   } else {
     const prof = DB.state.teachers.find(t => t.userId === u.id || t.email === u.email);
     turmas = prof ? DB.state.classes.filter(c => c.teacherId === prof.id) : [];
-    if (!turmas.length) turmas = DB.state.classes;
   }
 
   if (!turmas.length) {
     this.setTitle('Diário de Classe', 'Registro de frequência');
-    el.innerHTML = this.emptyState('book', 'Sem turmas', 'Cadastre turmas antes de usar o diário de classe.');
+    const msg = (!isStaff && DB.state.classes.length) ? 'Você ainda não está vinculado a nenhuma turma.' : 'Cadastre turmas antes de usar o diário de classe.';
+    el.innerHTML = this.emptyState('book', 'Sem turmas', msg);
     return;
   }
 
@@ -3190,7 +2991,7 @@ App.modalAtividade = function () {
       bd.querySelector('[data-save]').addEventListener('click', () => {
         if (!this.validateForm(form)) { Toast.error('Preencha os campos.'); return; }
         const d = Object.fromEntries(new FormData(form).entries());
-        d.id = DB.id('a'); d.createdAt = Util.todayISO(); d.value = Number(d.value) || 10;
+        d.id = DB.id('a'); d.createdAt = Util.todayISO(); d.value = isNaN(Number(d.value)) ? 10 : Number(d.value);
         DB.state.activities.push(d);
         DB.save(); close(); this.renderAtividades(); Toast.success('Atividade cadastrada.');
       });
@@ -3240,7 +3041,9 @@ App.modalOcorrencia = function () {
       bd.querySelector('[data-save]').addEventListener('click', () => {
         if (!this.validateForm(form)) { Toast.error('Preencha os campos.'); return; }
         const d = Object.fromEntries(new FormData(form).entries());
-        d.id = DB.id('o'); d.teacherId = '';
+        const u = Auth.currentUser;
+        const prof = DB.state.teachers.find(t => t.userId === u.id || t.email === u.email);
+        d.id = DB.id('o'); d.teacherId = prof ? prof.id : '';
         DB.state.occurrences.push(d);
         DB.save(); close(); this.renderOcorrencias(); Toast.success('Ocorrência registrada.');
       });
@@ -3391,8 +3194,7 @@ App.views.perfil = function (el) {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
-  try { DB.load(); App.init(); }
-  catch (e) { console.error('Erro na inicialização:', e); alert('Erro ao iniciar o sistema: ' + e.message); }
+  App.init().catch(e => { console.error('Erro na inicialização:', e); alert('Erro ao iniciar o sistema: ' + e.message); });
 });
 </script>
 </body>
