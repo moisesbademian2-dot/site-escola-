@@ -58,9 +58,20 @@ try {
         foreach (($changes[$coll]['upsert'] ?? []) as $rec) {
             if (!is_array($rec) || !valid_id($rec['id'] ?? null)) throw new BadInput('Registro inválido.');
             $id = $rec['id'];
-            $cols = row_from_record($coll, $rec);
-            $new = record_from_row($coll, ['id' => $id] + $cols);
             $old = fetch_record($coll, $id);
+
+            // A field missing from the payload keeps its stored value instead of being
+            // cleared — the front end always sends full records, but the server doesn't
+            // depend on that. An explicit '' still clears a field.
+            $merged = $rec;
+            if ($old !== null) {
+                foreach (COLLECTIONS[$coll] as $field => $type) {
+                    if (!array_key_exists($field, $rec)) $merged[$field] = $old[$field];
+                }
+            }
+
+            $cols = row_from_record($coll, $merged);
+            $new = record_from_row($coll, ['id' => $id] + $cols);
 
             $password = null;
             if ($coll === 'users' && isset($rec['password']) && $rec['password'] !== '') {

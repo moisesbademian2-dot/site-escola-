@@ -134,6 +134,15 @@ CREATE TABLE IF NOT EXISTS announcements (
   date DATE
 ) ENGINE=InnoDB;
 
+-- One row per failed login, by IP and by e-mail; api/config.php reads/clears these
+-- to lock out an identifier after too many failures in a short window.
+CREATE TABLE IF NOT EXISTS login_attempts (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  identifier VARCHAR(255) NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX (identifier, created_at)
+) ENGINE=InnoDB;
+
 INSERT IGNORE INTO subjects (id, name, code) VALUES
   ('d1', 'Desenvolvimento Web', 'DWEB'),
   ('d2', 'Programação Mobile', 'PMOB'),

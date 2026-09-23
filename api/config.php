@@ -1,6 +1,13 @@
 <?php
 declare(strict_types=1);
 header('Content-Type: application/json; charset=utf-8');
+
+// SameSite=Lax stops the session cookie from riding along on a cross-site POST
+// (a form submitted from another page), which is most of what CSRF relies on.
+session_set_cookie_params([
+    'lifetime' => 0, 'path' => '/', 'httponly' => true, 'samesite' => 'Lax',
+    'secure' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
+]);
 session_start();
 
 set_exception_handler(function (Throwable $e): void {
@@ -9,6 +16,17 @@ set_exception_handler(function (Throwable $e): void {
     echo json_encode(['error' => 'Erro interno do servidor.']);
     exit;
 });
+
+// Second CSRF layer: every state-changing request must carry this header. A plain
+// HTML form can't set custom headers, and a cross-site fetch() that tried to would
+// trigger a CORS preflight — which fails, since we never send an Access-Control-
+// Allow-Origin for other origins. So only same-origin JS (our own script.js) can
+// reach this line on a POST.
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '') !== 'PortalOfFuture') {
+    http_response_code(403);
+    echo json_encode(['error' => 'Requisição inválida.']);
+    exit;
+}
 
 // Real credentials go in db_config.php (gitignored, never committed). Without it,
 // these defaults match a fresh XAMPP install so the project runs out of the box.
@@ -219,6 +237,44 @@ function require_login(): array {
 
 function gen_id(string $p): string {
     return $p . '-' . dechex((int) round(microtime(true) * 1000)) . bin2hex(random_bytes(3));
+}
+
+// ---------------------------------------------------------------------------
+// Login rate limiting
+// ---------------------------------------------------------------------------
+
+const LOGIN_MAX_ATTEMPTS = 5;
+const LOGIN_WINDOW_MINUTES = 15;
+
+// Checked per IP (stops one source from spraying many accounts) and per e-mail
+// (stops many sources from hammering a single account) independently.
+function login_identifiers(string $email): array {
+    $ids = ['ip:' . ($_SERVER['REMOTE_ADDR'] ?? 'unknown')];
+    if ($email !== '') $ids[] = 'email:' . strtolower($email);
+    return $ids;
+}
+
+function too_many_attempts(array $identifiers): bool {
+    if (!$identifiers) return false;
+    $in = implode(',', array_fill(0, count($identifiers), '?'));
+    $stmt = db()->prepare("SELECT identifier, COUNT(*) c FROM login_attempts
+                            WHERE identifier IN ($in) AND created_at > NOW() - INTERVAL ? MINUTE
+                            GROUP BY identifier HAVING c >= ?");
+    $stmt->execute([...$identifiers, LOGIN_WINDOW_MINUTES, LOGIN_MAX_ATTEMPTS]);
+    return (bool) $stmt->fetch();
+}
+
+function record_attempt(array $identifiers): void {
+    $stmt = db()->prepare('INSERT INTO login_attempts (identifier) VALUES (?)');
+    foreach ($identifiers as $id) $stmt->execute([$id]);
+    // Opportunistic cleanup so the table doesn't grow forever; cheap enough to run often.
+    if (random_int(1, 50) === 1) db()->exec('DELETE FROM login_attempts WHERE created_at < NOW() - INTERVAL 1 DAY');
+}
+
+function clear_attempts(array $identifiers): void {
+    if (!$identifiers) return;
+    $in = implode(',', array_fill(0, count($identifiers), '?'));
+    db()->prepare("DELETE FROM login_attempts WHERE identifier IN ($in)")->execute($identifiers);
 }
 
 // ---------------------------------------------------------------------------

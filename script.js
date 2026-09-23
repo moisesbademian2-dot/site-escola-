@@ -2,6 +2,16 @@
 
 const LOGO_IMG = '<img src="logo2.0-quadrada.png" alt="Portal of Future" class="logo-img">';
 
+// POST helper: every state-changing request needs this header (api/config.php checks
+// it) so a cross-site form or fetch() can't reach those endpoints — see that file for why.
+function apiPost(url, body) {
+  return fetch(url, {
+    method: 'POST', credentials: 'include',
+    headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'PortalOfFuture' },
+    body: body === undefined ? undefined : JSON.stringify(body)
+  });
+}
+
 const Icons = {
   dashboard: '<svg class="ico" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>',
   users: '<svg class="ico" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
@@ -71,11 +81,7 @@ const DB = {
     this.queue = this.queue.then(async () => {
       let error = null;
       try {
-        const res = await fetch(this.API + 'sync.php', {
-          method: 'POST', credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ changes: changes })
-        });
+        const res = await apiPost(this.API + 'sync.php', { changes: changes });
         const d = await res.json().catch(() => ({}));
         if (!res.ok || !d.ok) error = d.error || 'Falha ao salvar no servidor.';
       } catch (e) { error = 'Falha ao salvar no servidor. Verifique sua conexão.'; }
@@ -88,7 +94,7 @@ const DB = {
     });
   },
   reset() {
-    fetch(this.API + 'reset.php', { method: 'POST', credentials: 'include' }).finally(() => location.reload());
+    apiPost(this.API + 'reset.php').finally(() => location.reload());
   },
   id(p) { return p + '-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 };
@@ -104,10 +110,7 @@ const Auth = {
   },
   async login(email, password) {
     try {
-      const res = await fetch(DB.API + 'login.php', {
-        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
-      });
+      const res = await apiPost(DB.API + 'login.php', { email, password });
       const d = await res.json();
       if (!d.ok) return { ok: false, error: d.error || 'E-mail ou senha inválidos.' };
       this.currentUser = d.user;
@@ -116,10 +119,7 @@ const Auth = {
   },
   async register(data) {
     try {
-      const res = await fetch(DB.API + 'register.php', {
-        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
+      const res = await apiPost(DB.API + 'register.php', data);
       const d = await res.json();
       if (!d.ok) return { ok: false, error: d.error || 'Não foi possível criar o administrador.' };
       return { ok: true, user: d.user };
@@ -127,10 +127,7 @@ const Auth = {
   },
   async signup(data) {
     try {
-      const res = await fetch(DB.API + 'signup.php', {
-        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
+      const res = await apiPost(DB.API + 'signup.php', data);
       const d = await res.json();
       if (!d.ok) return { ok: false, error: d.error || 'Não foi possível enviar o cadastro.' };
       return { ok: true };
@@ -138,7 +135,7 @@ const Auth = {
   },
   async logout() {
     this.currentUser = null;
-    try { await fetch(DB.API + 'logout.php', { method: 'POST', credentials: 'include' }); } catch (e) {}
+    try { await apiPost(DB.API + 'logout.php'); } catch (e) {}
   },
   async restore() {
     try {
@@ -150,10 +147,7 @@ const Auth = {
   },
   async verifyPassword(password) {
     try {
-      const res = await fetch(DB.API + 'verify_password.php', {
-        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password })
-      });
+      const res = await apiPost(DB.API + 'verify_password.php', { password });
       const d = await res.json();
       return !!d.ok;
     } catch (e) { return false; }
