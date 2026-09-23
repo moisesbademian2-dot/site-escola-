@@ -2,34 +2,32 @@
 require __DIR__ . '/config.php';
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') respond(['error' => 'Método inválido.'], 405);
 
-$state = get_state();
-if (!empty($state['users'])) respond(['ok' => false, 'error' => 'Já existe um administrador cadastrado.']);
-
 $in = json_input();
 $name = trim((string) ($in['name'] ?? ''));
 $email = trim((string) ($in['email'] ?? ''));
 $password = (string) ($in['password'] ?? '');
 
-if ($name === '' || $email === '' || strlen($password) < 4) {
+if ($name === '' || $email === '' || strlen($password) < 4 || mb_strlen($name) > 255 || mb_strlen($email) > 255) {
     respond(['ok' => false, 'error' => 'Preencha todos os campos corretamente.']);
 }
 
-$parts = preg_split('/\s+/', $name);
-$initials = strtoupper(implode('', array_map(fn($p) => $p !== '' ? $p[0] : '', array_slice($parts, 0, 2))));
+$pdo = db();
+$pdo->beginTransaction();
+// Lock the table so two simultaneous requests can't both create the first administrator.
+$pdo->query('SELECT id FROM users LIMIT 1 FOR UPDATE');
+if (user_count() > 0) {
+    $pdo->rollBack();
+    respond(['ok' => false, 'error' => 'Já existe um administrador cadastrado.']);
+}
 
 $user = [
-    'id' => gen_id('u'),
-    'name' => $name,
-    'email' => $email,
-    'password' => $password,
-    'role' => 'diretor',
-    'avatar' => $initials,
-    'createdAt' => date('c'),
-    'matricula' => '',
-    'status' => 'aprovado',
+    'id' => gen_id('u'), 'name' => $name, 'email' => $email, 'role' => 'diretor',
+    'avatar' => initials_of($name), 'createdAt' => date('c'), 'status' => 'aprovado',
 ];
-$state['users'][] = $user;
-save_state_raw($state);
-$_SESSION['uid'] = $user['id'];
+$pdo->prepare('INSERT INTO users (id, name, email, password, role, avatar, created_at, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+    ->execute([$user['id'], $name, $email, hash_password($password), 'diretor', $user['avatar'], $user['createdAt'], 'aprovado']);
+$pdo->commit();
 
-respond(['ok' => true, 'user' => sanitize_user($user)]);
+session_regenerate_id(true);
+$_SESSION['uid'] = $user['id'];
+respond(['ok' => true, 'user' => record_from_row('users', ['id' => $user['id'], 'name' => $name, 'email' => $email, 'role' => 'diretor', 'avatar' => $user['avatar'], 'created_at' => $user['createdAt'], 'status' => 'aprovado'])]);

@@ -1272,20 +1272,59 @@ const Icons = {
 
 const DB = {
   API: 'api/',
+  COLLECTIONS: ['users', 'students', 'classes', 'teachers', 'subjects', 'attendance', 'grades', 'activities', 'occurrences', 'announcements', 'lessons'],
   state: { users: [], students: [], classes: [], teachers: [], subjects: [], attendance: [], grades: [], activities: [], occurrences: [], announcements: [], lessons: [] },
+  synced: {},
+  queue: Promise.resolve(),
   async load() {
     try {
       const res = await fetch(this.API + 'state.php', { credentials: 'include' });
       if (!res.ok) throw new Error('request failed');
       this.state = Object.assign(this.state, await res.json());
+      this.synced = this.snapshot();
     } catch (e) { console.error(e); Toast.error('Não foi possível carregar os dados do servidor.'); }
   },
+  // { collection: { id: JSON of the record } }, used to tell what changed since the last sync.
+  snapshot() {
+    const snap = {};
+    this.COLLECTIONS.forEach(k => {
+      snap[k] = {};
+      (this.state[k] || []).forEach(r => { snap[k][r.id] = JSON.stringify(r); });
+    });
+    return snap;
+  },
+  // Sends only the records created, changed or removed since the last sync; the server checks each one against the user's role.
   save() {
-    fetch(this.API + 'state.php', {
-      method: 'POST', credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(this.state)
-    }).catch(() => Toast.error('Falha ao salvar no servidor. Verifique sua conexão.'));
+    const now = this.snapshot();
+    const changes = {};
+    this.COLLECTIONS.forEach(k => {
+      const before = this.synced[k] || {};
+      const upsert = Object.keys(now[k]).filter(id => now[k][id] !== before[id]).map(id => JSON.parse(now[k][id]));
+      const del = Object.keys(before).filter(id => !(id in now[k]));
+      if (upsert.length || del.length) changes[k] = { upsert: upsert, delete: del };
+    });
+    // A new password is sent once and never kept in memory.
+    this.state.users.forEach(u => { delete u.password; });
+    this.synced = this.snapshot();
+    if (!Object.keys(changes).length) return;
+    this.queue = this.queue.then(async () => {
+      let error = null;
+      try {
+        const res = await fetch(this.API + 'sync.php', {
+          method: 'POST', credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ changes: changes })
+        });
+        const d = await res.json().catch(() => ({}));
+        if (!res.ok || !d.ok) error = d.error || 'Falha ao salvar no servidor.';
+      } catch (e) { error = 'Falha ao salvar no servidor. Verifique sua conexão.'; }
+      if (error) {
+        // The screen already shows the change; reload so it matches what the server kept.
+        Toast.error(error);
+        await this.load();
+        App.navigate(App.currentView);
+      }
+    });
   },
   reset() {
     fetch(this.API + 'reset.php', { method: 'POST', credentials: 'include' }).finally(() => location.reload());
@@ -1362,10 +1401,10 @@ const Auth = {
 };
 
 const Util = {
-  fmtDate(iso) { if (!iso) return '—'; const p = String(iso).slice(0, 10).split('-'); if (p.length !== 3) return iso; return p[2] + '/' + p[1] + '/' + p[0]; },
+  fmtDate(iso) { if (!iso) return '—'; const p = String(iso).slice(0, 10).split('-'); if (p.length !== 3) return Util.esc(iso); return Util.esc(p[2]) + '/' + Util.esc(p[1]) + '/' + Util.esc(p[0]); },
   fmtDateLong(iso) {
     if (!iso) return '—';
-    const d = new Date(iso); if (isNaN(d)) return iso;
+    const d = new Date(iso); if (isNaN(d)) return Util.esc(iso);
     const m = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
     return d.getDate() + ' de ' + m[d.getMonth()] + ' de ' + d.getFullYear();
   },
@@ -1603,7 +1642,7 @@ const App = {
       nav += '<div class="nav-group-title">' + Util.esc(g.group) + '</div>';
       g.items.forEach(it => {
         idx++;
-        nav += '<button type="button" class="nav-item" data-view="' + it.id + '" style="animation-delay:' + (0.25 + idx * 0.04) + 's">' +
+        nav += '<button type="button" class="nav-item" data-view="' + Util.esc(it.id) + '" style="animation-delay:' + (0.25 + idx * 0.04) + 's">' +
           Icons[it.icon] + '<span>' + Util.esc(it.label) + '</span></button>';
       });
     });
@@ -1829,7 +1868,7 @@ App.dashboardAluno = function (el) {
   const ocorr = DB.state.occurrences.filter(o => o.studentId === st.id);
   el.innerHTML = '<div class="card card-pad mb-24" style="background:linear-gradient(135deg,var(--blue-dark) 0%,var(--blue) 100%);color:#fff;border:none;">' +
       '<div class="flex items-center gap-16">' +
-        '<div style="width:60px;height:60px;border-radius:12px;background:var(--yellow);color:var(--blue-dark);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;letter-spacing:-0.02em;">' + Util.initials(st.name) + '</div>' +
+        '<div style="width:60px;height:60px;border-radius:12px;background:var(--yellow);color:var(--blue-dark);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;letter-spacing:-0.02em;">' + Util.esc(Util.initials(st.name)) + '</div>' +
         '<div><h2 style="font-size:22px;font-weight:700;letter-spacing:-0.02em;">' + Util.esc(st.name) + '</h2>' +
         '<p style="color:#cbd5e1;font-size:13px;margin-top:4px;">Matrícula ' + Util.esc(st.matricula) + ' · ' + (turma ? Util.esc(turma.name) : '—') + ' · ' + Util.esc(st.period || '') + '</p></div>' +
       '</div>' +
@@ -1863,7 +1902,7 @@ App.dashboardResponsavel = function (el) {
   const ocorr = DB.state.occurrences.filter(o => o.studentId === st.id);
   el.innerHTML = '<div class="card card-pad mb-24" style="background:linear-gradient(135deg,var(--blue-dark) 0%,var(--blue) 100%);color:#fff;border:none;">' +
       '<div class="flex items-center gap-16">' +
-        '<div style="width:60px;height:60px;border-radius:12px;background:var(--yellow);color:var(--blue-dark);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;">' + Util.initials(st.name) + '</div>' +
+        '<div style="width:60px;height:60px;border-radius:12px;background:var(--yellow);color:var(--blue-dark);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;">' + Util.esc(Util.initials(st.name)) + '</div>' +
         '<div><p style="color:#cbd5e1;font-size:11px;text-transform:uppercase;letter-spacing:0.12em;font-weight:600;">Aluno(a)</p>' +
         '<h2 style="font-size:22px;font-weight:700;letter-spacing:-0.02em;margin-top:2px;">' + Util.esc(st.name) + '</h2>' +
         '<p style="color:#cbd5e1;font-size:13px;margin-top:4px;">Turma ' + (turma ? Util.esc(turma.name) : '—') + ' · Matrícula ' + Util.esc(st.matricula) + '</p></div>' +
@@ -1949,7 +1988,7 @@ App.riskyTable = function (list) {
   let h = '<table class="data"><thead><tr><th>Aluno</th><th>Turma</th><th>Frequência</th><th>Faltas</th></tr></thead><tbody>';
   list.forEach(o => {
     const t = this.classById(o.s.classId);
-    h += '<tr><td><div class="cell-user"><div class="avatar-sm" style="background:' + Util.colorFor(o.s.name) + '">' + Util.initials(o.s.name) + '</div><div class="u-meta"><strong>' + Util.esc(o.s.name) + '</strong><span>' + Util.esc(o.s.matricula) + '</span></div></div></td><td>' + (t ? Util.esc(t.name) : '—') + '</td><td><span class="badge red mono">' + Util.fmtNum(o.st.freq, 1) + '%</span></td><td class="mono">' + o.st.faltas + '</td></tr>';
+    h += '<tr><td><div class="cell-user"><div class="avatar-sm" style="background:' + Util.colorFor(o.s.name) + '">' + Util.esc(Util.initials(o.s.name)) + '</div><div class="u-meta"><strong>' + Util.esc(o.s.name) + '</strong><span>' + Util.esc(o.s.matricula) + '</span></div></div></td><td>' + (t ? Util.esc(t.name) : '—') + '</td><td><span class="badge red mono">' + Util.fmtNum(o.st.freq, 1) + '%</span></td><td class="mono">' + o.st.faltas + '</td></tr>';
   });
   h += '</tbody></table>';
   return h;
@@ -1959,7 +1998,7 @@ App.lowGradeTable = function (list) {
   let h = '<table class="data"><thead><tr><th>Aluno</th><th>Turma</th><th>Média</th></tr></thead><tbody>';
   list.forEach(o => {
     const t = this.classById(o.s.classId);
-    h += '<tr><td><div class="cell-user"><div class="avatar-sm" style="background:' + Util.colorFor(o.s.name) + '">' + Util.initials(o.s.name) + '</div><div class="u-meta"><strong>' + Util.esc(o.s.name) + '</strong><span>' + Util.esc(o.s.matricula) + '</span></div></div></td><td>' + (t ? Util.esc(t.name) : '—') + '</td><td><span class="badge ' + Util.notaBadge(o.m) + ' mono">' + Util.fmtNum(o.m, 1) + '</span></td></tr>';
+    h += '<tr><td><div class="cell-user"><div class="avatar-sm" style="background:' + Util.colorFor(o.s.name) + '">' + Util.esc(Util.initials(o.s.name)) + '</div><div class="u-meta"><strong>' + Util.esc(o.s.name) + '</strong><span>' + Util.esc(o.s.matricula) + '</span></div></div></td><td>' + (t ? Util.esc(t.name) : '—') + '</td><td><span class="badge ' + Util.notaBadge(o.m) + ' mono">' + Util.fmtNum(o.m, 1) + '</span></td></tr>';
   });
   h += '</tbody></table>';
   return h;
@@ -2014,7 +2053,7 @@ App.turmasMiniCards = function (turmas) {
   let h = '<div class="grid-2">';
   turmas.forEach(c => {
     const q = this.studentsOfClass(c.id).length;
-    h += '<div class="turma-card" data-view-class="' + c.id + '"><div class="t-head"><div><div class="t-code">' + Util.esc(c.name) + '</div><div class="t-sub">' + Util.esc(c.period) + ' · ' + Util.esc(c.room || '') + '</div></div><span class="badge blue">' + q + ' alunos</span></div></div>';
+    h += '<div class="turma-card" data-view-class="' + Util.esc(c.id) + '"><div class="t-head"><div><div class="t-code">' + Util.esc(c.name) + '</div><div class="t-sub">' + Util.esc(c.period) + ' · ' + Util.esc(c.room || '') + '</div></div><span class="badge blue">' + q + ' alunos</span></div></div>';
   });
   h += '</div>';
   return h;
@@ -2028,7 +2067,7 @@ App.wireGotos = function (el) {
 App.views.alunos = function (el) {
   const canEdit = ['diretor','coordenador'].includes(Auth.currentUser.role);
   this.setTitle('Alunos', DB.state.students.length + ' registros');
-  el.innerHTML = '<div class="card"><div class="card-header"><h3>' + Icons.student + ' Lista de alunos</h3>' + (canEdit ? '<button type="button" class="btn btn-primary btn-sm" id="btn-novo-aluno">' + Icons.plus + ' Cadastrar aluno</button>' : '') + '</div><div class="card-body"><div class="toolbar"><div class="search">' + Icons.search + '<input type="text" id="busca-aluno" placeholder="Buscar por nome, matrícula ou e-mail..."></div><select id="filtro-turma"><option value="">Todas as turmas</option>' + DB.state.classes.map(c => '<option value="' + c.id + '">' + Util.esc(c.name) + '</option>').join('') + '</select><select id="filtro-situacao"><option value="">Todas as situações</option><option>Ativo</option><option>Inativo</option><option>Transferido</option><option>Concluído</option></select></div><div id="tabela-alunos"></div></div></div>';
+  el.innerHTML = '<div class="card"><div class="card-header"><h3>' + Icons.student + ' Lista de alunos</h3>' + (canEdit ? '<button type="button" class="btn btn-primary btn-sm" id="btn-novo-aluno">' + Icons.plus + ' Cadastrar aluno</button>' : '') + '</div><div class="card-body"><div class="toolbar"><div class="search">' + Icons.search + '<input type="text" id="busca-aluno" placeholder="Buscar por nome, matrícula ou e-mail..."></div><select id="filtro-turma"><option value="">Todas as turmas</option>' + DB.state.classes.map(c => '<option value="' + Util.esc(c.id) + '">' + Util.esc(c.name) + '</option>').join('') + '</select><select id="filtro-situacao"><option value="">Todas as situações</option><option>Ativo</option><option>Inativo</option><option>Transferido</option><option>Concluído</option></select></div><div id="tabela-alunos"></div></div></div>';
   this.renderAlunosTable();
   document.getElementById('busca-aluno').addEventListener('input', Util.debounce(() => this.renderAlunosTable(), 200));
   document.getElementById('filtro-turma').addEventListener('change', () => this.renderAlunosTable());
@@ -2054,7 +2093,7 @@ App.renderAlunosTable = function () {
   let h = '<div class="table-wrap"><table class="data"><thead><tr><th>Matrícula</th><th>Nome</th><th>Turma</th><th>Curso</th><th>Situação</th>' + (canEdit ? '<th style="text-align:right;">Ações</th>' : '') + '</tr></thead><tbody>';
   list.forEach(s => {
     const t = this.classById(s.classId);
-    h += '<tr><td><span class="mono" style="font-size:12.5px;">' + Util.esc(s.matricula) + '</span></td><td><div class="cell-user"><div class="avatar-sm" style="background:' + Util.colorFor(s.name) + '">' + Util.initials(s.name) + '</div><div class="u-meta"><strong>' + Util.esc(s.name) + '</strong><span>' + Util.esc(s.email || '—') + '</span></div></div></td><td>' + (t ? Util.esc(t.name) : '—') + '</td><td class="text-sm text-muted">' + Util.esc(s.course || '—') + '</td><td><span class="badge ' + Util.statusClass(s.status) + '">' + Util.esc(s.status) + '</span></td>' + (canEdit ? '<td><div class="actions"><button type="button" class="btn btn-ghost btn-xs" data-ver="' + s.id + '">Ver</button><button type="button" class="btn btn-secondary btn-xs" data-edit="' + s.id + '">Editar</button><button type="button" class="btn btn-danger btn-xs" data-del="' + s.id + '">Excluir</button></div></td>' : '') + '</tr>';
+    h += '<tr><td><span class="mono" style="font-size:12.5px;">' + Util.esc(s.matricula) + '</span></td><td><div class="cell-user"><div class="avatar-sm" style="background:' + Util.colorFor(s.name) + '">' + Util.esc(Util.initials(s.name)) + '</div><div class="u-meta"><strong>' + Util.esc(s.name) + '</strong><span>' + Util.esc(s.email || '—') + '</span></div></div></td><td>' + (t ? Util.esc(t.name) : '—') + '</td><td class="text-sm text-muted">' + Util.esc(s.course || '—') + '</td><td><span class="badge ' + Util.statusClass(s.status) + '">' + Util.esc(s.status) + '</span></td>' + (canEdit ? '<td><div class="actions"><button type="button" class="btn btn-ghost btn-xs" data-ver="' + Util.esc(s.id) + '">Ver</button><button type="button" class="btn btn-secondary btn-xs" data-edit="' + Util.esc(s.id) + '">Editar</button><button type="button" class="btn btn-danger btn-xs" data-del="' + Util.esc(s.id) + '">Excluir</button></div></td>' : '') + '</tr>';
   });
   h += '</tbody></table></div>';
   ct.innerHTML = h;
@@ -2092,7 +2131,7 @@ App.modalAluno = function (id) {
     '<div class="field-group"><label>Data de nascimento</label><input type="date" name="birth" value="' + Util.esc(s ? (s.birth || '') : '') + '"></div>' +
     '<div class="field-group"><label>E-mail</label><input type="email" name="email" value="' + Util.esc(s ? s.email : '') + '" placeholder="aluno@escola.com"></div>' +
     '<div class="field-group"><label>Telefone</label><input type="text" name="phone" value="' + Util.esc(s ? s.phone : '') + '" placeholder="(11) 99999-9999"></div>' +
-    '<div class="field-group"><label>Turma <span class="req">*</span></label><select name="classId" required><option value="">Selecione...</option>' + DB.state.classes.map(c => '<option value="' + c.id + '"' + (s && s.classId === c.id ? ' selected' : '') + '>' + Util.esc(c.name) + ' — ' + Util.esc(c.period) + '</option>').join('') + '</select><div class="err">Selecione uma turma.</div></div>' +
+    '<div class="field-group"><label>Turma <span class="req">*</span></label><select name="classId" required><option value="">Selecione...</option>' + DB.state.classes.map(c => '<option value="' + Util.esc(c.id) + '"' + (s && s.classId === c.id ? ' selected' : '') + '>' + Util.esc(c.name) + ' — ' + Util.esc(c.period) + '</option>').join('') + '</select><div class="err">Selecione uma turma.</div></div>' +
     '<div class="field-group"><label>Curso</label><input name="course" value="' + Util.esc(s ? s.course : '') + '" placeholder="Ex: Técnico em Informática"></div>' +
     '<div class="field-group"><label>Período</label><select name="period">' + ['Manhã','Tarde','Noite'].map(p => '<option' + (s && s.period === p ? ' selected' : '') + '>' + p + '</option>').join('') + '</select></div>' +
     '<div class="field-group"><label>Nome do responsável</label><input name="guardian" value="' + Util.esc(s ? s.guardian : '') + '"></div>' +
@@ -2123,7 +2162,7 @@ App.verAluno = function (id) {
   const t = this.classById(s.classId);
   const a = this.attendanceStats(s.id);
   const m = this.averageOf(s.id);
-  const body = '<div class="flex items-center gap-16 mb-24"><div style="width:60px;height:60px;border-radius:12px;background:' + Util.colorFor(s.name) + ';display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;color:#fff;">' + Util.initials(s.name) + '</div><div><h2 style="font-size:20px;font-weight:700;letter-spacing:-0.02em;">' + Util.esc(s.name) + '</h2><p class="text-muted text-sm mono">' + Util.esc(s.matricula) + '</p></div></div>' +
+  const body = '<div class="flex items-center gap-16 mb-24"><div style="width:60px;height:60px;border-radius:12px;background:' + Util.colorFor(s.name) + ';display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;color:#fff;">' + Util.esc(Util.initials(s.name)) + '</div><div><h2 style="font-size:20px;font-weight:700;letter-spacing:-0.02em;">' + Util.esc(s.name) + '</h2><p class="text-muted text-sm mono">' + Util.esc(s.matricula) + '</p></div></div>' +
     '<div class="grid-2 mb-24"><div><span class="text-xs text-muted text-bold" style="text-transform:uppercase;letter-spacing:0.08em;">Turma</span><div>' + (t ? Util.esc(t.name) : '—') + '</div></div><div><span class="text-xs text-muted text-bold" style="text-transform:uppercase;letter-spacing:0.08em;">Curso</span><div>' + Util.esc(s.course || '—') + '</div></div><div><span class="text-xs text-muted text-bold" style="text-transform:uppercase;letter-spacing:0.08em;">Período</span><div>' + Util.esc(s.period || '—') + '</div></div><div><span class="text-xs text-muted text-bold" style="text-transform:uppercase;letter-spacing:0.08em;">Situação</span><div><span class="badge ' + Util.statusClass(s.status) + '">' + Util.esc(s.status) + '</span></div></div><div><span class="text-xs text-muted text-bold" style="text-transform:uppercase;letter-spacing:0.08em;">E-mail</span><div>' + Util.esc(s.email || '—') + '</div></div><div><span class="text-xs text-muted text-bold" style="text-transform:uppercase;letter-spacing:0.08em;">Telefone</span><div>' + Util.esc(s.phone || '—') + '</div></div><div><span class="text-xs text-muted text-bold" style="text-transform:uppercase;letter-spacing:0.08em;">Responsável</span><div>' + Util.esc(s.guardian || '—') + '</div></div><div><span class="text-xs text-muted text-bold" style="text-transform:uppercase;letter-spacing:0.08em;">Tel. responsável</span><div>' + Util.esc(s.guardianPhone || '—') + '</div></div></div>' +
     '<div class="divider"></div>' +
     '<div class="grid-3" style="text-align:center;"><div><div class="mono" style="font-size:24px;font-weight:700;color:var(--blue);">' + Util.fmtNum(m, 1) + '</div><div class="text-xs text-muted" style="text-transform:uppercase;letter-spacing:0.08em;">Média</div></div><div><div class="mono" style="font-size:24px;font-weight:700;color:var(--success);">' + Util.fmtNum(a.freq, 0) + '%</div><div class="text-xs text-muted" style="text-transform:uppercase;letter-spacing:0.08em;">Frequência</div></div><div><div class="mono" style="font-size:24px;font-weight:700;color:var(--danger);">' + a.faltas + '</div><div class="text-xs text-muted" style="text-transform:uppercase;letter-spacing:0.08em;">Faltas</div></div></div>';
@@ -2143,7 +2182,7 @@ App.turmasCards = function () {
     const q = this.studentsOfClass(c.id).length;
     const p = this.teacherById(c.teacherId);
     const m = this.classAverage(c.id);
-    return '<div class="turma-card" data-view-class="' + c.id + '"><div class="t-head"><div><div class="t-code">' + Util.esc(c.name) + '</div><div class="t-sub">' + Util.esc(c.course) + '</div></div><span class="badge blue">' + q + '</span></div><div class="t-meta"><span>' + Util.esc(c.semester) + '</span><span>' + Util.esc(c.period) + '</span><span>' + Util.esc(c.room || '—') + '</span>' + (p ? '<span>' + Util.esc(p.name) + '</span>' : '') + '<span>Média ' + Util.fmtNum(m, 1) + '</span></div></div>';
+    return '<div class="turma-card" data-view-class="' + Util.esc(c.id) + '"><div class="t-head"><div><div class="t-code">' + Util.esc(c.name) + '</div><div class="t-sub">' + Util.esc(c.course) + '</div></div><span class="badge blue">' + q + '</span></div><div class="t-meta"><span>' + Util.esc(c.semester) + '</span><span>' + Util.esc(c.period) + '</span><span>' + Util.esc(c.room || '—') + '</span>' + (p ? '<span>' + Util.esc(p.name) + '</span>' : '') + '<span>Média ' + Util.fmtNum(m, 1) + '</span></div></div>';
   }).join('');
 };
 
@@ -2156,7 +2195,7 @@ App.modalTurma = function (id) {
     '<div class="field-group"><label>Semestre</label><input name="semester" value="' + Util.esc(c ? c.semester : '') + '" placeholder="Ex: 2º Semestre"></div>' +
     '<div class="field-group"><label>Período</label><select name="period">' + ['Manhã','Tarde','Noite'].map(p => '<option' + (c && c.period === p ? ' selected' : '') + '>' + p + '</option>').join('') + '</select></div>' +
     '<div class="field-group"><label>Sala</label><input name="room" value="' + Util.esc(c ? c.room : '') + '" placeholder="Ex: Sala 12"></div>' +
-    '<div class="field-group"><label>Professor responsável</label><select name="teacherId"><option value="">—</option>' + DB.state.teachers.map(t => '<option value="' + t.id + '"' + (c && c.teacherId === t.id ? ' selected' : '') + '>' + Util.esc(t.name) + '</option>').join('') + '</select></div>' +
+    '<div class="field-group"><label>Professor responsável</label><select name="teacherId"><option value="">—</option>' + DB.state.teachers.map(t => '<option value="' + Util.esc(t.id) + '"' + (c && c.teacherId === t.id ? ' selected' : '') + '>' + Util.esc(t.name) + '</option>').join('') + '</select></div>' +
     '</div></form>';
   Modal.open({
     title: editing ? 'Editar turma' : 'Nova turma', icon: Icons.building, body: body, size: 'lg',
@@ -2187,7 +2226,7 @@ App.verTurma = function (id) {
     alunos.forEach(s => {
       const a = this.attendanceStats(s.id);
       const mm = this.averageOf(s.id);
-      tab += '<tr><td><div class="cell-user"><div class="avatar-sm" style="background:' + Util.colorFor(s.name) + '">' + Util.initials(s.name) + '</div><div class="u-meta"><strong>' + Util.esc(s.name) + '</strong></div></div></td><td class="mono text-sm">' + Util.esc(s.matricula) + '</td><td><span class="badge ' + Util.notaBadge(mm) + ' mono">' + Util.fmtNum(mm, 1) + '</span></td><td class="mono">' + Util.fmtNum(a.freq, 0) + '%</td></tr>';
+      tab += '<tr><td><div class="cell-user"><div class="avatar-sm" style="background:' + Util.colorFor(s.name) + '">' + Util.esc(Util.initials(s.name)) + '</div><div class="u-meta"><strong>' + Util.esc(s.name) + '</strong></div></div></td><td class="mono text-sm">' + Util.esc(s.matricula) + '</td><td><span class="badge ' + Util.notaBadge(mm) + ' mono">' + Util.fmtNum(mm, 1) + '</span></td><td class="mono">' + Util.fmtNum(a.freq, 0) + '%</td></tr>';
     });
     tab += '</tbody></table></div>';
   }
@@ -2278,7 +2317,7 @@ App.views.professores = function (el) {
     h += '<div class="grid-cards">';
     DB.state.teachers.forEach(t => {
       const turmas = DB.state.classes.filter(c => c.teacherId === t.id);
-      h += '<div class="turma-card" style="cursor:default;"><div class="t-head"><div class="flex items-center gap-12"><div style="width:44px;height:44px;font-size:13px;background:' + Util.colorFor(t.name) + ';border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;">' + Util.initials(t.name) + '</div><div><div class="t-code" style="font-size:15px;">' + Util.esc(t.name) + '</div><div class="t-sub">' + Util.esc(t.subject) + '</div></div></div>' + (canEdit ? '<button class="icon-btn" data-del-prof="' + t.id + '" style="width:30px;height:30px;">' + Icons.trash + '</button>' : '') + '</div><div class="t-meta"><span>' + Util.esc(t.email) + '</span><span>' + Util.esc(t.phone || '—') + '</span><span>' + turmas.length + ' turma(s)</span></div></div>';
+      h += '<div class="turma-card" style="cursor:default;"><div class="t-head"><div class="flex items-center gap-12"><div style="width:44px;height:44px;font-size:13px;background:' + Util.colorFor(t.name) + ';border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;">' + Util.esc(Util.initials(t.name)) + '</div><div><div class="t-code" style="font-size:15px;">' + Util.esc(t.name) + '</div><div class="t-sub">' + Util.esc(t.subject) + '</div></div></div>' + (canEdit ? '<button class="icon-btn" data-del-prof="' + Util.esc(t.id) + '" style="width:30px;height:30px;">' + Icons.trash + '</button>' : '') + '</div><div class="t-meta"><span>' + Util.esc(t.email) + '</span><span>' + Util.esc(t.phone || '—') + '</span><span>' + turmas.length + ' turma(s)</span></div></div>';
     });
     h += '</div>';
   }
@@ -2338,7 +2377,7 @@ App.views.disciplinas = function (el) {
   else {
     h += '<div class="grid-cards">';
     DB.state.subjects.forEach(s => {
-      h += '<div class="turma-card" style="cursor:default;"><div class="t-head"><div><div class="t-code" style="font-size:15px;">' + Util.esc(s.name) + '</div><div class="t-sub">Código: ' + Util.esc(s.code || '—') + '</div></div>' + (canEdit ? '<button class="icon-btn" data-del-disc="' + s.id + '" style="width:30px;height:30px;">' + Icons.trash + '</button>' : '') + '</div></div>';
+      h += '<div class="turma-card" style="cursor:default;"><div class="t-head"><div><div class="t-code" style="font-size:15px;">' + Util.esc(s.name) + '</div><div class="t-sub">Código: ' + Util.esc(s.code || '—') + '</div></div>' + (canEdit ? '<button class="icon-btn" data-del-disc="' + Util.esc(s.id) + '" style="width:30px;height:30px;">' + Icons.trash + '</button>' : '') + '</div></div>';
     });
     h += '</div>';
   }
@@ -2390,7 +2429,7 @@ App.views.usuarios = function (el) {
     h += '<div class="card mb-24" style="border-color:#fde68a;"><div class="card-header" style="background:var(--yellow-soft);border-bottom-color:#fde68a;"><h3 style="color:var(--yellow-dark);">' + Icons.alert + ' Cadastros aguardando aprovação (' + pendentes.length + ')</h3></div><div class="card-body" style="padding:0;"><div class="table-wrap"><table class="data"><thead><tr><th>Nome</th><th>E-mail</th><th>Celular</th><th>Perfil pretendido</th><th style="text-align:right;">Ações</th></tr></thead><tbody>';
     pendentes.forEach(u => {
       const contexto = [u.cursoPretendido, u.turnoPretendido].filter(Boolean).join(' · ');
-      h += '<tr><td><div class="cell-user"><div class="avatar-sm" style="background:' + Util.colorFor(u.name) + '">' + Util.initials(u.name) + '</div><div class="u-meta"><strong>' + Util.esc(u.name) + '</strong></div></div></td><td>' + Util.esc(u.email) + '</td><td class="mono text-sm">' + Util.esc(u.phone || '—') + '</td><td><span class="badge amber">' + Util.roleLabel(u.role) + '</span>' + (contexto ? '<div class="text-xs text-muted mt-4">' + Util.esc(contexto) + '</div>' : '') + '</td><td><div class="actions"><button type="button" class="btn btn-primary btn-xs" data-aprovar-user="' + u.id + '">Aprovar</button><button type="button" class="btn btn-danger btn-xs" data-rejeitar-user="' + u.id + '">Rejeitar</button></div></td></tr>';
+      h += '<tr><td><div class="cell-user"><div class="avatar-sm" style="background:' + Util.colorFor(u.name) + '">' + Util.esc(Util.initials(u.name)) + '</div><div class="u-meta"><strong>' + Util.esc(u.name) + '</strong></div></div></td><td>' + Util.esc(u.email) + '</td><td class="mono text-sm">' + Util.esc(u.phone || '—') + '</td><td><span class="badge amber">' + Util.roleLabel(u.role) + '</span>' + (contexto ? '<div class="text-xs text-muted mt-4">' + Util.esc(contexto) + '</div>' : '') + '</td><td><div class="actions"><button type="button" class="btn btn-primary btn-xs" data-aprovar-user="' + Util.esc(u.id) + '">Aprovar</button><button type="button" class="btn btn-danger btn-xs" data-rejeitar-user="' + Util.esc(u.id) + '">Rejeitar</button></div></td></tr>';
     });
     h += '</tbody></table></div></div></div>';
   }
@@ -2399,7 +2438,7 @@ App.views.usuarios = function (el) {
   ativos.forEach(u => {
     const st = u.studentId ? this.studentById(u.studentId) : null;
     const isMe = u.id === Auth.currentUser.id;
-    h += '<tr><td><div class="cell-user"><div class="avatar-sm" style="background:' + Util.colorFor(u.name) + '">' + Util.initials(u.name) + '</div><div class="u-meta"><strong>' + Util.esc(u.name) + (isMe ? ' <span style="color:var(--blue);font-size:11px;">(você)</span>' : '') + '</strong><span class="mono" style="font-size:11px;">ID ' + Util.esc(u.id.slice(0, 8)) + '</span></div></div></td><td>' + Util.esc(u.email) + '</td><td><span class="badge ' + (u.role === 'diretor' ? 'purple' : u.role === 'coordenador' ? 'blue' : u.role === 'professor' ? 'sky' : u.role === 'aluno' ? 'green' : 'amber') + '">' + Util.roleLabel(u.role) + '</span></td><td>' + (st ? Util.esc(st.name) + ' <span class="text-xs text-muted mono">(' + Util.esc(st.matricula) + ')</span>' : '—') + '</td><td><div class="actions"><button type="button" class="btn btn-secondary btn-xs" data-edit-user="' + u.id + '">Editar</button>' + (isMe ? '' : '<button type="button" class="btn btn-danger btn-xs" data-del-user="' + u.id + '">Excluir</button>') + '</div></td></tr>';
+    h += '<tr><td><div class="cell-user"><div class="avatar-sm" style="background:' + Util.colorFor(u.name) + '">' + Util.esc(Util.initials(u.name)) + '</div><div class="u-meta"><strong>' + Util.esc(u.name) + (isMe ? ' <span style="color:var(--blue);font-size:11px;">(você)</span>' : '') + '</strong><span class="mono" style="font-size:11px;">ID ' + Util.esc(u.id.slice(0, 8)) + '</span></div></div></td><td>' + Util.esc(u.email) + '</td><td><span class="badge ' + (u.role === 'diretor' ? 'purple' : u.role === 'coordenador' ? 'blue' : u.role === 'professor' ? 'sky' : u.role === 'aluno' ? 'green' : 'amber') + '">' + Util.roleLabel(u.role) + '</span></td><td>' + (st ? Util.esc(st.name) + ' <span class="text-xs text-muted mono">(' + Util.esc(st.matricula) + ')</span>' : '—') + '</td><td><div class="actions"><button type="button" class="btn btn-secondary btn-xs" data-edit-user="' + Util.esc(u.id) + '">Editar</button>' + (isMe ? '' : '<button type="button" class="btn btn-danger btn-xs" data-del-user="' + Util.esc(u.id) + '">Excluir</button>') + '</div></td></tr>';
   });
   h += '</tbody></table></div></div></div>';
   el.innerHTML = h;
@@ -2444,7 +2483,7 @@ App.aprovarAlunoComVinculo = function (u) {
   const contexto = [u.cursoPretendido, u.turnoPretendido].filter(Boolean).join(' · ');
   const body = '<p style="font-size:14px;line-height:1.65;color:var(--muted);margin-bottom:18px;">"' + Util.esc(u.name) + '" se cadastrou como aluno' + (contexto ? ' (' + Util.esc(contexto) + ')' : '') + '. Selecione qual aluno já cadastrado corresponde a essa pessoa, ou aprove sem vincular.</p>' +
     '<div class="field-group"><label>Aluno correspondente</label><select id="aprovar-student-select"><option value="">— Aprovar sem vincular —</option>' +
-    lista.map(s => { const c = this.classById(s.classId); return '<option value="' + s.id + '">' + Util.esc(s.name) + ' — ' + Util.esc(s.matricula) + (c ? ' — ' + Util.esc(c.name) : '') + '</option>'; }).join('') +
+    lista.map(s => { const c = this.classById(s.classId); return '<option value="' + Util.esc(s.id) + '">' + Util.esc(s.name) + ' — ' + Util.esc(s.matricula) + (c ? ' — ' + Util.esc(c.name) : '') + '</option>'; }).join('') +
     '</select></div>';
   Modal.open({
     title: 'Aprovar cadastro de aluno', icon: Icons.checkCircle, body: body,
@@ -2475,7 +2514,7 @@ App.modalUser = function (id) {
     '<div class="field-group"><label>E-mail <span class="req">*</span></label><input type="email" name="email" value="' + Util.esc(u ? u.email : '') + '" required><div class="err">Informe o e-mail.</div></div>' +
     '<div class="field-group"><label>Perfil de acesso <span class="req">*</span></label><select name="role" id="user-role-select" required>' + ['diretor','coordenador','professor','aluno','responsavel'].map(r => '<option value="' + r + '"' + (u && u.role === r ? ' selected' : '') + '>' + Util.roleLabel(r) + '</option>').join('') + '</select></div>' +
     '<div class="field-group"><label>Senha ' + (editing ? '(deixe em branco para manter)' : '<span class="req">*</span>') + '</label><input type="text" name="password" ' + (editing ? '' : 'required') + ' placeholder="Mínimo 4 caracteres"><div class="err">Informe a senha.</div></div>' +
-    '<div class="field-group full' + (u && !alunoRoles.includes(u.role) ? ' hidden' : '') + '" id="user-aluno-field"><label>Aluno vinculado (para aluno/responsável)</label><select name="studentId"><option value="">— Nenhum vínculo —</option>' + DB.state.students.map(s => { const c = this.classById(s.classId); return '<option value="' + s.id + '"' + (currentStudentId === s.id ? ' selected' : '') + '>' + Util.esc(s.name) + ' — ' + Util.esc(s.matricula) + (c ? ' — ' + Util.esc(c.name) : '') + '</option>'; }).join('') + '</select></div>' +
+    '<div class="field-group full' + (u && !alunoRoles.includes(u.role) ? ' hidden' : '') + '" id="user-aluno-field"><label>Aluno vinculado (para aluno/responsável)</label><select name="studentId"><option value="">— Nenhum vínculo —</option>' + DB.state.students.map(s => { const c = this.classById(s.classId); return '<option value="' + Util.esc(s.id) + '"' + (currentStudentId === s.id ? ' selected' : '') + '>' + Util.esc(s.name) + ' — ' + Util.esc(s.matricula) + (c ? ' — ' + Util.esc(c.name) : '') + '</option>'; }).join('') + '</select></div>' +
     '</div></form>';
   Modal.open({
     title: editing ? 'Editar usuário' : 'Novo usuário', icon: Icons.users, body: body, size: 'lg',
@@ -2605,7 +2644,7 @@ App.views['minhas-turmas'] = function (el) {
     (turmas.length ? '<div class="grid-cards">' + turmas.map(c => {
       const q = this.studentsOfClass(c.id).length;
       const m = this.classAverage(c.id);
-      return '<div class="turma-card" data-view-class="' + c.id + '"><div class="t-head"><div><div class="t-code">' + Util.esc(c.name) + '</div><div class="t-sub">' + Util.esc(c.course) + '</div></div><span class="badge blue">' + q + ' alunos</span></div><div class="t-meta"><span>' + Util.esc(c.period) + '</span><span>' + Util.esc(c.room || '—') + '</span><span>Média ' + Util.fmtNum(m, 1) + '</span></div></div>';
+      return '<div class="turma-card" data-view-class="' + Util.esc(c.id) + '"><div class="t-head"><div><div class="t-code">' + Util.esc(c.name) + '</div><div class="t-sub">' + Util.esc(c.course) + '</div></div><span class="badge blue">' + q + ' alunos</span></div><div class="t-meta"><span>' + Util.esc(c.period) + '</span><span>' + Util.esc(c.room || '—') + '</span><span>Média ' + Util.fmtNum(m, 1) + '</span></div></div>';
     }).join('') + '</div>' : this.emptyState('building', 'Sem turmas atribuídas', 'Você ainda não está vinculado como professor responsável por nenhuma turma.')) +
     '</div></div>';
   Util.on(el, 'click', '[data-view-class]', (e, t) => this.verTurma(t.dataset.viewClass));
@@ -2645,14 +2684,14 @@ App.views.diario = function (el) {
           '<div class="field-group">' +
             '<label>Turma <span class="req">*</span></label>' +
             '<select id="diario-turma">' +
-              turmas.map(c => '<option value="' + c.id + '">' + Util.esc(c.name) + ' — ' + Util.esc(c.course || '') + ' — ' + Util.esc(c.period) + '</option>').join('') +
+              turmas.map(c => '<option value="' + Util.esc(c.id) + '">' + Util.esc(c.name) + ' — ' + Util.esc(c.course || '') + ' — ' + Util.esc(c.period) + '</option>').join('') +
             '</select>' +
           '</div>' +
           '<div class="field-group">' +
             '<label>Disciplina</label>' +
             '<select id="diario-disc">' +
               '<option value="">— Sem disciplina específica —</option>' +
-              DB.state.subjects.map(s => '<option value="' + s.id + '">' + Util.esc(s.name) + '</option>').join('') +
+              DB.state.subjects.map(s => '<option value="' + Util.esc(s.id) + '">' + Util.esc(s.name) + '</option>').join('') +
             '</select>' +
           '</div>' +
           '<div class="field-group">' +
@@ -2727,18 +2766,18 @@ App.renderChamada = function () {
 
   let h = '';
   alunos.forEach((s, idx) => {
-    h += '<div class="attendance-row" data-sid="' + s.id + '" style="animation: fadeUp .4s ' + (idx * 0.03) + 's both;">' +
+    h += '<div class="attendance-row" data-sid="' + Util.esc(s.id) + '" style="animation: fadeUp .4s ' + (idx * 0.03) + 's both;">' +
       '<div class="a-name">' +
-        '<div class="avatar-sm" style="width:36px;height:36px;font-size:12px;background:' + Util.colorFor(s.name) + ';border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;">' + Util.initials(s.name) + '</div>' +
+        '<div class="avatar-sm" style="width:36px;height:36px;font-size:12px;background:' + Util.colorFor(s.name) + ';border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;">' + Util.esc(Util.initials(s.name)) + '</div>' +
         '<div style="min-width:0;">' +
           '<strong>' + Util.esc(s.name) + '</strong><br>' +
           '<span class="text-xs text-muted mono">' + Util.esc(s.matricula) + '</span>' +
         '</div>' +
       '</div>' +
       '<div class="att-group">' +
-        '<button type="button" class="att-btn" data-status="Presente" data-sid="' + s.id + '">' + Icons.check + ' Presente</button>' +
-        '<button type="button" class="att-btn" data-status="Falta" data-sid="' + s.id + '">' + Icons.close + ' Falta</button>' +
-        '<button type="button" class="att-btn" data-status="Justificada" data-sid="' + s.id + '">' + Icons.clock + ' Justificada</button>' +
+        '<button type="button" class="att-btn" data-status="Presente" data-sid="' + Util.esc(s.id) + '">' + Icons.check + ' Presente</button>' +
+        '<button type="button" class="att-btn" data-status="Falta" data-sid="' + Util.esc(s.id) + '">' + Icons.close + ' Falta</button>' +
+        '<button type="button" class="att-btn" data-status="Justificada" data-sid="' + Util.esc(s.id) + '">' + Icons.clock + ' Justificada</button>' +
       '</div>' +
     '</div>';
   });
@@ -2749,7 +2788,7 @@ App.renderChamada = function () {
       a.studentId === s.id && a.date === date &&
       ((did && a.subjectId === did) || (!did && !a.subjectId))
     );
-    this.setAttendanceRow(ct.querySelector('[data-sid="' + s.id + '"]'), s.id, r ? r.status : 'Presente');
+    this.setAttendanceRow(ct.querySelector('[data-sid="' + Util.esc(s.id) + '"]'), s.id, r ? r.status : 'Presente');
   });
 
   Util.on(ct, 'click', '.att-btn', (e, t) => {
@@ -2862,7 +2901,7 @@ App.salvarConteudo = function () {
 
 App.views.frequencia = function (el) {
   this.setTitle('Frequência', 'Acompanhamento de presenças e faltas');
-  el.innerHTML = '<div class="card mb-24"><div class="card-header"><h3>' + Icons.search + ' Filtrar</h3></div><div class="card-body"><div class="toolbar"><div class="search">' + Icons.search + '<input type="text" id="freq-busca" placeholder="Buscar aluno..."></div><select id="freq-turma"><option value="">Todas as turmas</option>' + DB.state.classes.map(c => '<option value="' + c.id + '">' + Util.esc(c.name) + '</option>').join('') + '</select></div></div></div><div class="card"><div class="card-body" id="freq-tabela" style="padding:0;"></div></div>';
+  el.innerHTML = '<div class="card mb-24"><div class="card-header"><h3>' + Icons.search + ' Filtrar</h3></div><div class="card-body"><div class="toolbar"><div class="search">' + Icons.search + '<input type="text" id="freq-busca" placeholder="Buscar aluno..."></div><select id="freq-turma"><option value="">Todas as turmas</option>' + DB.state.classes.map(c => '<option value="' + Util.esc(c.id) + '">' + Util.esc(c.name) + '</option>').join('') + '</select></div></div></div><div class="card"><div class="card-body" id="freq-tabela" style="padding:0;"></div></div>';
   this.renderFrequenciaTabela();
   document.getElementById('freq-busca').addEventListener('input', Util.debounce(() => this.renderFrequenciaTabela(), 200));
   document.getElementById('freq-turma').addEventListener('change', () => this.renderFrequenciaTabela());
@@ -2882,7 +2921,7 @@ App.renderFrequenciaTabela = function () {
     const a = this.attendanceStats(s.id);
     const cls = a.freq >= 90 ? 'green' : a.freq >= 75 ? 'amber' : 'red';
     const t = this.classById(s.classId);
-    h += '<tr><td><div class="cell-user"><div class="avatar-sm" style="background:' + Util.colorFor(s.name) + '">' + Util.initials(s.name) + '</div><div class="u-meta"><strong>' + Util.esc(s.name) + '</strong><span class="mono" style="font-size:11px;">' + Util.esc(s.matricula) + '</span></div></div></td><td>' + (t ? Util.esc(t.name) : '—') + '</td><td class="mono">' + a.total + '</td><td><span class="badge green mono">' + a.pres + '</span></td><td><span class="badge red mono">' + a.faltas + '</span></td><td><span class="badge amber mono">' + a.just + '</span></td><td><span class="badge ' + cls + ' mono">' + Util.fmtNum(a.freq, 1) + '%</span></td></tr>';
+    h += '<tr><td><div class="cell-user"><div class="avatar-sm" style="background:' + Util.colorFor(s.name) + '">' + Util.esc(Util.initials(s.name)) + '</div><div class="u-meta"><strong>' + Util.esc(s.name) + '</strong><span class="mono" style="font-size:11px;">' + Util.esc(s.matricula) + '</span></div></div></td><td>' + (t ? Util.esc(t.name) : '—') + '</td><td class="mono">' + a.total + '</td><td><span class="badge green mono">' + a.pres + '</span></td><td><span class="badge red mono">' + a.faltas + '</span></td><td><span class="badge amber mono">' + a.just + '</span></td><td><span class="badge ' + cls + ' mono">' + Util.fmtNum(a.freq, 1) + '%</span></td></tr>';
   });
   h += '</tbody></table></div>';
   ct.innerHTML = h;
@@ -2891,7 +2930,7 @@ App.renderFrequenciaTabela = function () {
 App.views.notas = function (el) {
   const canEdit = ['diretor','coordenador','professor'].includes(Auth.currentUser.role);
   this.setTitle('Notas', 'Lançamento e consulta de notas');
-  el.innerHTML = '<div class="card mb-24"><div class="card-header"><h3>' + Icons.search + ' Filtrar</h3>' + (canEdit ? '<button type="button" class="btn btn-primary btn-sm" id="btn-lancar-nota">' + Icons.plus + ' Lançar nota</button>' : '') + '</div><div class="card-body"><div class="toolbar"><div class="search">' + Icons.search + '<input type="text" id="notas-busca" placeholder="Buscar aluno..."></div><select id="notas-turma"><option value="">Todas as turmas</option>' + DB.state.classes.map(c => '<option value="' + c.id + '">' + Util.esc(c.name) + '</option>').join('') + '</select><select id="notas-disc"><option value="">Todas as disciplinas</option>' + DB.state.subjects.map(s => '<option value="' + s.id + '">' + Util.esc(s.name) + '</option>').join('') + '</select></div></div></div><div class="card"><div class="card-body" id="notas-tabela" style="padding:0;"></div></div>';
+  el.innerHTML = '<div class="card mb-24"><div class="card-header"><h3>' + Icons.search + ' Filtrar</h3>' + (canEdit ? '<button type="button" class="btn btn-primary btn-sm" id="btn-lancar-nota">' + Icons.plus + ' Lançar nota</button>' : '') + '</div><div class="card-body"><div class="toolbar"><div class="search">' + Icons.search + '<input type="text" id="notas-busca" placeholder="Buscar aluno..."></div><select id="notas-turma"><option value="">Todas as turmas</option>' + DB.state.classes.map(c => '<option value="' + Util.esc(c.id) + '">' + Util.esc(c.name) + '</option>').join('') + '</select><select id="notas-disc"><option value="">Todas as disciplinas</option>' + DB.state.subjects.map(s => '<option value="' + Util.esc(s.id) + '">' + Util.esc(s.name) + '</option>').join('') + '</select></div></div></div><div class="card"><div class="card-body" id="notas-tabela" style="padding:0;"></div></div>';
   this.renderNotasTabela();
   document.getElementById('notas-busca').addEventListener('input', Util.debounce(() => this.renderNotasTabela(), 200));
   document.getElementById('notas-turma').addEventListener('change', () => this.renderNotasTabela());
@@ -2915,7 +2954,7 @@ App.renderNotasTabela = function () {
     if (disc) g = g.filter(x => x.subjectId === disc);
     const m = g.length ? Util.avg(g.map(x => Number(x.value))) : 0;
     const t = this.classById(s.classId);
-    h += '<tr><td><div class="cell-user"><div class="avatar-sm" style="background:' + Util.colorFor(s.name) + '">' + Util.initials(s.name) + '</div><div class="u-meta"><strong>' + Util.esc(s.name) + '</strong><span class="mono" style="font-size:11px;">' + Util.esc(s.matricula) + '</span></div></div></td><td>' + (t ? Util.esc(t.name) : '—') + '</td><td class="text-sm mono">' + g.length + '</td><td><strong class="mono" style="font-size:15px;">' + Util.fmtNum(m, 1) + '</strong></td><td><span class="badge ' + Util.notaBadge(m) + '">' + (m >= 7 ? 'Aprovado' : m >= 5 ? 'Recuperação' : m === 0 ? 'Sem nota' : 'Reprovado') + '</span></td></tr>';
+    h += '<tr><td><div class="cell-user"><div class="avatar-sm" style="background:' + Util.colorFor(s.name) + '">' + Util.esc(Util.initials(s.name)) + '</div><div class="u-meta"><strong>' + Util.esc(s.name) + '</strong><span class="mono" style="font-size:11px;">' + Util.esc(s.matricula) + '</span></div></div></td><td>' + (t ? Util.esc(t.name) : '—') + '</td><td class="text-sm mono">' + g.length + '</td><td><strong class="mono" style="font-size:15px;">' + Util.fmtNum(m, 1) + '</strong></td><td><span class="badge ' + Util.notaBadge(m) + '">' + (m >= 7 ? 'Aprovado' : m >= 5 ? 'Recuperação' : m === 0 ? 'Sem nota' : 'Reprovado') + '</span></td></tr>';
   });
   h += '</tbody></table></div>';
   ct.innerHTML = h;
@@ -2924,8 +2963,8 @@ App.renderNotasTabela = function () {
 App.modalNota = function () {
   if (!DB.state.students.length) { Toast.warning('Cadastre um aluno antes.'); return; }
   const body = '<form id="form-nota" novalidate><div class="form-grid">' +
-    '<div class="field-group full"><label>Aluno <span class="req">*</span></label><select name="studentId" required><option value="">Selecione...</option>' + DB.state.students.filter(s => s.status === 'Ativo').map(s => '<option value="' + s.id + '">' + Util.esc(s.name) + ' (' + Util.esc(s.matricula) + ')</option>').join('') + '</select><div class="err">Selecione um aluno.</div></div>' +
-    '<div class="field-group"><label>Disciplina <span class="req">*</span></label><select name="subjectId" required><option value="">Selecione...</option>' + DB.state.subjects.map(s => '<option value="' + s.id + '">' + Util.esc(s.name) + '</option>').join('') + '</select><div class="err">Selecione.</div></div>' +
+    '<div class="field-group full"><label>Aluno <span class="req">*</span></label><select name="studentId" required><option value="">Selecione...</option>' + DB.state.students.filter(s => s.status === 'Ativo').map(s => '<option value="' + Util.esc(s.id) + '">' + Util.esc(s.name) + ' (' + Util.esc(s.matricula) + ')</option>').join('') + '</select><div class="err">Selecione um aluno.</div></div>' +
+    '<div class="field-group"><label>Disciplina <span class="req">*</span></label><select name="subjectId" required><option value="">Selecione...</option>' + DB.state.subjects.map(s => '<option value="' + Util.esc(s.id) + '">' + Util.esc(s.name) + '</option>').join('') + '</select><div class="err">Selecione.</div></div>' +
     '<div class="field-group"><label>Avaliação <span class="req">*</span></label><input name="assessment" required placeholder="Ex: Prova 1"><div class="err">Informe o nome.</div></div>' +
     '<div class="field-group"><label>Nota (0 a 10) <span class="req">*</span></label><input type="number" name="value" min="0" max="10" step="0.1" required><div class="err">Informe a nota.</div></div>' +
     '<div class="field-group"><label>Data</label><input type="date" name="date" value="' + Util.todayISO() + '"></div>' +
@@ -2966,7 +3005,7 @@ App.renderAtividades = function () {
   if (!list.length) { ct.innerHTML = this.emptyState('clipboard', 'Nenhuma atividade', 'Ainda não há atividades cadastradas.'); return; }
   let h = '<div class="table-wrap"><table class="data"><thead><tr><th>Título</th><th>Disciplina</th><th>Entrega</th><th>Valor</th><th>Status</th></tr></thead><tbody>';
   list.forEach(a => {
-    h += '<tr><td><strong>' + Util.esc(a.title) + '</strong><div class="text-xs text-muted" style="margin-top:3px;">' + Util.esc(a.description || '') + '</div></td><td>' + Util.esc(a.subject) + '</td><td class="mono text-sm">' + Util.fmtDate(a.dueDate) + '</td><td class="mono">' + a.value + ' pts</td><td><span class="badge ' + Util.statusClass(a.status) + '">' + Util.esc(a.status) + '</span></td></tr>';
+    h += '<tr><td><strong>' + Util.esc(a.title) + '</strong><div class="text-xs text-muted" style="margin-top:3px;">' + Util.esc(a.description || '') + '</div></td><td>' + Util.esc(a.subject) + '</td><td class="mono text-sm">' + Util.fmtDate(a.dueDate) + '</td><td class="mono">' + Util.esc(a.value) + ' pts</td><td><span class="badge ' + Util.statusClass(a.status) + '">' + Util.esc(a.status) + '</span></td></tr>';
   });
   h += '</tbody></table></div>';
   ct.innerHTML = h;
@@ -2977,7 +3016,7 @@ App.modalAtividade = function () {
   const body = '<form id="form-atv" novalidate><div class="form-grid">' +
     '<div class="field-group full"><label>Título <span class="req">*</span></label><input name="title" required><div class="err">Informe o título.</div></div>' +
     '<div class="field-group"><label>Disciplina <span class="req">*</span></label><select name="subject" required><option value="">Selecione...</option>' + DB.state.subjects.map(s => '<option>' + Util.esc(s.name) + '</option>').join('') + '</select><div class="err">Selecione.</div></div>' +
-    '<div class="field-group"><label>Turma <span class="req">*</span></label><select name="classId" required><option value="">Selecione...</option>' + DB.state.classes.map(c => '<option value="' + c.id + '">' + Util.esc(c.name) + '</option>').join('') + '</select><div class="err">Selecione.</div></div>' +
+    '<div class="field-group"><label>Turma <span class="req">*</span></label><select name="classId" required><option value="">Selecione...</option>' + DB.state.classes.map(c => '<option value="' + Util.esc(c.id) + '">' + Util.esc(c.name) + '</option>').join('') + '</select><div class="err">Selecione.</div></div>' +
     '<div class="field-group"><label>Data de entrega <span class="req">*</span></label><input type="date" name="dueDate" required><div class="err">Informe a data.</div></div>' +
     '<div class="field-group"><label>Valor (pontos)</label><input type="number" name="value" value="10" min="0"></div>' +
     '<div class="field-group"><label>Status</label><select name="status"><option>Disponível</option><option>Em andamento</option><option>Encerrada</option></select></div>' +
@@ -3018,7 +3057,7 @@ App.renderOcorrencias = function () {
   let h = '<div class="table-wrap"><table class="data"><thead><tr><th>Aluno</th><th>Data</th><th>Categoria</th><th>Descrição</th><th>Situação</th></tr></thead><tbody>';
   list.forEach(o => {
     const s = this.studentById(o.studentId);
-    h += '<tr><td>' + (s ? '<div class="cell-user"><div class="avatar-sm" style="background:' + Util.colorFor(s.name) + '">' + Util.initials(s.name) + '</div><div class="u-meta"><strong>' + Util.esc(s.name) + '</strong><span class="mono" style="font-size:11px;">' + Util.esc(s.matricula) + '</span></div></div>' : '—') + '</td><td class="mono text-sm">' + Util.fmtDate(o.date) + '</td><td>' + Util.esc(o.category || '—') + '</td><td class="text-sm">' + Util.esc(o.description) + '</td><td><span class="badge ' + Util.statusClass(o.situation) + '">' + Util.esc(o.situation) + '</span></td></tr>';
+    h += '<tr><td>' + (s ? '<div class="cell-user"><div class="avatar-sm" style="background:' + Util.colorFor(s.name) + '">' + Util.esc(Util.initials(s.name)) + '</div><div class="u-meta"><strong>' + Util.esc(s.name) + '</strong><span class="mono" style="font-size:11px;">' + Util.esc(s.matricula) + '</span></div></div>' : '—') + '</td><td class="mono text-sm">' + Util.fmtDate(o.date) + '</td><td>' + Util.esc(o.category || '—') + '</td><td class="text-sm">' + Util.esc(o.description) + '</td><td><span class="badge ' + Util.statusClass(o.situation) + '">' + Util.esc(o.situation) + '</span></td></tr>';
   });
   h += '</tbody></table></div>';
   ct.innerHTML = h;
@@ -3027,7 +3066,7 @@ App.renderOcorrencias = function () {
 App.modalOcorrencia = function () {
   if (!DB.state.students.length) { Toast.warning('Cadastre um aluno primeiro.'); return; }
   const body = '<form id="form-oc" novalidate><div class="form-grid">' +
-    '<div class="field-group full"><label>Aluno <span class="req">*</span></label><select name="studentId" required><option value="">Selecione...</option>' + DB.state.students.filter(s => s.status === 'Ativo').map(s => '<option value="' + s.id + '">' + Util.esc(s.name) + ' (' + Util.esc(s.matricula) + ')</option>').join('') + '</select><div class="err">Selecione.</div></div>' +
+    '<div class="field-group full"><label>Aluno <span class="req">*</span></label><select name="studentId" required><option value="">Selecione...</option>' + DB.state.students.filter(s => s.status === 'Ativo').map(s => '<option value="' + Util.esc(s.id) + '">' + Util.esc(s.name) + ' (' + Util.esc(s.matricula) + ')</option>').join('') + '</select><div class="err">Selecione.</div></div>' +
     '<div class="field-group"><label>Data <span class="req">*</span></label><input type="date" name="date" value="' + Util.todayISO() + '" required></div>' +
     '<div class="field-group"><label>Categoria <span class="req">*</span></label><select name="category" required><option value="">Selecione...</option>' + ['Comportamento','Atraso','Falta','Uso inadequado de equipamento','Uso de celular','Desrespeito','Outros'].map(c => '<option>' + c + '</option>').join('') + '</select><div class="err">Selecione.</div></div>' +
     '<div class="field-group"><label>Situação</label><select name="situation"><option>Registrada</option><option>Positiva</option><option>Resolvida</option></select></div>' +
@@ -3177,7 +3216,7 @@ App.views.perfil = function (el) {
   const t = this.classById(s.classId);
   el.innerHTML = '<div class="card mb-24"><div class="card-body">' +
       '<div class="flex items-center gap-16">' +
-        '<div style="width:72px;height:72px;border-radius:12px;background:' + Util.colorFor(s.name) + ';display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:700;color:#fff;">' + Util.initials(s.name) + '</div>' +
+        '<div style="width:72px;height:72px;border-radius:12px;background:' + Util.colorFor(s.name) + ';display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:700;color:#fff;">' + Util.esc(Util.initials(s.name)) + '</div>' +
         '<div><h2 style="font-size:22px;font-weight:700;letter-spacing:-0.02em;">' + Util.esc(s.name) + '</h2>' +
         '<p class="text-muted mt-8 mono" style="font-size:12.5px;">' + Util.esc(s.matricula) + ' · ' + (t ? Util.esc(t.name) : '—') + '</p>' +
         '<div class="mt-12 flex gap-8"><span class="badge ' + Util.statusClass(s.status) + '">' + Util.esc(s.status) + '</span><span class="chip">' + Util.esc(s.period || '') + '</span></div></div>' +

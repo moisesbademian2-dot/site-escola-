@@ -18,43 +18,35 @@ if (!in_array($role, $allowedRoles, true)) respond(['ok' => false, 'error' => 'P
 if ($name === '' || $email === '' || $celular === '' || strlen($password) < 4) {
     respond(['ok' => false, 'error' => 'Preencha todos os campos corretamente.']);
 }
+foreach ([$name, $email, $celular, $matricula, $curso, $turno] as $v) {
+    if (mb_strlen($v) > 255) respond(['ok' => false, 'error' => 'Preencha todos os campos corretamente.']);
+}
 if ($role === 'aluno' && ($curso === '' || $turno === '')) {
     respond(['ok' => false, 'error' => 'Selecione o curso e o turno.']);
 }
 
-$state = get_state();
+if (find_user('email', $email)) respond(['ok' => false, 'error' => 'Este e-mail já está cadastrado.']);
 
-$exists = false;
-foreach ($state['users'] as $u) { if (strtolower($u['email']) === strtolower($email)) { $exists = true; break; } }
-if ($exists) respond(['ok' => false, 'error' => 'Este e-mail já está cadastrado.']);
-
-$parts = preg_split('/\s+/', $name);
-$initials = strtoupper(implode('', array_map(fn($p) => $p !== '' ? $p[0] : '', array_slice($parts, 0, 2))));
-
-$newUser = [
-    'id' => gen_id('u'),
-    'name' => $name,
-    'email' => $email,
-    'phone' => $celular,
-    'password' => $password,
-    'role' => $role,
-    'avatar' => $initials,
-    'createdAt' => date('c'),
-    'matricula' => '',
-    'status' => 'pendente',
-];
-
-if ($role === 'aluno') {
-    $newUser['cursoPretendido'] = $curso;
-    $newUser['turnoPretendido'] = $turno;
-} elseif ($role === 'responsavel' && $matricula !== '') {
-    foreach ($state['students'] as $s) {
-        if ((string) ($s['matricula'] ?? '') === $matricula) { $newUser['studentId'] = $s['id']; break; }
-    }
-    $newUser['matricula'] = $matricula;
+$studentId = null;
+$savedMatricula = null;
+if ($role === 'responsavel' && $matricula !== '') {
+    $stmt = db()->prepare('SELECT id FROM students WHERE matricula = ? LIMIT 1');
+    $stmt->execute([$matricula]);
+    $studentId = $stmt->fetchColumn() ?: null;
+    $savedMatricula = $matricula;
 }
 
-$state['users'][] = $newUser;
-save_state_raw($state);
+try {
+    db()->prepare('INSERT INTO users (id, name, email, phone, password, role, avatar, created_at, matricula, status, student_id, curso_pretendido, turno_pretendido)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+        ->execute([
+            gen_id('u'), $name, $email, $celular, hash_password($password), $role, initials_of($name), date('c'),
+            $savedMatricula, 'pendente', $studentId,
+            $role === 'aluno' ? $curso : null, $role === 'aluno' ? $turno : null,
+        ]);
+} catch (PDOException $e) {
+    if ($e->getCode() === '23000') respond(['ok' => false, 'error' => 'Este e-mail já está cadastrado.']);
+    throw $e;
+}
 
 respond(['ok' => true]);

@@ -38,49 +38,150 @@ function respond($data, int $status = 200): void {
     exit;
 }
 
-function empty_state(): array {
-    return [
-        'users' => [], 'students' => [], 'classes' => [], 'teachers' => [],
-        'subjects' => [
-            ['id' => 'd1', 'name' => 'Desenvolvimento Web', 'code' => 'DWEB'],
-            ['id' => 'd2', 'name' => 'Programação Mobile', 'code' => 'PMOB'],
-            ['id' => 'd3', 'name' => 'Banco de Dados', 'code' => 'BDAD'],
-            ['id' => 'd4', 'name' => 'Análise de Sistemas', 'code' => 'ANSI'],
-            ['id' => 'd5', 'name' => 'Matemática Aplicada', 'code' => 'MATE'],
-            ['id' => 'd6', 'name' => 'Português Instrumental', 'code' => 'PORT'],
-        ],
-        'attendance' => [], 'grades' => [], 'activities' => [], 'occurrences' => [],
-        'announcements' => [], 'lessons' => [],
-    ];
+// ---------------------------------------------------------------------------
+// Collections: each key of the front end's DB.state and the table behind it.
+// Field names are camelCase here and snake_case in the table (classId -> class_id).
+// Types: str, text, date (YYYY-MM-DD), num, ref (id of another record), or a list of allowed values.
+// ---------------------------------------------------------------------------
+
+const ROLES = ['diretor', 'coordenador', 'professor', 'aluno', 'responsavel'];
+
+const COLLECTIONS = [
+    'subjects' => ['name' => 'str', 'code' => 'str'],
+    'teachers' => ['name' => 'str', 'email' => 'str', 'phone' => 'str', 'subject' => 'str', 'userId' => 'ref'],
+    'classes' => ['name' => 'str', 'course' => 'str', 'semester' => 'str', 'period' => 'str', 'room' => 'str', 'teacherId' => 'ref'],
+    'students' => [
+        'name' => 'str', 'matricula' => 'str', 'birth' => 'date', 'email' => 'str', 'phone' => 'str', 'classId' => 'ref',
+        'course' => 'str', 'period' => 'str', 'guardian' => 'str', 'guardianPhone' => 'str', 'status' => 'str',
+    ],
+    'users' => [
+        'name' => 'str', 'email' => 'str', 'phone' => 'str', 'role' => ROLES, 'avatar' => 'str',
+        'status' => ['pendente', 'aprovado', 'rejeitado'], 'matricula' => 'str', 'studentId' => 'ref',
+        'cursoPretendido' => 'str', 'turnoPretendido' => 'str', 'createdAt' => 'str',
+    ],
+    'grades' => ['studentId' => 'ref', 'subjectId' => 'ref', 'assessment' => 'str', 'value' => 'num', 'weight' => 'num', 'date' => 'date'],
+    'attendance' => [
+        'studentId' => 'ref', 'classId' => 'ref', 'subjectId' => 'ref', 'teacherId' => 'ref', 'date' => 'date',
+        'status' => ['Presente', 'Falta', 'Justificada'],
+    ],
+    'lessons' => ['classId' => 'ref', 'subjectId' => 'ref', 'date' => 'date', 'content' => 'text', 'note' => 'text'],
+    'activities' => [
+        'classId' => 'ref', 'title' => 'str', 'subject' => 'str', 'dueDate' => 'date', 'value' => 'num',
+        'status' => 'str', 'description' => 'text', 'createdAt' => 'str',
+    ],
+    'occurrences' => ['studentId' => 'ref', 'teacherId' => 'ref', 'date' => 'date', 'category' => 'str', 'situation' => 'str', 'description' => 'text'],
+    'announcements' => ['title' => 'str', 'target' => 'str', 'author' => 'str', 'message' => 'text', 'date' => 'date'],
+];
+
+// Parents before children, so a record can reference one created in the same request.
+const UPSERT_ORDER = ['subjects', 'teachers', 'classes', 'students', 'users', 'grades', 'attendance', 'lessons', 'activities', 'occurrences', 'announcements'];
+// Teachers go before users: deleting a teacher also removes its professor login (see sync.php).
+const DELETE_ORDER = ['announcements', 'occurrences', 'activities', 'lessons', 'attendance', 'grades', 'teachers', 'users', 'students', 'classes', 'subjects'];
+
+const ID_PATTERN = '/^[A-Za-z0-9_-]{1,64}$/';
+
+const DEFAULT_SUBJECTS = [
+    ['d1', 'Desenvolvimento Web', 'DWEB'],
+    ['d2', 'Programação Mobile', 'PMOB'],
+    ['d3', 'Banco de Dados', 'BDAD'],
+    ['d4', 'Análise de Sistemas', 'ANSI'],
+    ['d5', 'Matemática Aplicada', 'MATE'],
+    ['d6', 'Português Instrumental', 'PORT'],
+];
+
+class BadInput extends RuntimeException {}
+
+function column(string $field): string {
+    return strtolower((string) preg_replace('/(?<!^)[A-Z]/', '_$0', $field));
 }
 
-function get_state(): array {
-    static $cached = null;
-    if ($cached !== null) return $cached;
-    $row = db()->query('SELECT data FROM app_state WHERE id = 1')->fetch();
-    if (!$row) {
-        $state = empty_state();
-        save_state_raw($state);
-        $cached = $state;
-        return $cached;
+function valid_id($id): bool {
+    return is_string($id) && preg_match(ID_PATTERN, $id) === 1;
+}
+
+// DB row -> record in the shape the front end uses (missing values become '').
+function record_from_row(string $coll, array $row): array {
+    $rec = ['id' => (string) $row['id']];
+    foreach (COLLECTIONS[$coll] as $field => $type) {
+        $v = $row[column($field)] ?? null;
+        if ($v === null) $rec[$field] = '';
+        elseif ($type === 'num') $rec[$field] = (float) $v;
+        else $rec[$field] = (string) $v;
     }
-    $state = json_decode($row['data'], true);
-    $cached = is_array($state) ? array_merge(empty_state(), $state) : empty_state();
-    return $cached;
+    return $rec;
 }
 
-function save_state_raw(array $state): void {
-    $json = json_encode($state);
-    $stmt = db()->prepare('INSERT INTO app_state (id, data) VALUES (1, :d) ON DUPLICATE KEY UPDATE data = :d2, updated_at = CURRENT_TIMESTAMP');
-    $stmt->execute(['d' => $json, 'd2' => $json]);
-}
-
-function redact_state(array $state): array {
-    if (!empty($state['users'])) {
-        foreach ($state['users'] as &$u) { unset($u['password']); }
-        unset($u);
+// Record sent by the front end -> validated column values ('' becomes NULL).
+function row_from_record(string $coll, array $rec): array {
+    $cols = [];
+    foreach (COLLECTIONS[$coll] as $field => $type) {
+        $v = $rec[$field] ?? null;
+        if ($v === null || $v === '') { $cols[column($field)] = null; continue; }
+        if (!is_scalar($v)) throw new BadInput("Campo inválido: $field.");
+        $v = is_bool($v) ? ($v ? '1' : '0') : (string) $v;
+        if (is_array($type)) {
+            if (!in_array($v, $type, true)) throw new BadInput("Valor inválido para $field.");
+        } elseif ($type === 'ref') {
+            if (!valid_id($v)) throw new BadInput("Referência inválida em $field.");
+        } elseif ($type === 'date') {
+            if (!preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $v, $m) || !checkdate((int) $m[2], (int) $m[3], (int) $m[1])) {
+                throw new BadInput("Data inválida em $field.");
+            }
+        } elseif ($type === 'num') {
+            if (!is_numeric($v) || abs((float) $v) > 99999) throw new BadInput("Número inválido em $field.");
+        } elseif (mb_strlen($v) > ($type === 'text' ? 20000 : 255)) {
+            throw new BadInput("Texto muito longo em $field.");
+        }
+        $cols[column($field)] = $v;
     }
-    return $state;
+    if ($coll === 'grades' && $cols['value'] !== null && ((float) $cols['value'] < 0 || (float) $cols['value'] > 10)) {
+        throw new BadInput('A nota deve estar entre 0 e 10.');
+    }
+    return $cols;
+}
+
+function fetch_record(string $coll, string $id): ?array {
+    $stmt = db()->prepare("SELECT * FROM `$coll` WHERE id = ?");
+    $stmt->execute([$id]);
+    $row = $stmt->fetch();
+    return $row ? record_from_row($coll, $row) : null;
+}
+
+function fetch_all(string $coll): array {
+    return array_map(fn($row) => record_from_row($coll, $row), db()->query("SELECT * FROM `$coll`")->fetchAll());
+}
+
+function seed_default_subjects(): void {
+    $stmt = db()->prepare('INSERT IGNORE INTO subjects (id, name, code) VALUES (?, ?, ?)');
+    foreach (DEFAULT_SUBJECTS as $s) $stmt->execute($s);
+}
+
+// ---------------------------------------------------------------------------
+// Users and passwords
+// ---------------------------------------------------------------------------
+
+function is_password_hash(string $p): bool {
+    return !empty(password_get_info($p)['algo']);
+}
+
+function hash_password(string $p): string {
+    return password_hash($p, PASSWORD_DEFAULT);
+}
+
+function check_password(array $user, string $p): bool {
+    $stored = (string) ($user['password'] ?? '');
+    return $stored !== '' && password_verify($p, $stored);
+}
+
+function user_from_row(array $row): array {
+    return record_from_row('users', $row) + ['password' => (string) $row['password']];
+}
+
+function find_user(string $column, string $value): ?array {
+    $stmt = db()->prepare("SELECT * FROM users WHERE `$column` = ?");
+    $stmt->execute([$value]);
+    $row = $stmt->fetch();
+    return $row ? user_from_row($row) : null;
 }
 
 function sanitize_user(array $u): array {
@@ -88,11 +189,19 @@ function sanitize_user(array $u): array {
     return $u;
 }
 
+function user_count(): int {
+    return (int) db()->query('SELECT COUNT(*) FROM users')->fetchColumn();
+}
+
+function initials_of(string $name): string {
+    $parts = preg_split('/\s+/', $name);
+    return mb_strtoupper(implode('', array_map(fn($p) => $p !== '' ? mb_substr($p, 0, 1) : '', array_slice($parts, 0, 2))));
+}
+
 function current_user(): ?array {
     if (empty($_SESSION['uid'])) return null;
-    $state = get_state();
-    foreach ($state['users'] as $u) { if ($u['id'] === $_SESSION['uid']) return $u; }
-    return null;
+    $u = find_user('id', (string) $_SESSION['uid']);
+    return ($u && $u['status'] === 'aprovado') ? $u : null;
 }
 
 function require_login(): array {
@@ -103,4 +212,98 @@ function require_login(): array {
 
 function gen_id(string $p): string {
     return $p . '-' . dechex((int) round(microtime(true) * 1000)) . bin2hex(random_bytes(3));
+}
+
+// ---------------------------------------------------------------------------
+// Access rules
+// ---------------------------------------------------------------------------
+
+// What the logged-in user is tied to: a professor's teacher records, classes and
+// students; an aluno/responsável's linked student and that student's class.
+function access_scope(array $me): array {
+    $scope = ['teacherIds' => [], 'classIds' => [], 'studentIds' => []];
+    if ($me['role'] === 'professor') {
+        $stmt = db()->prepare('SELECT id FROM teachers WHERE user_id = ? OR email = ?');
+        $stmt->execute([$me['id'], $me['email']]);
+        $scope['teacherIds'] = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        if ($scope['teacherIds']) {
+            $in = implode(',', array_fill(0, count($scope['teacherIds']), '?'));
+            $stmt = db()->prepare("SELECT id FROM classes WHERE teacher_id IN ($in)");
+            $stmt->execute($scope['teacherIds']);
+            $scope['classIds'] = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        }
+        if ($scope['classIds']) {
+            $in = implode(',', array_fill(0, count($scope['classIds']), '?'));
+            $stmt = db()->prepare("SELECT id FROM students WHERE class_id IN ($in)");
+            $stmt->execute($scope['classIds']);
+            $scope['studentIds'] = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        }
+    } elseif (in_array($me['role'], ['aluno', 'responsavel'], true) && $me['studentId'] !== '') {
+        $st = fetch_record('students', $me['studentId']);
+        if ($st) {
+            $scope['studentIds'] = [$st['id']];
+            if ($st['classId'] !== '') $scope['classIds'] = [$st['classId']];
+        }
+    }
+    return $scope;
+}
+
+// The whole state the front end needs, limited to what this user may see.
+function visible_state(array $me): array {
+    $role = $me['role'];
+    $state = [];
+    foreach (array_keys(COLLECTIONS) as $coll) $state[$coll] = [];
+
+    if ($role === 'diretor' || $role === 'coordenador') {
+        foreach (array_keys(COLLECTIONS) as $coll) {
+            if ($coll !== 'users') $state[$coll] = fetch_all($coll);
+        }
+        if ($role === 'diretor') {
+            $state['users'] = array_map('sanitize_user', array_map('user_from_row', db()->query('SELECT * FROM users')->fetchAll()));
+        }
+        return $state;
+    }
+
+    $scope = access_scope($me);
+    $inClass = fn($r) => in_array($r['classId'], $scope['classIds'], true);
+    $ofStudent = fn($r) => in_array($r['studentId'], $scope['studentIds'], true);
+    $keep = fn(string $coll, callable $fn) => array_values(array_filter(fetch_all($coll), $fn));
+
+    $state['subjects'] = fetch_all('subjects');
+    $state['classes'] = $keep('classes', fn($r) => in_array($r['id'], $scope['classIds'], true));
+    $state['students'] = $keep('students', fn($r) => in_array($r['id'], $scope['studentIds'], true));
+    $state['grades'] = $keep('grades', $ofStudent);
+    $state['attendance'] = $keep('attendance', $ofStudent);
+    $state['activities'] = $keep('activities', $inClass);
+
+    $targets = ['Todos'];
+    if ($role === 'professor') {
+        $targets[] = 'Professores';
+        $state['teachers'] = $keep('teachers', fn($r) => in_array($r['id'], $scope['teacherIds'], true));
+        $state['lessons'] = $keep('lessons', $inClass);
+        $state['occurrences'] = $keep('occurrences', fn($r) => $ofStudent($r) || in_array($r['teacherId'], $scope['teacherIds'], true));
+    } else {
+        $targets[] = $role === 'aluno' ? 'Alunos' : 'Responsáveis';
+        $state['occurrences'] = $keep('occurrences', $ofStudent);
+    }
+    $state['announcements'] = $keep('announcements', fn($r) => in_array($r['target'], $targets, true) || $r['target'] === '');
+    return $state;
+}
+
+// Whether $me may change a record: $old is the stored version (null when creating),
+// $new the incoming one (null when deleting).
+function can_write(array $me, array $scope, string $coll, ?array $old, ?array $new): bool {
+    $role = $me['role'];
+    if ($role === 'diretor') return true;
+    if ($role === 'coordenador') return $coll !== 'users';
+    if ($role !== 'professor') return false;
+
+    $check = match ($coll) {
+        'attendance', 'lessons', 'activities' => fn($r) => in_array($r['classId'], $scope['classIds'], true),
+        'grades', 'occurrences' => fn($r) => in_array($r['studentId'], $scope['studentIds'], true),
+        default => null,
+    };
+    if ($check === null) return false;
+    foreach ([$old, $new] as $r) { if ($r !== null && !$check($r)) return false; }
+    return true;
 }

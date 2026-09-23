@@ -5,4 +5,4 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') respond(['error' => 'Método inválid
 
 $in = json_input();
 $password = (string) ($in['password'] ?? '');
-respond(['ok' => ($me['password'] ?? '') === $password]);
+respond(['ok' => check_password($me, $password)]);
