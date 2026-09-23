@@ -152,6 +152,22 @@ const Auth = {
       return !!d.ok;
     } catch (e) { return false; }
   },
+  async forgotPassword(email) {
+    try {
+      const res = await apiPost(DB.API + 'forgot_password.php', { email });
+      const d = await res.json();
+      return { ok: !!d.ok, message: d.message || d.error || 'Não foi possível enviar o link.' };
+    } catch (e) { return { ok: false, message: 'Não foi possível conectar ao servidor.' }; }
+  },
+  async resetPassword(token, password) {
+    try {
+      const res = await apiPost(DB.API + 'reset_password.php', { token, password });
+      const d = await res.json();
+      if (!d.ok) return { ok: false, error: d.error || 'Não foi possível redefinir a senha.' };
+      if (d.user) this.currentUser = d.user;
+      return { ok: true, user: d.user || null, message: d.message || null };
+    } catch (e) { return { ok: false, error: 'Não foi possível conectar ao servidor.' }; }
+  },
   isAdmin() { return this.currentUser && this.currentUser.role === 'diretor'; }
 };
 
@@ -267,16 +283,23 @@ const App = {
     Toast.init();
     this.bindAuth();
     this.bindShell();
+    const resetToken = new URLSearchParams(location.search).get('reset');
+    if (resetToken) { this.showAuthForm('reset-form'); return; }
     await this.refreshAuthUI();
     const restored = await Auth.restore();
     if (restored) { await DB.load(); this.startApp(); }
   },
+  // Shows one of the auth-screen forms and hides the rest (and the "first setup" badge,
+  // except on setup-form itself).
+  showAuthForm(id) {
+    ['login-form', 'signup-form', 'setup-form', 'forgot-form', 'reset-form'].forEach(f => {
+      document.getElementById(f).classList.toggle('hidden', f !== id);
+    });
+    document.getElementById('setup-notice').classList.toggle('hidden', id !== 'setup-form');
+  },
   async refreshAuthUI() {
     const first = await Auth.isFirstUser();
-    document.getElementById('setup-notice').classList.toggle('hidden', !first);
-    document.getElementById('login-form').classList.toggle('hidden', first);
-    document.getElementById('setup-form').classList.toggle('hidden', !first);
-    document.getElementById('signup-form').classList.add('hidden');
+    this.showAuthForm(first ? 'setup-form' : 'login-form');
   },
   bindAuth() {
     let coursesLoaded = false;
@@ -307,6 +330,53 @@ const App = {
       e.preventDefault();
       document.getElementById('signup-form').classList.add('hidden');
       document.getElementById('login-form').classList.remove('hidden');
+    });
+    document.getElementById('link-to-forgot').addEventListener('click', e => {
+      e.preventDefault();
+      this.showAuthForm('forgot-form');
+    });
+    document.getElementById('link-to-login-from-forgot').addEventListener('click', e => {
+      e.preventDefault();
+      this.showAuthForm('login-form');
+    });
+    document.getElementById('forgot-form').addEventListener('submit', async e => {
+      e.preventDefault();
+      const msg = document.getElementById('forgot-msg');
+      msg.classList.remove('show');
+      const email = document.getElementById('forgot-email').value.trim();
+      if (!email) { msg.textContent = 'Informe o e-mail.'; msg.className = 'auth-msg error show'; return; }
+      const btn = document.querySelector('#forgot-form button[type=submit]');
+      btn.disabled = true;
+      const r = await Auth.forgotPassword(email);
+      btn.disabled = false;
+      msg.textContent = r.message;
+      msg.className = 'auth-msg ' + (r.ok ? 'success' : 'error') + ' show';
+      if (r.ok) document.getElementById('forgot-form').reset();
+    });
+    document.getElementById('reset-form').addEventListener('submit', async e => {
+      e.preventDefault();
+      const msg = document.getElementById('reset-msg');
+      msg.classList.remove('show');
+      const senha = document.getElementById('reset-senha').value;
+      const senha2 = document.getElementById('reset-senha2').value;
+      if (senha.length < 4) { msg.textContent = 'A senha deve ter no mínimo 4 caracteres.'; msg.className = 'auth-msg error show'; return; }
+      if (senha !== senha2) { msg.textContent = 'As senhas não coincidem.'; msg.className = 'auth-msg error show'; return; }
+      const token = new URLSearchParams(location.search).get('reset') || '';
+      const btn = document.querySelector('#reset-form button[type=submit]');
+      btn.disabled = true;
+      const r = await Auth.resetPassword(token, senha);
+      btn.disabled = false;
+      if (!r.ok) { msg.textContent = r.error; msg.className = 'auth-msg error show'; return; }
+      history.replaceState(null, '', location.pathname + location.hash); // drop ?reset=... from the URL
+      if (r.user) {
+        Toast.success('Senha redefinida! Bem-vindo(a), ' + r.user.name.split(' ')[0] + '.');
+        await DB.load();
+        this.startApp();
+      } else {
+        msg.textContent = r.message || 'Senha redefinida.';
+        msg.className = 'auth-msg success show';
+        setTimeout(() => this.showAuthForm('login-form'), 2600);
+      }
     });
     document.getElementById('signup-role').addEventListener('change', syncSignupFields);
     document.getElementById('signup-form').addEventListener('submit', async e => {

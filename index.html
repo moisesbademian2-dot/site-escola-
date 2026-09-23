@@ -54,12 +54,63 @@
           </div>
         </label>
 
+        <p class="auth-hint" style="text-align:right;margin-top:-8px;"><a href="#" id="link-to-forgot">Esqueci minha senha</a></p>
+
         <button type="submit" class="btn-auth">
           Acessar painel
           <svg class="ico ico-sm" viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
         </button>
 
         <p class="auth-hint" style="margin-top:18px;">Não tem conta? <a href="#" id="link-to-signup">Cadastre-se</a></p>
+      </form>
+
+      <form id="forgot-form" class="hidden" novalidate>
+        <div id="forgot-msg" class="auth-msg"></div>
+        <p class="text-sm text-muted" style="margin-bottom:16px;line-height:1.5;">Informe o e-mail da sua conta. Se ele estiver cadastrado, enviamos um link para redefinir a senha.</p>
+
+        <label class="auth-field">
+          <span>E-mail</span>
+          <div class="input-wrap">
+            <svg class="input-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+              <polyline points="22,6 12,13 2,6"/>
+            </svg>
+            <input type="email" id="forgot-email" placeholder="nome@escola.com" autocomplete="username" required>
+          </div>
+        </label>
+
+        <button type="submit" class="btn-auth">Enviar link</button>
+
+        <p class="auth-hint" style="margin-top:18px;">Lembrou a senha? <a href="#" id="link-to-login-from-forgot">Entrar</a></p>
+      </form>
+
+      <form id="reset-form" class="hidden" novalidate>
+        <div id="reset-msg" class="auth-msg"></div>
+        <p class="text-sm text-muted" style="margin-bottom:16px;line-height:1.5;">Defina sua nova senha.</p>
+
+        <label class="auth-field">
+          <span>Nova senha</span>
+          <div class="input-wrap">
+            <svg class="input-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+            <input type="password" id="reset-senha" placeholder="Mín. 4 caracteres" autocomplete="new-password" required>
+          </div>
+        </label>
+
+        <label class="auth-field">
+          <span>Confirme a nova senha</span>
+          <div class="input-wrap">
+            <svg class="input-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+            <input type="password" id="reset-senha2" placeholder="Repita a senha" autocomplete="new-password" required>
+          </div>
+        </label>
+
+        <button type="submit" class="btn-auth">Redefinir senha</button>
       </form>
 
       <form id="signup-form" class="hidden" novalidate>

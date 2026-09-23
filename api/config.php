@@ -40,6 +40,13 @@ if (file_exists($dbConfigFile)) {
     define('DB_PASS', '');
 }
 
+// Same idea for SMTP credentials (used to e-mail password-reset links). Without
+// mail_config.php, send_mail() just writes the e-mail to mail_log.txt instead of
+// sending it — fine for local development. See mailer.php.
+$mailConfigFile = __DIR__ . '/mail_config.php';
+if (file_exists($mailConfigFile)) require $mailConfigFile;
+require __DIR__ . '/mailer.php';
+
 function db(): PDO {
     static $pdo = null;
     if ($pdo === null) {
@@ -240,27 +247,32 @@ function gen_id(string $p): string {
 }
 
 // ---------------------------------------------------------------------------
-// Login rate limiting
+// Rate limiting (login attempts and "esqueci minha senha" requests)
 // ---------------------------------------------------------------------------
 
 const LOGIN_MAX_ATTEMPTS = 5;
 const LOGIN_WINDOW_MINUTES = 15;
+const RESET_MAX_ATTEMPTS = 3;
+const RESET_WINDOW_MINUTES = 60;
 
 // Checked per IP (stops one source from spraying many accounts) and per e-mail
-// (stops many sources from hammering a single account) independently.
-function login_identifiers(string $email): array {
-    $ids = ['ip:' . ($_SERVER['REMOTE_ADDR'] ?? 'unknown')];
-    if ($email !== '') $ids[] = 'email:' . strtolower($email);
+// (stops many sources from hammering a single account) independently. $prefix
+// keeps login attempts and reset requests in separate buckets in the same table.
+function rate_limit_identifiers(string $prefix, string $email): array {
+    $ids = [$prefix . 'ip:' . ($_SERVER['REMOTE_ADDR'] ?? 'unknown')];
+    if ($email !== '') $ids[] = $prefix . 'email:' . strtolower($email);
     return $ids;
 }
+function login_identifiers(string $email): array { return rate_limit_identifiers('', $email); }
+function reset_identifiers(string $email): array { return rate_limit_identifiers('reset:', $email); }
 
-function too_many_attempts(array $identifiers): bool {
+function too_many_attempts(array $identifiers, int $maxAttempts = LOGIN_MAX_ATTEMPTS, int $windowMinutes = LOGIN_WINDOW_MINUTES): bool {
     if (!$identifiers) return false;
     $in = implode(',', array_fill(0, count($identifiers), '?'));
     $stmt = db()->prepare("SELECT identifier, COUNT(*) c FROM login_attempts
                             WHERE identifier IN ($in) AND created_at > NOW() - INTERVAL ? MINUTE
                             GROUP BY identifier HAVING c >= ?");
-    $stmt->execute([...$identifiers, LOGIN_WINDOW_MINUTES, LOGIN_MAX_ATTEMPTS]);
+    $stmt->execute([...$identifiers, $windowMinutes, $maxAttempts]);
     return (bool) $stmt->fetch();
 }
 
@@ -275,6 +287,34 @@ function clear_attempts(array $identifiers): void {
     if (!$identifiers) return;
     $in = implode(',', array_fill(0, count($identifiers), '?'));
     db()->prepare("DELETE FROM login_attempts WHERE identifier IN ($in)")->execute($identifiers);
+}
+
+// ---------------------------------------------------------------------------
+// Password reset tokens
+// ---------------------------------------------------------------------------
+
+const RESET_TOKEN_MINUTES = 60;
+
+// Returns the raw token (goes in the e-mail link; never stored). Any older,
+// unused tokens for this user are dropped first, so only the newest link works.
+function create_reset_token(string $userId): string {
+    db()->prepare('DELETE FROM password_resets WHERE user_id = ?')->execute([$userId]);
+    $token = bin2hex(random_bytes(32));
+    db()->prepare('INSERT INTO password_resets (user_id, token_hash, expires_at) VALUES (?, ?, NOW() + INTERVAL ? MINUTE)')
+        ->execute([$userId, hash('sha256', $token), RESET_TOKEN_MINUTES]);
+    return $token;
+}
+
+// The user tied to a still-valid token, or null if it's missing, wrong or expired.
+function user_for_reset_token(string $token): ?array {
+    $stmt = db()->prepare('SELECT user_id FROM password_resets WHERE token_hash = ? AND expires_at > NOW()');
+    $stmt->execute([hash('sha256', $token)]);
+    $uid = $stmt->fetchColumn();
+    return $uid ? find_user('id', $uid) : null;
+}
+
+function consume_reset_token(string $token): void {
+    db()->prepare('DELETE FROM password_resets WHERE token_hash = ?')->execute([hash('sha256', $token)]);
 }
 
 // ---------------------------------------------------------------------------

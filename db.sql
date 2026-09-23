@@ -134,13 +134,26 @@ CREATE TABLE IF NOT EXISTS announcements (
   date DATE
 ) ENGINE=InnoDB;
 
--- One row per failed login, by IP and by e-mail; api/config.php reads/clears these
--- to lock out an identifier after too many failures in a short window.
+-- One row per failed login (and per "forgot password" request), by IP and by
+-- e-mail; api/config.php reads/clears these to lock out an identifier after too
+-- many attempts in a short window.
 CREATE TABLE IF NOT EXISTS login_attempts (
   id INT AUTO_INCREMENT PRIMARY KEY,
   identifier VARCHAR(255) NOT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   INDEX (identifier, created_at)
+) ENGINE=InnoDB;
+
+-- "Esqueci minha senha": one row per active reset link. Only the token's hash is
+-- stored, same idea as the password itself -- a DB leak alone isn't enough to use it.
+CREATE TABLE IF NOT EXISTS password_resets (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id VARCHAR(64) NOT NULL,
+  token_hash CHAR(64) NOT NULL UNIQUE,
+  expires_at TIMESTAMP NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+  INDEX (user_id)
 ) ENGINE=InnoDB;
 
 INSERT IGNORE INTO subjects (id, name, code) VALUES

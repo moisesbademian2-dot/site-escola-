@@ -1,6 +1,11 @@
 # Real database credentials (copy api/db_config.example.php to create this)
 api/db_config.php
 
+# Real SMTP credentials (copy api/mail_config.example.php to create this)
+api/mail_config.php
+# Local stand-in for e-mail sending when mail_config.php isn't set up
+api/mail_log.txt
+
 # OS / editor
 .DS_Store
 Thumbs.db
