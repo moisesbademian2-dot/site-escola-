@@ -10,10 +10,17 @@ set_exception_handler(function (Throwable $e): void {
     exit;
 });
 
-define('DB_HOST', '127.0.0.1');
-define('DB_NAME', 'portal_of_future');
-define('DB_USER', 'root');
-define('DB_PASS', '');
+// Real credentials go in db_config.php (gitignored, never committed). Without it,
+// these defaults match a fresh XAMPP install so the project runs out of the box.
+$dbConfigFile = __DIR__ . '/db_config.php';
+if (file_exists($dbConfigFile)) {
+    require $dbConfigFile;
+} else {
+    define('DB_HOST', '127.0.0.1');
+    define('DB_NAME', 'portal_of_future');
+    define('DB_USER', 'root');
+    define('DB_PASS', '');
+}
 
 function db(): PDO {
     static $pdo = null;

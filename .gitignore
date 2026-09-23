@@ -1,0 +1,11 @@
+# Real database credentials (copy api/db_config.example.php to create this)
+api/db_config.php
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Dependencies, if a build step is ever added
+node_modules/
