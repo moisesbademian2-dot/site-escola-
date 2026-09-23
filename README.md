@@ -1,8 +1,8 @@
 # Portal of Future
 
-Sistema de gestão acadêmica para escola: turmas, alunos, professores, notas,
-frequência, ocorrências e comunicados, com telas diferentes para diretor,
-coordenador, professor, aluno e responsável.
+Sistema de gestão acadêmica para escola: turmas, alunos, professores, notas por
+bimestre, frequência, ocorrências e comunicados, com telas diferentes para
+diretor, coordenador, professor, aluno e responsável.
 
 ## Como rodar
 

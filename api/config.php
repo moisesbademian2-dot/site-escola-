@@ -77,6 +77,7 @@ function respond($data, int $status = 200): void {
 // ---------------------------------------------------------------------------
 
 const ROLES = ['diretor', 'coordenador', 'professor', 'aluno', 'responsavel'];
+const BIMESTRES = ['1º Bimestre', '2º Bimestre', '3º Bimestre', '4º Bimestre'];
 
 const COLLECTIONS = [
     'subjects' => ['name' => 'str', 'code' => 'str'],
@@ -91,7 +92,7 @@ const COLLECTIONS = [
         'status' => ['pendente', 'aprovado', 'rejeitado'], 'matricula' => 'str', 'studentId' => 'ref',
         'cursoPretendido' => 'str', 'turnoPretendido' => 'str', 'createdAt' => 'str',
     ],
-    'grades' => ['studentId' => 'ref', 'subjectId' => 'ref', 'assessment' => 'str', 'value' => 'num', 'weight' => 'num', 'date' => 'date'],
+    'grades' => ['studentId' => 'ref', 'subjectId' => 'ref', 'assessment' => 'str', 'value' => 'num', 'weight' => 'num', 'date' => 'date', 'bimestre' => BIMESTRES],
     'attendance' => [
         'studentId' => 'ref', 'classId' => 'ref', 'subjectId' => 'ref', 'teacherId' => 'ref', 'date' => 'date',
         'status' => ['Presente', 'Falta', 'Justificada'],

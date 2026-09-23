@@ -71,9 +71,17 @@ CREATE TABLE IF NOT EXISTS grades (
   value DECIMAL(7,2),
   weight DECIMAL(7,2),
   date DATE,
+  -- '1º Bimestre'..'4º Bimestre', or NULL for notes from before this column existed.
+  -- Named "bimestre", not "period", so it isn't confused with the turno/shift
+  -- ("período") field that classes and students already have.
+  bimestre VARCHAR(20),
   FOREIGN KEY (student_id) REFERENCES students (id) ON DELETE CASCADE,
   FOREIGN KEY (subject_id) REFERENCES subjects (id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
+
+-- Adds `bimestre` to a grades table created before it existed (re-running this
+-- file on an existing database is safe).
+ALTER TABLE grades ADD COLUMN IF NOT EXISTS bimestre VARCHAR(20);
 
 CREATE TABLE IF NOT EXISTS attendance (
   id VARCHAR(64) PRIMARY KEY,

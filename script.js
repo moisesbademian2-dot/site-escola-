@@ -250,6 +250,8 @@ const Modal = {
   }
 };
 
+const BIMESTRES = ['1º Bimestre', '2º Bimestre', '3º Bimestre', '4º Bimestre'];
+
 const MENUS = {
   diretor: [
     { group: 'Visão Geral', items: [ { id: 'dashboard', icon: 'dashboard', label: 'Dashboard' }, { id: 'relatorios', icon: 'chart', label: 'Relatórios' } ]},
@@ -552,16 +554,30 @@ const App = {
     const faltas = r.filter(a => a.status === 'Falta').length;
     return { total, pres, just, faltas, freq: total ? ((pres + just * 0.5) / total) * 100 : 0 };
   },
-  averageOf(sid) { const g = DB.state.grades.filter(x => x.studentId === sid); return g.length ? Util.avg(g.map(x => Number(x.value))) : 0; },
+  // Average of a set of grades: notes are first averaged (weighted) within each
+  // bimestre, then those bimestre averages are averaged into one final number.
+  // A grade with no bimestre set (from before that field existed) falls into its
+  // own "Sem bimestre" bucket, so it still counts as one bucket rather than being
+  // dropped or silently merged into whichever bimestre happens to be filtered.
+  gradesAverage(list) {
+    if (!list.length) return 0;
+    const byBim = {};
+    list.forEach(g => { const b = g.bimestre || 'Sem bimestre'; (byBim[b] = byBim[b] || []).push(g); });
+    const bimAvgs = Object.values(byBim).map(bl => {
+      const tw = bl.reduce((s, x) => s + (Number(x.weight) || 1), 0) || 1;
+      return bl.reduce((s, x) => s + Number(x.value) * (Number(x.weight) || 1), 0) / tw;
+    });
+    return Util.avg(bimAvgs);
+  },
+  averageOf(sid) { return this.gradesAverage(DB.state.grades.filter(x => x.studentId === sid)); },
   averagesBySubject(sid) {
     const map = {};
     DB.state.grades.filter(g => g.studentId === sid).forEach(g => {
       const s = this.subjectById(g.subjectId);
       const k = s ? s.name : g.subjectId;
-      if (!map[k]) map[k] = [];
-      map[k].push(Number(g.value));
+      (map[k] = map[k] || []).push(g);
     });
-    const o = {}; Object.keys(map).forEach(k => o[k] = Util.avg(map[k]));
+    const o = {}; Object.keys(map).forEach(k => o[k] = this.gradesAverage(map[k]));
     return o;
   },
   classAverage(cid) {
@@ -1755,11 +1771,12 @@ App.renderFrequenciaTabela = function () {
 App.views.notas = function (el) {
   const canEdit = ['diretor','coordenador','professor'].includes(Auth.currentUser.role);
   this.setTitle('Notas', 'Lançamento e consulta de notas');
-  el.innerHTML = '<div class="card mb-24"><div class="card-header"><h3>' + Icons.search + ' Filtrar</h3>' + (canEdit ? '<button type="button" class="btn btn-primary btn-sm" id="btn-lancar-nota">' + Icons.plus + ' Lançar nota</button>' : '') + '</div><div class="card-body"><div class="toolbar"><div class="search">' + Icons.search + '<input type="text" id="notas-busca" placeholder="Buscar aluno..."></div><select id="notas-turma"><option value="">Todas as turmas</option>' + DB.state.classes.map(c => '<option value="' + Util.esc(c.id) + '">' + Util.esc(c.name) + '</option>').join('') + '</select><select id="notas-disc"><option value="">Todas as disciplinas</option>' + DB.state.subjects.map(s => '<option value="' + Util.esc(s.id) + '">' + Util.esc(s.name) + '</option>').join('') + '</select></div></div></div><div class="card"><div class="card-body" id="notas-tabela" style="padding:0;"></div></div>';
+  el.innerHTML = '<div class="card mb-24"><div class="card-header"><h3>' + Icons.search + ' Filtrar</h3>' + (canEdit ? '<button type="button" class="btn btn-primary btn-sm" id="btn-lancar-nota">' + Icons.plus + ' Lançar nota</button>' : '') + '</div><div class="card-body"><div class="toolbar"><div class="search">' + Icons.search + '<input type="text" id="notas-busca" placeholder="Buscar aluno..."></div><select id="notas-turma"><option value="">Todas as turmas</option>' + DB.state.classes.map(c => '<option value="' + Util.esc(c.id) + '">' + Util.esc(c.name) + '</option>').join('') + '</select><select id="notas-disc"><option value="">Todas as disciplinas</option>' + DB.state.subjects.map(s => '<option value="' + Util.esc(s.id) + '">' + Util.esc(s.name) + '</option>').join('') + '</select><select id="notas-bim"><option value="">Média final (todos os bimestres)</option>' + BIMESTRES.map(b => '<option>' + b + '</option>').join('') + '</select></div></div></div><div class="card"><div class="card-body" id="notas-tabela" style="padding:0;"></div></div>';
   this.renderNotasTabela();
   document.getElementById('notas-busca').addEventListener('input', Util.debounce(() => this.renderNotasTabela(), 200));
   document.getElementById('notas-turma').addEventListener('change', () => this.renderNotasTabela());
   document.getElementById('notas-disc').addEventListener('change', () => this.renderNotasTabela());
+  document.getElementById('notas-bim').addEventListener('change', () => this.renderNotasTabela());
   if (canEdit) { const b = document.getElementById('btn-lancar-nota'); if (b) b.addEventListener('click', () => this.modalNota()); }
 };
 
@@ -1767,17 +1784,19 @@ App.renderNotasTabela = function () {
   const busca = (document.getElementById('notas-busca') || {}).value || '';
   const turma = (document.getElementById('notas-turma') || {}).value || '';
   const disc = (document.getElementById('notas-disc') || {}).value || '';
+  const bim = (document.getElementById('notas-bim') || {}).value || '';
   const ct = document.getElementById('notas-tabela');
   if (!ct) return;
   let list = DB.state.students.filter(s => s.status === 'Ativo');
   if (busca) list = list.filter(s => s.name.toLowerCase().includes(busca.toLowerCase()));
   if (turma) list = list.filter(s => s.classId === turma);
   if (!list.length) { ct.innerHTML = DB.state.students.length === 0 ? this.emptyState('student', 'Nenhum aluno', 'Cadastre alunos para lançar notas.') : '<div class="empty"><p>Nenhum aluno encontrado.</p></div>'; return; }
-  let h = '<div class="table-wrap"><table class="data"><thead><tr><th>Aluno</th><th>Turma</th><th>Avaliações</th><th>Média</th><th>Status</th></tr></thead><tbody>';
+  let h = '<div class="table-wrap"><table class="data"><thead><tr><th>Aluno</th><th>Turma</th><th>Avaliações</th><th>' + (bim ? Util.esc(bim) : 'Média final') + '</th><th>Status</th></tr></thead><tbody>';
   list.forEach(s => {
     let g = DB.state.grades.filter(x => x.studentId === s.id);
     if (disc) g = g.filter(x => x.subjectId === disc);
-    const m = g.length ? Util.avg(g.map(x => Number(x.value))) : 0;
+    if (bim) g = g.filter(x => x.bimestre === bim);
+    const m = this.gradesAverage(g);
     const t = this.classById(s.classId);
     h += '<tr><td><div class="cell-user"><div class="avatar-sm" style="background:' + Util.colorFor(s.name) + '">' + Util.esc(Util.initials(s.name)) + '</div><div class="u-meta"><strong>' + Util.esc(s.name) + '</strong><span class="mono" style="font-size:11px;">' + Util.esc(s.matricula) + '</span></div></div></td><td>' + (t ? Util.esc(t.name) : '—') + '</td><td class="text-sm mono">' + g.length + '</td><td><strong class="mono" style="font-size:15px;">' + Util.fmtNum(m, 1) + '</strong></td><td><span class="badge ' + Util.notaBadge(m) + '">' + (m >= 7 ? 'Aprovado' : m >= 5 ? 'Recuperação' : m === 0 ? 'Sem nota' : 'Reprovado') + '</span></td></tr>';
   });
@@ -1790,6 +1809,7 @@ App.modalNota = function () {
   const body = '<form id="form-nota" novalidate><div class="form-grid">' +
     '<div class="field-group full"><label>Aluno <span class="req">*</span></label><select name="studentId" required><option value="">Selecione...</option>' + DB.state.students.filter(s => s.status === 'Ativo').map(s => '<option value="' + Util.esc(s.id) + '">' + Util.esc(s.name) + ' (' + Util.esc(s.matricula) + ')</option>').join('') + '</select><div class="err">Selecione um aluno.</div></div>' +
     '<div class="field-group"><label>Disciplina <span class="req">*</span></label><select name="subjectId" required><option value="">Selecione...</option>' + DB.state.subjects.map(s => '<option value="' + Util.esc(s.id) + '">' + Util.esc(s.name) + '</option>').join('') + '</select><div class="err">Selecione.</div></div>' +
+    '<div class="field-group"><label>Bimestre <span class="req">*</span></label><select name="bimestre" required><option value="">Selecione...</option>' + BIMESTRES.map(b => '<option>' + b + '</option>').join('') + '</select><div class="err">Selecione o bimestre.</div></div>' +
     '<div class="field-group"><label>Avaliação <span class="req">*</span></label><input name="assessment" required placeholder="Ex: Prova 1"><div class="err">Informe o nome.</div></div>' +
     '<div class="field-group"><label>Nota (0 a 10) <span class="req">*</span></label><input type="number" name="value" min="0" max="10" step="0.1" required><div class="err">Informe a nota.</div></div>' +
     '<div class="field-group"><label>Data</label><input type="date" name="date" value="' + Util.todayISO() + '"></div>' +
@@ -1976,13 +1996,20 @@ App.views['minhas-notas'] = function (el) {
 App.notasDetalhadas = function (sid) {
   const gs = DB.state.grades.filter(g => g.studentId === sid);
   if (!gs.length) return '<div class="empty" style="padding:32px;"><p>Nenhuma nota lançada.</p></div>';
-  let h = '<div class="table-wrap"><table class="data"><thead><tr><th>Disciplina</th><th>Avaliação</th><th>Data</th><th>Nota</th></tr></thead><tbody>';
-  gs.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-  gs.forEach(g => {
-    const s = this.subjectById(g.subjectId);
-    h += '<tr><td>' + (s ? Util.esc(s.name) : '—') + '</td><td>' + Util.esc(g.assessment) + '</td><td class="mono text-sm">' + Util.fmtDate(g.date) + '</td><td><span class="badge ' + Util.notaBadge(Number(g.value)) + ' mono">' + Util.fmtNum(g.value, 1) + '</span></td></tr>';
+  const byBim = {};
+  gs.forEach(g => { const b = g.bimestre || 'Sem bimestre'; (byBim[b] = byBim[b] || []).push(g); });
+  let h = '';
+  BIMESTRES.concat(['Sem bimestre']).filter(b => byBim[b]).forEach(b => {
+    const list = byBim[b].slice().sort((a, c) => (c.date || '').localeCompare(a.date || ''));
+    const avg = this.gradesAverage(list);
+    h += '<div class="mb-16"><div class="flex items-center justify-between mb-8" style="padding:12px 16px 0;"><strong style="font-size:13.5px;">' + Util.esc(b) + '</strong><span class="badge ' + Util.notaBadge(avg) + ' mono">Média ' + Util.fmtNum(avg, 1) + '</span></div>' +
+      '<div class="table-wrap"><table class="data"><thead><tr><th>Disciplina</th><th>Avaliação</th><th>Data</th><th>Nota</th></tr></thead><tbody>';
+    list.forEach(g => {
+      const s = this.subjectById(g.subjectId);
+      h += '<tr><td>' + (s ? Util.esc(s.name) : '—') + '</td><td>' + Util.esc(g.assessment) + '</td><td class="mono text-sm">' + Util.fmtDate(g.date) + '</td><td><span class="badge ' + Util.notaBadge(Number(g.value)) + ' mono">' + Util.fmtNum(g.value, 1) + '</span></td></tr>';
+    });
+    h += '</tbody></table></div></div>';
   });
-  h += '</tbody></table></div>';
   return h;
 };
 
