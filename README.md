@@ -46,10 +46,13 @@ Requer PHP 8+ e MySQL/MariaDB — mais fácil com o
 | Diretor | Tudo, incluindo usuários | Tudo |
 | Coordenador | Tudo, exceto contas de usuário | Tudo, exceto contas de usuário |
 | Professor | Só as próprias turmas e os alunos delas | Chamada, notas e ocorrências das próprias turmas |
-| Aluno / Responsável | Só o próprio aluno vinculado | Nada (somente leitura) |
+| Aluno / Responsável | Só o(s) próprio(s) aluno(s) vinculado(s) | Nada (somente leitura) |
 
 Um cadastro novo (exceto o primeiro diretor) fica **pendente** até o diretor
-aprovar em Usuários.
+aprovar em Usuários. Um responsável pode ter mais de um filho vinculado (a
+tabela `guardians`, gerenciada só pelo diretor em Usuários → editar → "Filhos
+vinculados"); com mais de um, a barra lateral mostra um seletor para trocar de
+qual filho está acompanhando.
 
 ## Segurança
 

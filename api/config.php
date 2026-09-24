@@ -22,7 +22,7 @@ set_exception_handler(function (Throwable $e): void {
 // trigger a CORS preflight — which fails, since we never send an Access-Control-
 // Allow-Origin for other origins. So only same-origin JS (our own script.js) can
 // reach this line on a POST.
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '') !== 'PortalOfFuture') {
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && ($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '') !== 'PortalOfFuture') {
     http_response_code(403);
     echo json_encode(['error' => 'Requisição inválida.']);
     exit;
@@ -104,12 +104,16 @@ const COLLECTIONS = [
     ],
     'occurrences' => ['studentId' => 'ref', 'teacherId' => 'ref', 'date' => 'date', 'category' => 'str', 'situation' => 'str', 'description' => 'text'],
     'announcements' => ['title' => 'str', 'target' => 'str', 'author' => 'str', 'message' => 'text', 'date' => 'date'],
+    // A responsável <-> student link (a responsável can have more than one child).
+    'guardians' => ['userId' => 'ref', 'studentId' => 'ref'],
 ];
 
 // Parents before children, so a record can reference one created in the same request.
-const UPSERT_ORDER = ['subjects', 'teachers', 'classes', 'students', 'users', 'grades', 'attendance', 'lessons', 'activities', 'occurrences', 'announcements'];
+const UPSERT_ORDER = ['subjects', 'teachers', 'classes', 'students', 'users', 'guardians', 'grades', 'attendance', 'lessons', 'activities', 'occurrences', 'announcements'];
 // Teachers go before users: deleting a teacher also removes its professor login (see sync.php).
-const DELETE_ORDER = ['announcements', 'occurrences', 'activities', 'lessons', 'attendance', 'grades', 'teachers', 'users', 'students', 'classes', 'subjects'];
+// guardians goes first: it references both users and students, so it's cleared
+// before either could be deleted in the same request.
+const DELETE_ORDER = ['guardians', 'announcements', 'occurrences', 'activities', 'lessons', 'attendance', 'grades', 'teachers', 'users', 'students', 'classes', 'subjects'];
 
 const ID_PATTERN = '/^[A-Za-z0-9_-]{1,64}$/';
 
@@ -342,11 +346,22 @@ function access_scope(array $me): array {
             $stmt->execute($scope['classIds']);
             $scope['studentIds'] = $stmt->fetchAll(PDO::FETCH_COLUMN);
         }
-    } elseif (in_array($me['role'], ['aluno', 'responsavel'], true) && $me['studentId'] !== '') {
+    } elseif ($me['role'] === 'aluno' && $me['studentId'] !== '') {
         $st = fetch_record('students', $me['studentId']);
         if ($st) {
             $scope['studentIds'] = [$st['id']];
             if ($st['classId'] !== '') $scope['classIds'] = [$st['classId']];
+        }
+    } elseif ($me['role'] === 'responsavel') {
+        // Unlike aluno (always exactly one student), a responsável can have several.
+        $stmt = db()->prepare('SELECT student_id FROM guardians WHERE user_id = ?');
+        $stmt->execute([$me['id']]);
+        $scope['studentIds'] = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        if ($scope['studentIds']) {
+            $in = implode(',', array_fill(0, count($scope['studentIds']), '?'));
+            $stmt = db()->prepare("SELECT DISTINCT class_id FROM students WHERE id IN ($in) AND class_id IS NOT NULL");
+            $stmt->execute($scope['studentIds']);
+            $scope['classIds'] = $stmt->fetchAll(PDO::FETCH_COLUMN);
         }
     }
     return $scope;
@@ -389,6 +404,10 @@ function visible_state(array $me): array {
     } else {
         $targets[] = $role === 'aluno' ? 'Alunos' : 'Responsáveis';
         $state['occurrences'] = $keep('occurrences', $ofStudent);
+        if ($role === 'responsavel') {
+            // Needs its own links to know which children it has, e.g. for the child switcher.
+            $state['guardians'] = $keep('guardians', fn($r) => $r['userId'] === $me['id']);
+        }
     }
     $state['announcements'] = $keep('announcements', fn($r) => in_array($r['target'], $targets, true) || $r['target'] === '');
     return $state;
@@ -399,7 +418,8 @@ function visible_state(array $me): array {
 function can_write(array $me, array $scope, string $coll, ?array $old, ?array $new): bool {
     $role = $me['role'];
     if ($role === 'diretor') return true;
-    if ($role === 'coordenador') return $coll !== 'users';
+    // guardians controls account access, same reasoning as excluding 'users'.
+    if ($role === 'coordenador') return $coll !== 'users' && $coll !== 'guardians';
     if ($role !== 'professor') return false;
 
     $check = match ($coll) {

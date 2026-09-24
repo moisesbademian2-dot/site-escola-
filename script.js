@@ -43,8 +43,8 @@ const Icons = {
 
 const DB = {
   API: 'api/',
-  COLLECTIONS: ['users', 'students', 'classes', 'teachers', 'subjects', 'attendance', 'grades', 'activities', 'occurrences', 'announcements', 'lessons'],
-  state: { users: [], students: [], classes: [], teachers: [], subjects: [], attendance: [], grades: [], activities: [], occurrences: [], announcements: [], lessons: [] },
+  COLLECTIONS: ['users', 'students', 'classes', 'teachers', 'subjects', 'attendance', 'grades', 'activities', 'occurrences', 'announcements', 'lessons', 'guardians'],
+  state: { users: [], students: [], classes: [], teachers: [], subjects: [], attendance: [], grades: [], activities: [], occurrences: [], announcements: [], lessons: [], guardians: [] },
   synced: {},
   queue: Promise.resolve(),
   async load() {
@@ -449,9 +449,31 @@ const App = {
   startApp() {
     document.getElementById('auth-screen').classList.add('hidden');
     document.getElementById('app').classList.remove('hidden');
+    this.ensureActiveChild();
     this.buildSidebar();
     this.buildTopbar();
     this.navigate('dashboard');
+  },
+  // Every child linked to the logged-in responsável, sorted by name. Empty for
+  // any other role.
+  myChildren() {
+    const u = Auth.currentUser;
+    if (!u || u.role !== 'responsavel') return [];
+    return DB.state.guardians.filter(g => g.userId === u.id)
+      .map(g => this.studentById(g.studentId)).filter(Boolean)
+      .sort((a, b) => a.name.localeCompare(b.name));
+  },
+  // A responsável can have more than one child, but the rest of the app (dashboard,
+  // Minhas Notas, Minha Frequência, Atividades, Ocorrências, Perfil) was written
+  // around a single Auth.currentUser.studentId — same as it already is for aluno,
+  // which really does have exactly one. So this keeps studentId pointing at
+  // whichever child is currently "active", switchable from the sidebar, instead of
+  // rewriting every one of those screens to juggle a list.
+  ensureActiveChild() {
+    const u = Auth.currentUser;
+    if (!u || u.role !== 'responsavel') return;
+    const kids = this.myChildren();
+    if (!kids.find(s => s.id === u.studentId)) u.studentId = kids.length ? kids[0].id : '';
   },
   bindShell() {
     document.getElementById('overlay').addEventListener('click', () => {
@@ -473,9 +495,15 @@ const App = {
           Icons[it.icon] + '<span>' + Util.esc(it.label) + '</span></button>';
       });
     });
+    const kids = this.myChildren();
+    const switcher = kids.length > 1
+      ? '<div style="padding:0 20px 16px;"><label style="display:block;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:6px;">Acompanhando</label><select id="child-switcher" style="width:100%;">' +
+        kids.map(s => '<option value="' + Util.esc(s.id) + '"' + (s.id === u.studentId ? ' selected' : '') + '>' + Util.esc(s.name) + '</option>').join('') + '</select></div>'
+      : '';
     sb.innerHTML =
       '<div class="sidebar-header"><div class="logo">' + LOGO_IMG + '</div></div>' +
       '<nav class="sidebar-nav">' + nav + '</nav>' +
+      switcher +
       '<div class="sidebar-footer">' +
         '<div class="avatar">' + Util.esc(u.avatar || Util.initials(u.name)) + '</div>' +
         '<div class="uinfo">' +
@@ -491,6 +519,11 @@ const App = {
           document.getElementById('overlay').classList.add('hidden');
         }
       });
+    });
+    const switcherSel = document.getElementById('child-switcher');
+    if (switcherSel) switcherSel.addEventListener('change', () => {
+      u.studentId = switcherSel.value;
+      this.navigate(this.currentView);
     });
   },
   buildTopbar() {
@@ -512,7 +545,7 @@ const App = {
     document.getElementById('btn-logout').addEventListener('click', () => {
       Modal.confirm('Encerrar sessão', 'Deseja realmente sair do sistema?', async () => { await Auth.logout(); location.reload(); }, 'Sair');
     });
-    document.getElementById('btn-refresh').addEventListener('click', async () => { await DB.load(); this.navigate(this.currentView); Toast.info('Dados recarregados.'); });
+    document.getElementById('btn-refresh').addEventListener('click', async () => { await DB.load(); this.ensureActiveChild(); this.buildSidebar(); this.navigate(this.currentView); Toast.info('Dados recarregados.'); });
     document.getElementById('btn-notif').addEventListener('click', () => this.showNotifications());
   },
   setTitle(t, s) { const el = document.getElementById('page-title'); if (!el) return; el.innerHTML = Util.esc(t) + (s ? '<small>' + Util.esc(s) + '</small>' : ''); },
@@ -520,8 +553,14 @@ const App = {
     if (!view) return;
     this.currentView = view;
     document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.view === view));
-    const el = document.getElementById('view');
-    el.innerHTML = '';
+    // Views bind delegated listeners with Util.on(el, ...) directly on this
+    // container. Clearing innerHTML alone doesn't drop those (they're on el
+    // itself, not its children), so re-rendering the same view twice would
+    // double-fire every row action. Cloning drops them; nothing else keeps a
+    // reference to the old node, since this is the only place #view is looked up.
+    const old = document.getElementById('view');
+    const el = old.cloneNode(false);
+    old.replaceWith(el);
     el.style.animation = 'none';
     void el.offsetWidth;
     el.style.animation = '';
@@ -955,6 +994,7 @@ App.renderAlunosTable = function () {
           DB.state.attendance = DB.state.attendance.filter(a => a.studentId !== s.id);
           DB.state.occurrences = DB.state.occurrences.filter(o => o.studentId !== s.id);
           DB.state.users.forEach(u => { if (u.studentId === s.id) delete u.studentId; });
+          DB.state.guardians = DB.state.guardians.filter(g => g.studentId !== s.id);
           DB.save(); this.renderAlunosTable(); Toast.success('Aluno excluído com sucesso.');
         }
       });
@@ -1269,7 +1309,7 @@ App.views.usuarios = function (el) {
   if (pendentes.length) {
     h += '<div class="card mb-24" style="border-color:#fde68a;"><div class="card-header" style="background:var(--yellow-soft);border-bottom-color:#fde68a;"><h3 style="color:var(--yellow-dark);">' + Icons.alert + ' Cadastros aguardando aprovação (' + pendentes.length + ')</h3></div><div class="card-body" style="padding:0;"><div class="table-wrap"><table class="data"><thead><tr><th>Nome</th><th>E-mail</th><th>Celular</th><th>Perfil pretendido</th><th style="text-align:right;">Ações</th></tr></thead><tbody>';
     pendentes.forEach(u => {
-      const contexto = [u.cursoPretendido, u.turnoPretendido].filter(Boolean).join(' · ');
+      const contexto = u.role === 'responsavel' && u.matricula ? 'Matrícula informada: ' + u.matricula : [u.cursoPretendido, u.turnoPretendido].filter(Boolean).join(' · ');
       h += '<tr><td><div class="cell-user"><div class="avatar-sm" style="background:' + Util.colorFor(u.name) + '">' + Util.esc(Util.initials(u.name)) + '</div><div class="u-meta"><strong>' + Util.esc(u.name) + '</strong></div></div></td><td>' + Util.esc(u.email) + '</td><td class="mono text-sm">' + Util.esc(u.phone || '—') + '</td><td><span class="badge amber">' + Util.roleLabel(u.role) + '</span>' + (contexto ? '<div class="text-xs text-muted mt-4">' + Util.esc(contexto) + '</div>' : '') + '</td><td><div class="actions"><button type="button" class="btn btn-primary btn-xs" data-aprovar-user="' + Util.esc(u.id) + '">Aprovar</button><button type="button" class="btn btn-danger btn-xs" data-rejeitar-user="' + Util.esc(u.id) + '">Rejeitar</button></div></td></tr>';
     });
     h += '</tbody></table></div></div></div>';
@@ -1277,9 +1317,16 @@ App.views.usuarios = function (el) {
 
   h += '<div class="card"><div class="card-header"><h3>' + Icons.users + ' Gerenciamento de usuários</h3><button type="button" class="btn btn-primary btn-sm" id="btn-novo-user">' + Icons.plus + ' Novo usuário</button></div><div class="card-body" style="padding:0;"><div class="table-wrap"><table class="data"><thead><tr><th>Usuário</th><th>E-mail</th><th>Perfil</th><th>Vínculo</th><th style="text-align:right;">Ações</th></tr></thead><tbody>';
   ativos.forEach(u => {
-    const st = u.studentId ? this.studentById(u.studentId) : null;
     const isMe = u.id === Auth.currentUser.id;
-    h += '<tr><td><div class="cell-user"><div class="avatar-sm" style="background:' + Util.colorFor(u.name) + '">' + Util.esc(Util.initials(u.name)) + '</div><div class="u-meta"><strong>' + Util.esc(u.name) + (isMe ? ' <span style="color:var(--blue);font-size:11px;">(você)</span>' : '') + '</strong><span class="mono" style="font-size:11px;">ID ' + Util.esc(u.id.slice(0, 8)) + '</span></div></div></td><td>' + Util.esc(u.email) + '</td><td><span class="badge ' + (u.role === 'diretor' ? 'purple' : u.role === 'coordenador' ? 'blue' : u.role === 'professor' ? 'sky' : u.role === 'aluno' ? 'green' : 'amber') + '">' + Util.roleLabel(u.role) + '</span></td><td>' + (st ? Util.esc(st.name) + ' <span class="text-xs text-muted mono">(' + Util.esc(st.matricula) + ')</span>' : '—') + '</td><td><div class="actions"><button type="button" class="btn btn-secondary btn-xs" data-edit-user="' + Util.esc(u.id) + '">Editar</button>' + (isMe ? '' : '<button type="button" class="btn btn-danger btn-xs" data-del-user="' + Util.esc(u.id) + '">Excluir</button>') + '</div></td></tr>';
+    let vinculo = '—';
+    if (u.role === 'aluno' && u.studentId) {
+      const st = this.studentById(u.studentId);
+      vinculo = st ? Util.esc(st.name) + ' <span class="text-xs text-muted mono">(' + Util.esc(st.matricula) + ')</span>' : '—';
+    } else if (u.role === 'responsavel') {
+      const filhos = DB.state.guardians.filter(g => g.userId === u.id).map(g => this.studentById(g.studentId)).filter(Boolean);
+      vinculo = filhos.length ? filhos.map(s => Util.esc(s.name)).join(', ') + (filhos.length > 1 ? ' <span class="text-xs text-muted">(' + filhos.length + ' filhos)</span>' : '') : '—';
+    }
+    h += '<tr><td><div class="cell-user"><div class="avatar-sm" style="background:' + Util.colorFor(u.name) + '">' + Util.esc(Util.initials(u.name)) + '</div><div class="u-meta"><strong>' + Util.esc(u.name) + (isMe ? ' <span style="color:var(--blue);font-size:11px;">(você)</span>' : '') + '</strong><span class="mono" style="font-size:11px;">ID ' + Util.esc(u.id.slice(0, 8)) + '</span></div></div></td><td>' + Util.esc(u.email) + '</td><td><span class="badge ' + (u.role === 'diretor' ? 'purple' : u.role === 'coordenador' ? 'blue' : u.role === 'professor' ? 'sky' : u.role === 'aluno' ? 'green' : 'amber') + '">' + Util.roleLabel(u.role) + '</span></td><td>' + vinculo + '</td><td><div class="actions"><button type="button" class="btn btn-secondary btn-xs" data-edit-user="' + Util.esc(u.id) + '">Editar</button>' + (isMe ? '' : '<button type="button" class="btn btn-danger btn-xs" data-del-user="' + Util.esc(u.id) + '">Excluir</button>') + '</div></td></tr>';
   });
   h += '</tbody></table></div></div></div>';
   el.innerHTML = h;
@@ -1290,6 +1337,7 @@ App.views.usuarios = function (el) {
     if (!u) return;
     Modal.confirm('Excluir usuário', 'Deseja realmente excluir a conta de "' + u.name + '"?', () => {
       DB.state.users = DB.state.users.filter(x => x.id !== u.id);
+      DB.state.guardians = DB.state.guardians.filter(g => g.userId !== u.id);
       DB.save(); this.navigate('usuarios'); Toast.success('Usuário excluído.');
     }, 'Excluir');
   });
@@ -1348,29 +1396,63 @@ App.aprovarAlunoComVinculo = function (u) {
 App.modalUser = function (id) {
   const u = id ? this.userById(id) : null;
   const editing = !!u;
-  const alunoRoles = ['aluno', 'responsavel'];
   const currentStudentId = u ? (u.studentId || '') : '';
   const body = '<form id="form-user" novalidate><div class="form-grid">' +
     '<div class="field-group full"><label>Nome completo <span class="req">*</span></label><input name="name" value="' + Util.esc(u ? u.name : '') + '" required><div class="err">Informe o nome.</div></div>' +
     '<div class="field-group"><label>E-mail <span class="req">*</span></label><input type="email" name="email" value="' + Util.esc(u ? u.email : '') + '" required><div class="err">Informe o e-mail.</div></div>' +
     '<div class="field-group"><label>Perfil de acesso <span class="req">*</span></label><select name="role" id="user-role-select" required>' + ['diretor','coordenador','professor','aluno','responsavel'].map(r => '<option value="' + r + '"' + (u && u.role === r ? ' selected' : '') + '>' + Util.roleLabel(r) + '</option>').join('') + '</select></div>' +
     '<div class="field-group"><label>Senha ' + (editing ? '(deixe em branco para manter)' : '<span class="req">*</span>') + '</label><input type="text" name="password" ' + (editing ? '' : 'required') + ' placeholder="Mínimo 4 caracteres"><div class="err">Informe a senha.</div></div>' +
-    '<div class="field-group full' + (u && !alunoRoles.includes(u.role) ? ' hidden' : '') + '" id="user-aluno-field"><label>Aluno vinculado (para aluno/responsável)</label><select name="studentId"><option value="">— Nenhum vínculo —</option>' + DB.state.students.map(s => { const c = this.classById(s.classId); return '<option value="' + Util.esc(s.id) + '"' + (currentStudentId === s.id ? ' selected' : '') + '>' + Util.esc(s.name) + ' — ' + Util.esc(s.matricula) + (c ? ' — ' + Util.esc(c.name) : '') + '</option>'; }).join('') + '</select></div>' +
-    '</div></form>';
+    '<div class="field-group full" id="user-aluno-field"><label>Aluno vinculado</label><select name="studentId"><option value="">— Nenhum vínculo —</option>' + DB.state.students.map(s => { const c = this.classById(s.classId); return '<option value="' + Util.esc(s.id) + '"' + (currentStudentId === s.id ? ' selected' : '') + '>' + Util.esc(s.name) + ' — ' + Util.esc(s.matricula) + (c ? ' — ' + Util.esc(c.name) : '') + '</option>'; }).join('') + '</select></div>' +
+    '</div></form>' +
+    (editing ?
+      '<div class="field-group full" id="user-responsavel-field"><label>Filhos vinculados</label><div id="responsavel-filhos-list" class="mb-8"></div><div class="flex gap-8"><select id="responsavel-add-select" style="flex:1;"></select><button type="button" class="btn btn-secondary btn-sm" id="responsavel-add-btn">' + Icons.plus + ' Adicionar</button></div></div>'
+      : '<div class="field-group full" id="user-responsavel-field"><p class="text-sm text-muted">Salve o cadastro para depois vincular os filhos.</p></div>');
   Modal.open({
     title: editing ? 'Editar usuário' : 'Novo usuário', icon: Icons.users, body: body, size: 'lg',
     footer: '<button type="button" class="btn btn-secondary" data-close>Cancelar</button><button type="button" class="btn btn-primary" data-save>' + (editing ? 'Salvar' : 'Criar conta') + '</button>',
     onMount: (bd, close) => {
       const form = bd.querySelector('#form-user');
-      bd.querySelector('#user-role-select').addEventListener('change', e => {
-        bd.querySelector('#user-aluno-field').classList.toggle('hidden', !alunoRoles.includes(e.target.value));
-      });
+      const roleSel = bd.querySelector('#user-role-select');
+      const toggleFields = () => {
+        bd.querySelector('#user-aluno-field').classList.toggle('hidden', roleSel.value !== 'aluno');
+        bd.querySelector('#user-responsavel-field').classList.toggle('hidden', roleSel.value !== 'responsavel');
+      };
+      roleSel.addEventListener('change', toggleFields);
+      toggleFields();
+
+      // A responsável can have more than one child; that's a list of independent
+      // links (DB.state.guardians), managed here with its own save, separate from
+      // the account fields above that only save when "Salvar" is clicked.
+      if (editing) {
+        const listEl = bd.querySelector('#responsavel-filhos-list');
+        const addSel = bd.querySelector('#responsavel-add-select');
+        const refreshFilhos = () => {
+          const links = DB.state.guardians.filter(g => g.userId === u.id);
+          listEl.innerHTML = links.length ? links.map(g => {
+            const st = this.studentById(g.studentId);
+            return '<div class="flex items-center justify-between" style="padding:6px 0;border-bottom:1px solid var(--border);font-size:13.5px;"><span>' + (st ? Util.esc(st.name) + ' <span class="text-xs text-muted mono">(' + Util.esc(st.matricula) + ')</span>' : '(aluno removido)') + '</span><button type="button" class="btn btn-danger btn-xs" data-remove-filho="' + Util.esc(g.id) + '">Remover</button></div>';
+          }).join('') : '<p class="text-sm text-muted">Nenhum filho vinculado ainda.</p>';
+          const linkedIds = links.map(g => g.studentId);
+          addSel.innerHTML = '<option value="">Selecione um aluno...</option>' + DB.state.students.filter(s => !linkedIds.includes(s.id)).map(s => '<option value="' + Util.esc(s.id) + '">' + Util.esc(s.name) + ' — ' + Util.esc(s.matricula) + '</option>').join('');
+        };
+        refreshFilhos();
+        Util.on(listEl, 'click', '[data-remove-filho]', (e, t) => {
+          DB.state.guardians = DB.state.guardians.filter(g => g.id !== t.dataset.removeFilho);
+          DB.save(); refreshFilhos(); Toast.success('Vínculo removido.');
+        });
+        bd.querySelector('#responsavel-add-btn').addEventListener('click', () => {
+          if (!addSel.value) { Toast.warning('Selecione um aluno.'); return; }
+          DB.state.guardians.push({ id: DB.id('gd'), userId: u.id, studentId: addSel.value });
+          DB.save(); refreshFilhos(); Toast.success('Filho vinculado.');
+        });
+      }
+
       bd.querySelector('[data-save]').addEventListener('click', () => {
         if (!this.validateForm(form)) { Toast.error('Preencha os campos obrigatórios.'); return; }
         const d = Object.fromEntries(new FormData(form).entries());
         const dup = DB.state.users.find(x => x.email.toLowerCase() === d.email.toLowerCase() && (!editing || x.id !== u.id));
         if (dup) { Toast.error('Este e-mail já está em uso.'); return; }
-        if (alunoRoles.includes(d.role) && d.studentId) {
+        if (d.role === 'aluno' && d.studentId) {
           const st = DB.state.students.find(s => s.id === d.studentId);
           d.matricula = st ? st.matricula : '';
         } else { delete d.studentId; d.matricula = ''; }
@@ -1418,7 +1500,7 @@ App.views.admin = function (el) {
   const bc = document.getElementById('admin-clear-students');
   if (bc) bc.addEventListener('click', () => {
     Modal.confirm('Apagar todos os alunos', 'Isso removerá TODOS os alunos, notas, frequências e ocorrências associadas.', () => {
-      DB.state.students = []; DB.state.grades = []; DB.state.attendance = []; DB.state.occurrences = [];
+      DB.state.students = []; DB.state.grades = []; DB.state.attendance = []; DB.state.occurrences = []; DB.state.guardians = [];
       DB.state.users.forEach(u => { delete u.studentId; });
       DB.save(); Toast.success('Todos os alunos foram removidos.'); this.navigate('admin');
     }, 'Apagar tudo');

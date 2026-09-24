@@ -63,6 +63,19 @@ foreach (UPSERT_ORDER as $coll) {
         $counts[$coll]++;
     }
 }
+// The old format stored a responsável's single child as users.studentId (same
+// field aluno still uses). Move it into guardians -- the table the new access
+// rules actually read for responsável -- and clear it off the user row.
+$counts['guardians'] = 0;
+foreach (($state['users'] ?? []) as $rec) {
+    if (!is_array($rec) || ($rec['role'] ?? '') !== 'responsavel' || empty($rec['studentId'])) continue;
+    if (!isset($ids['students'][$rec['studentId']]) || !isset($ids['users'][$rec['id']])) continue;
+    $pdo->prepare('INSERT INTO guardians (id, user_id, student_id) VALUES (?, ?, ?)')
+        ->execute([gen_id('gd'), $rec['id'], $rec['studentId']]);
+    $pdo->prepare('UPDATE users SET student_id = NULL WHERE id = ?')->execute([$rec['id']]);
+    $counts['guardians']++;
+}
+
 if ($counts['subjects'] === 0) seed_default_subjects();
 $pdo->exec('SET FOREIGN_KEY_CHECKS = 1');
 $pdo->commit();

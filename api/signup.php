@@ -27,6 +27,8 @@ if ($role === 'aluno' && ($curso === '' || $turno === '')) {
 
 if (find_user('email', $email)) respond(['ok' => false, 'error' => 'Este e-mail já está cadastrado.']);
 
+// A matrícula hint for responsável just pre-links the first child, same as
+// today; the diretor can add more (or fix a typo) later from Usuários.
 $studentId = null;
 $savedMatricula = null;
 if ($role === 'responsavel' && $matricula !== '') {
@@ -36,15 +38,23 @@ if ($role === 'responsavel' && $matricula !== '') {
     $savedMatricula = $matricula;
 }
 
+$userId = gen_id('u');
+$pdo = db();
+$pdo->beginTransaction();
 try {
-    db()->prepare('INSERT INTO users (id, name, email, phone, password, role, avatar, created_at, matricula, status, student_id, curso_pretendido, turno_pretendido)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+    $pdo->prepare('INSERT INTO users (id, name, email, phone, password, role, avatar, created_at, matricula, status, curso_pretendido, turno_pretendido)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
         ->execute([
-            gen_id('u'), $name, $email, $celular, hash_password($password), $role, initials_of($name), date('c'),
-            $savedMatricula, 'pendente', $studentId,
-            $role === 'aluno' ? $curso : null, $role === 'aluno' ? $turno : null,
+            $userId, $name, $email, $celular, hash_password($password), $role, initials_of($name), date('c'),
+            $savedMatricula, 'pendente', $role === 'aluno' ? $curso : null, $role === 'aluno' ? $turno : null,
         ]);
+    if ($studentId !== null) {
+        $pdo->prepare('INSERT INTO guardians (id, user_id, student_id) VALUES (?, ?, ?)')
+            ->execute([gen_id('gd'), $userId, $studentId]);
+    }
+    $pdo->commit();
 } catch (PDOException $e) {
+    $pdo->rollBack();
     if ($e->getCode() === '23000') respond(['ok' => false, 'error' => 'Este e-mail já está cadastrado.']);
     throw $e;
 }

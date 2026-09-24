@@ -56,12 +56,32 @@ CREATE TABLE IF NOT EXISTS users (
   avatar VARCHAR(255),
   status VARCHAR(20) NOT NULL DEFAULT 'aprovado',
   matricula VARCHAR(255),
+  -- student_id is only for role='aluno' (a student's own login, always exactly one).
+  -- role='responsavel' uses the guardians table below instead, since one responsável
+  -- can have more than one child.
   student_id VARCHAR(64),
   curso_pretendido VARCHAR(255),
   turno_pretendido VARCHAR(255),
   created_at VARCHAR(40),
   FOREIGN KEY (student_id) REFERENCES students (id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
+
+-- A responsável <-> student link; a responsável can have several, a student can
+-- (in principle) have more than one guardian account too.
+CREATE TABLE IF NOT EXISTS guardians (
+  id VARCHAR(64) PRIMARY KEY,
+  user_id VARCHAR(64) NOT NULL,
+  student_id VARCHAR(64) NOT NULL,
+  FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+  FOREIGN KEY (student_id) REFERENCES students (id) ON DELETE CASCADE,
+  UNIQUE (user_id, student_id)
+) ENGINE=InnoDB;
+
+-- Carries over links that were still stored as users.student_id from before this
+-- table existed (safe to re-run: the second run finds no student_id left to move).
+INSERT IGNORE INTO guardians (id, user_id, student_id)
+  SELECT CONCAT('gd-', id), id, student_id FROM users WHERE role = 'responsavel' AND student_id IS NOT NULL;
+UPDATE users SET student_id = NULL WHERE role = 'responsavel' AND student_id IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS grades (
   id VARCHAR(64) PRIMARY KEY,
