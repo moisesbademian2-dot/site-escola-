@@ -28,7 +28,7 @@ Requer PHP 8+ e MySQL/MariaDB — mais fácil com o
 
 ## Estrutura
 
-- [index.html](index.html), [style.css](style.css), [script.js](script.js) — front-end (uma página só, sem build).
+- [index.html](index.html), [style.css](style.css), [js/](js/) — front-end (uma página só, sem build; scripts comuns carregados em ordem pelo `index.html`): `core.js` (DB, Auth, utilitários, modais), `app.js` (navegação e login), `dashboards.js`, `pessoas.js` (alunos, turmas, professores, usuários), `academico.js` (chamada, notas, atividades, ocorrências, comunicados), `boletim.js`, `calendario.js`, `main.js`.
 - [api/](api/) — back-end em PHP. Cada arquivo é uma rota:
   - `login.php`, `signup.php`, `register.php`, `logout.php`, `session.php`, `bootstrap.php` — autenticação e cadastro.
   - `forgot_password.php`, `reset_password.php` — fluxo de "esqueci minha senha" (link por e-mail, válido por 1h).
@@ -117,7 +117,7 @@ as válidas entram.
 
 ## Segurança
 
-- Senhas são salvas com `password_hash` (nunca em texto puro).
+- Senhas são salvas com `password_hash` (nunca em texto puro) e precisam ter no mínimo 8 caracteres (`MIN_PASSWORD_LENGTH` em `api/config.php`, `MIN_PASSWORD` em `js/core.js`). Contas antigas com senha mais curta continuam entrando; a regra vale ao criar ou trocar a senha.
 - Cada rota confere o papel do usuário logado antes de devolver ou gravar dados.
 - Cookie de sessão com `SameSite=Lax` e toda requisição que altera dados exige
   um header customizado — proteção contra CSRF.
