@@ -9,7 +9,18 @@ function apiPost(url, body) {
     method: 'POST', credentials: 'include',
     headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'PortalOfFuture' },
     body: body === undefined ? undefined : JSON.stringify(body)
-  });
+  }).then(res => { sessionLost(res); return res; });
+}
+
+// A 401 while somebody is logged in means the session is gone (it expired, or was ended
+// elsewhere). Without this, what they were saving just failed with "Não autenticado" and
+// the screen stayed as if nothing had happened.
+function sessionLost(res) {
+  if (res.status !== 401 || !Auth.currentUser || sessionLost.fired) return false;
+  sessionLost.fired = true;
+  Toast.error('Sua sessão expirou. Entre novamente.');
+  setTimeout(() => location.reload(), 2000);
+  return true;
 }
 
 const Icons = {
@@ -51,6 +62,7 @@ const DB = {
   async load() {
     try {
       const res = await fetch(this.API + 'state.php', { credentials: 'include' });
+      if (sessionLost(res)) return;
       if (!res.ok) throw new Error('request failed');
       this.state = Object.assign(this.state, await res.json());
       this.synced = this.snapshot();
@@ -83,6 +95,7 @@ const DB = {
       let error = null;
       try {
         const res = await apiPost(this.API + 'sync.php', { changes: changes });
+        if (res.status === 401) return; // sessionLost() already told the user and is reloading
         const d = await res.json().catch(() => ({}));
         if (!res.ok || !d.ok) error = d.error || 'Falha ao salvar no servidor.';
       } catch (e) { error = 'Falha ao salvar no servidor. Verifique sua conexão.'; }
@@ -94,8 +107,13 @@ const DB = {
       }
     });
   },
-  reset() {
-    apiPost(this.API + 'reset.php').finally(() => location.reload());
+  async reset(password) {
+    try {
+      const res = await apiPost(this.API + 'reset.php', { password });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok || !d.ok) { Toast.error(d.error || 'Não foi possível resetar o sistema.'); return; }
+    } catch (e) { Toast.error('Falha de conexão. Nada foi apagado.'); return; }
+    location.reload();
   },
   id(p) { return p + '-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 };
@@ -216,13 +234,13 @@ const Util = {
   on(el, evt, sel, fn) { el.addEventListener(evt, e => { const t = e.target.closest(sel); if (t && el.contains(t)) fn.call(t, e, t); }); },
   debounce(fn, wait) { let t; return function () { const a = arguments, c = this; clearTimeout(t); t = setTimeout(() => fn.apply(c, a), wait); }; },
   // Lowercase, no accents, letters and digits only: "Data de Nascimento" -> "datadenascimento".
-  slug(s) { return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]/g, ''); },
+  slug(s) { return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, ''); },
   // CSV -> [{ line, cells }]. Handles a BOM, quoted fields (with commas, doubled quotes
   // and line breaks inside), CRLF, and picks ; , or tab from the header line, since
   // Excel in Portuguese saves CSV with ";". Blank lines are dropped; `line` is the
   // number of the line in the file, for error messages.
   parseCsv(text) {
-    text = String(text).replace(/^﻿/, '');
+    text = String(text).replace(/^\uFEFF/, ''); // BOM
     const head = text.split(/\r?\n/, 1)[0];
     const count = ch => head.split(ch).length - 1;
     const delim = [';', ',', '\t'].sort((a, b) => count(b) - count(a))[0];
@@ -612,7 +630,7 @@ const App = {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   },
   showNotifications() {
-    const list = DB.state.announcements.slice(-5).reverse();
+    const list = DB.state.announcements.slice().sort((a, b) => (b.date || '').localeCompare(a.date || '') || b.id.localeCompare(a.id)).slice(0, 5);
     let html = '<div class="timeline">';
     if (!list.length) html += '<p class="text-muted">Nenhuma notificação no momento.</p>';
     else list.forEach(a => { html += '<div class="timeline-item"><div class="t-title">' + Util.esc(a.title) + '</div><div class="t-time">' + Util.fmtDate(a.date) + ' · ' + Util.esc(a.author) + '</div><div class="t-desc">' + Util.esc(a.message.slice(0, 140)) + (a.message.length > 140 ? '…' : '') + '</div></div>'; });
@@ -658,6 +676,9 @@ const App = {
     return Util.avg(Object.values(bySub).map(l => this.gradesAverage(l)));
   },
   averageOf(sid) { return this.overallAverage(DB.state.grades.filter(x => x.studentId === sid)); },
+  // A real zero is an average of 0; "no grades yet" is something else. Counting them the same hid students
+  // who actually got zeros from the low-performance list and lifted the class average.
+  hasGrades(sid) { return DB.state.grades.some(x => x.studentId === sid); },
   averagesBySubject(sid) {
     const map = {};
     DB.state.grades.filter(g => g.studentId === sid).forEach(g => {
@@ -670,7 +691,7 @@ const App = {
   },
   classAverage(cid) {
     const sts = this.studentsOfClass(cid); if (!sts.length) return 0;
-    const m = sts.map(s => this.averageOf(s.id)).filter(x => x > 0);
+    const m = sts.filter(s => this.hasGrades(s.id)).map(s => this.averageOf(s.id));
     return m.length ? Util.avg(m) : 0;
   },
   validateForm(form) {
@@ -708,7 +729,7 @@ App.dashboardDiretor = function (el) {
   const p = att.filter(a => a.status === 'Presente').length;
   const j = att.filter(a => a.status === 'Justificada').length;
   const freq = t ? ((p + j * 0.5) / t) * 100 : 0;
-  const m = DB.state.students.filter(s => s.status === 'Ativo').map(s => this.averageOf(s.id)).filter(x => x > 0);
+  const m = DB.state.students.filter(s => s.status === 'Ativo').filter(s => this.hasGrades(s.id)).map(s => this.averageOf(s.id));
   const media = m.length ? Util.avg(m) : 0;
   el.innerHTML = '<div class="stats-grid">' +
       this.statCard('student', 'blue', 'Alunos ativos', totA) +
@@ -737,10 +758,10 @@ App.dashboardCoordenador = function (el) {
   const t = att.length;
   const p = att.filter(a => a.status === 'Presente').length;
   const freq = t ? (p / t) * 100 : 0;
-  const m = DB.state.students.filter(s => s.status === 'Ativo').map(s => this.averageOf(s.id)).filter(x => x > 0);
+  const m = DB.state.students.filter(s => s.status === 'Ativo').filter(s => this.hasGrades(s.id)).map(s => this.averageOf(s.id));
   const media = m.length ? Util.avg(m) : 0;
   const risky = DB.state.students.filter(s => s.status === 'Ativo').map(s => ({ s, st: this.attendanceStats(s.id) })).filter(o => o.st.freq < 85 && o.st.total > 0).sort((a, b) => a.st.freq - b.st.freq).slice(0, 5);
-  const low = DB.state.students.filter(s => s.status === 'Ativo').map(s => ({ s, m: this.averageOf(s.id) })).filter(o => o.m > 0 && o.m < 6).sort((a, b) => a.m - b.m).slice(0, 5);
+  const low = DB.state.students.filter(s => s.status === 'Ativo').map(s => ({ s, m: this.averageOf(s.id) })).filter(o => this.hasGrades(o.s.id) && o.m < 6).sort((a, b) => a.m - b.m).slice(0, 5);
   el.innerHTML = '<div class="stats-grid">' +
       this.statCard('student', 'blue', 'Alunos', totA) +
       this.statCard('building', 'blue', 'Turmas', totT) +
@@ -997,6 +1018,32 @@ App.views.alunos = function (el) {
   const canEdit = ['diretor','coordenador'].includes(Auth.currentUser.role);
   this.setTitle('Alunos', DB.state.students.length + ' registros');
   el.innerHTML = '<div class="card"><div class="card-header"><h3>' + Icons.student + ' Lista de alunos</h3>' + (canEdit ? '<div class="flex gap-8"><button type="button" class="btn btn-secondary btn-sm" id="btn-importar-alunos">Importar CSV</button><button type="button" class="btn btn-primary btn-sm" id="btn-novo-aluno">' + Icons.plus + ' Cadastrar aluno</button></div>' : '') + '</div><div class="card-body"><div class="toolbar"><div class="search">' + Icons.search + '<input type="text" id="busca-aluno" placeholder="Buscar por nome, matrícula ou e-mail..."></div><select id="filtro-turma"><option value="">Todas as turmas</option>' + DB.state.classes.map(c => '<option value="' + Util.esc(c.id) + '">' + Util.esc(c.name) + '</option>').join('') + '</select><select id="filtro-situacao"><option value="">Todas as situações</option><option>Ativo</option><option>Inativo</option><option>Transferido</option><option>Concluído</option></select></div><div id="tabela-alunos"></div></div></div>';
+  // The table body is redrawn on every search/filter; these listeners live on the view instead,
+  // bound once. (Bound inside renderAlunosTable they piled up: after 3 searches one click on
+  // "Ver" opened 4 windows, and "Excluir" 4 confirmation dialogs.)
+  Util.on(el, 'click', '[data-ver]', (e, t) => this.verAluno(t.dataset.ver));
+  if (canEdit) {
+    Util.on(el, 'click', '[data-edit]', (e, t) => this.modalAluno(t.dataset.edit));
+    Util.on(el, 'click', '[data-del]', (e, t) => {
+      const s = this.studentById(t.dataset.del);
+      if (!s) return;
+      this.confirmarExclusaoSegura({
+        titulo: 'Excluir aluno',
+        aviso: 'Esta ação é <strong style="color:var(--danger);">irreversível</strong>. O aluno "' + Util.esc(s.name) + '" e todas as notas, frequências e ocorrências vinculadas serão excluídos permanentemente.',
+        mensagem: 'Para concluir a exclusão de "' + Util.esc(s.name) + '", digite o código de verificação abaixo.',
+        label: 'Excluir aluno',
+        onConfirm: () => {
+          DB.state.students = DB.state.students.filter(x => x.id !== s.id);
+          DB.state.grades = DB.state.grades.filter(g => g.studentId !== s.id);
+          DB.state.attendance = DB.state.attendance.filter(a => a.studentId !== s.id);
+          DB.state.occurrences = DB.state.occurrences.filter(o => o.studentId !== s.id);
+          DB.state.users.forEach(u => { if (u.studentId === s.id) delete u.studentId; });
+          DB.state.guardians = DB.state.guardians.filter(g => g.studentId !== s.id);
+          DB.save(); this.renderAlunosTable(); Toast.success('Aluno excluído com sucesso.');
+        }
+      });
+    });
+  }
   this.renderAlunosTable();
   document.getElementById('busca-aluno').addEventListener('input', Util.debounce(() => this.renderAlunosTable(), 200));
   document.getElementById('filtro-turma').addEventListener('change', () => this.renderAlunosTable());
@@ -1029,29 +1076,6 @@ App.renderAlunosTable = function () {
   });
   h += '</tbody></table></div>';
   ct.innerHTML = h;
-  Util.on(ct, 'click', '[data-ver]', (e, t) => this.verAluno(t.dataset.ver));
-  if (canEdit) {
-    Util.on(ct, 'click', '[data-edit]', (e, t) => this.modalAluno(t.dataset.edit));
-    Util.on(ct, 'click', '[data-del]', (e, t) => {
-      const s = this.studentById(t.dataset.del);
-      if (!s) return;
-      this.confirmarExclusaoSegura({
-        titulo: 'Excluir aluno',
-        aviso: 'Esta ação é <strong style="color:var(--danger);">irreversível</strong>. O aluno "' + Util.esc(s.name) + '" e todas as notas, frequências e ocorrências vinculadas serão excluídos permanentemente.',
-        mensagem: 'Para concluir a exclusão de "' + Util.esc(s.name) + '", digite o código de verificação abaixo.',
-        label: 'Excluir aluno',
-        onConfirm: () => {
-          DB.state.students = DB.state.students.filter(x => x.id !== s.id);
-          DB.state.grades = DB.state.grades.filter(g => g.studentId !== s.id);
-          DB.state.attendance = DB.state.attendance.filter(a => a.studentId !== s.id);
-          DB.state.occurrences = DB.state.occurrences.filter(o => o.studentId !== s.id);
-          DB.state.users.forEach(u => { if (u.studentId === s.id) delete u.studentId; });
-          DB.state.guardians = DB.state.guardians.filter(g => g.studentId !== s.id);
-          DB.save(); this.renderAlunosTable(); Toast.success('Aluno excluído com sucesso.');
-        }
-      });
-    });
-  }
 };
 
 App.modalAluno = function (id) {
@@ -1365,7 +1389,7 @@ App.verTurma = function (id) {
 };
 
 App.confirmarExclusaoSegura = function (opts) {
-  const step2 = () => {
+  const step2 = password => {
     const code = String(Math.floor(100000 + Math.random() * 900000));
     const body = '<p style="font-size:14px;line-height:1.65;color:var(--muted);margin-bottom:18px;">' + opts.mensagem + '</p>' +
       '<div style="text-align:center;background:var(--surface-2);border:1px dashed var(--border-2);border-radius:10px;padding:16px;margin-bottom:18px;"><span class="mono" style="font-size:28px;font-weight:700;letter-spacing:.3em;color:var(--ink);">' + code + '</span></div>' +
@@ -1382,7 +1406,7 @@ App.confirmarExclusaoSegura = function (opts) {
         bd.querySelector('[data-confirm]').addEventListener('click', () => {
           if (input.value.trim() !== code) { group.classList.add('invalid'); return; }
           close();
-          opts.onConfirm();
+          opts.onConfirm(password);
         });
       }
     });
@@ -1405,7 +1429,7 @@ App.confirmarExclusaoSegura = function (opts) {
         btn.disabled = false;
         if (!ok) { group.classList.add('invalid'); return; }
         close();
-        step2();
+        step2(input.value);
       });
     }
   });
@@ -1549,7 +1573,13 @@ App.views.usuarios = function (el) {
   if (pendentes.length) {
     h += '<div class="card mb-24" style="border-color:#fde68a;"><div class="card-header" style="background:var(--yellow-soft);border-bottom-color:#fde68a;"><h3 style="color:var(--yellow-dark);">' + Icons.alert + ' Cadastros aguardando aprovação (' + pendentes.length + ')</h3></div><div class="card-body" style="padding:0;"><div class="table-wrap"><table class="data"><thead><tr><th>Nome</th><th>E-mail</th><th>Celular</th><th>Perfil pretendido</th><th style="text-align:right;">Ações</th></tr></thead><tbody>';
     pendentes.forEach(u => {
-      const contexto = u.role === 'responsavel' && u.matricula ? 'Matrícula informada: ' + u.matricula : [u.cursoPretendido, u.turnoPretendido].filter(Boolean).join(' · ');
+      let contexto = [u.cursoPretendido, u.turnoPretendido].filter(Boolean).join(' · ');
+      if (u.role === 'responsavel') {
+        // Approving a responsável gives them that student's grades, attendance and occurrences, so show
+        // exactly who the matrícula they typed pointed to (the link is made when they sign up).
+        const filhos = DB.state.guardians.filter(g => g.userId === u.id).map(g => this.studentById(g.studentId)).filter(Boolean);
+        contexto = (u.matricula ? 'Matrícula informada: ' + u.matricula + ' — ' : '') + (filhos.length ? 'vinculado(a) a ' + filhos.map(f => f.name).join(', ') : (u.matricula ? 'nenhum aluno com essa matrícula' : 'sem aluno vinculado'));
+      }
       h += '<tr><td><div class="cell-user"><div class="avatar-sm" style="background:' + Util.colorFor(u.name) + '">' + Util.esc(Util.initials(u.name)) + '</div><div class="u-meta"><strong>' + Util.esc(u.name) + '</strong></div></div></td><td>' + Util.esc(u.email) + '</td><td class="mono text-sm">' + Util.esc(u.phone || '—') + '</td><td><span class="badge amber">' + Util.roleLabel(u.role) + '</span>' + (contexto ? '<div class="text-xs text-muted mt-4">' + Util.esc(contexto) + '</div>' : '') + '</td><td><div class="actions"><button type="button" class="btn btn-primary btn-xs" data-aprovar-user="' + Util.esc(u.id) + '">Aprovar</button><button type="button" class="btn btn-danger btn-xs" data-rejeitar-user="' + Util.esc(u.id) + '">Rejeitar</button></div></td></tr>';
     });
     h += '</tbody></table></div></div></div>';
@@ -1690,6 +1720,8 @@ App.modalUser = function (id) {
       bd.querySelector('[data-save]').addEventListener('click', () => {
         if (!this.validateForm(form)) { Toast.error('Preencha os campos obrigatórios.'); return; }
         const d = Object.fromEntries(new FormData(form).entries());
+        d.email = d.email.trim();
+        if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(d.email)) { Toast.error('Informe um e-mail válido.'); return; }
         const dup = DB.state.users.find(x => x.email.toLowerCase() === d.email.toLowerCase() && (!editing || x.id !== u.id));
         if (dup) { Toast.error('Este e-mail já está em uso.'); return; }
         if (d.role === 'aluno' && d.studentId) {
@@ -1747,7 +1779,13 @@ App.views.admin = function (el) {
   });
   const ba = document.getElementById('admin-clear-all');
   if (ba) ba.addEventListener('click', () => {
-    Modal.confirm('Resetar sistema completo', 'Isso apagará TODOS os dados e voltará ao estado inicial. Você será desconectado.', () => { DB.reset(); }, 'Resetar sistema');
+    this.confirmarExclusaoSegura({
+      titulo: 'Resetar sistema completo',
+      aviso: 'Esta ação é <strong style="color:var(--danger);">irreversível</strong>. Todos os dados (alunos, turmas, notas, usuários...) serão apagados e o sistema volta ao estado inicial. Você será desconectado.',
+      mensagem: 'Para concluir o reset, digite o código de verificação abaixo.',
+      label: 'Resetar sistema',
+      onConfirm: password => DB.reset(password)
+    });
   });
 };
 
@@ -1890,6 +1928,11 @@ App.views.diario = function (el) {
       '</div>' +
     '</div>';
 
+  // once, here: renderChamada runs again on every turma/disciplina/data change
+  Util.on(document.getElementById('chamada-corpo'), 'click', '.att-btn', (e, t) => {
+    this.setAttendanceRow(t.closest('.attendance-row'), t.dataset.sid, t.dataset.status);
+    this.updateDiarioResumo();
+  });
   document.getElementById('diario-turma').addEventListener('change', () => this.renderChamada());
   document.getElementById('diario-disc').addEventListener('change', () => this.renderChamada());
   document.getElementById('diario-data').addEventListener('change', () => this.renderChamada());
@@ -1952,11 +1995,6 @@ App.renderChamada = function () {
       ((did && a.subjectId === did) || (!did && !a.subjectId))
     );
     this.setAttendanceRow(ct.querySelector('[data-sid="' + Util.esc(s.id) + '"]'), s.id, r ? r.status : 'Presente');
-  });
-
-  Util.on(ct, 'click', '.att-btn', (e, t) => {
-    this.setAttendanceRow(t.closest('.attendance-row'), t.dataset.sid, t.dataset.status);
-    this.updateDiarioResumo();
   });
 
   this.updateDiarioResumo();
@@ -2120,7 +2158,7 @@ App.renderNotasTabela = function () {
     if (bim) g = g.filter(x => x.bimestre === bim);
     const m = this.overallAverage(g);
     const t = this.classById(s.classId);
-    h += '<tr><td><div class="cell-user"><div class="avatar-sm" style="background:' + Util.colorFor(s.name) + '">' + Util.esc(Util.initials(s.name)) + '</div><div class="u-meta"><strong>' + Util.esc(s.name) + '</strong><span class="mono" style="font-size:11px;">' + Util.esc(s.matricula) + '</span></div></div></td><td>' + (t ? Util.esc(t.name) : '—') + '</td><td class="text-sm mono">' + g.length + '</td><td><strong class="mono" style="font-size:15px;">' + Util.fmtNum(m, 1) + '</strong></td><td><span class="badge ' + Util.notaBadge(m) + '">' + (m >= 7 ? 'Aprovado' : m >= 5 ? 'Recuperação' : m === 0 ? 'Sem nota' : 'Reprovado') + '</span></td></tr>';
+    h += '<tr><td><div class="cell-user"><div class="avatar-sm" style="background:' + Util.colorFor(s.name) + '">' + Util.esc(Util.initials(s.name)) + '</div><div class="u-meta"><strong>' + Util.esc(s.name) + '</strong><span class="mono" style="font-size:11px;">' + Util.esc(s.matricula) + '</span></div></div></td><td>' + (t ? Util.esc(t.name) : '—') + '</td><td class="text-sm mono">' + g.length + '</td><td><strong class="mono" style="font-size:15px;">' + Util.fmtNum(m, 1) + '</strong></td><td><span class="badge ' + (g.length ? Util.notaBadge(m) : 'gray') + '">' + (!g.length ? 'Sem nota' : m >= 7 ? 'Aprovado' : m >= 5 ? 'Recuperação' : 'Reprovado') + '</span></td></tr>';
   });
   h += '</tbody></table></div>';
   ct.innerHTML = h;
