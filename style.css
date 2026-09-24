@@ -997,3 +997,31 @@ table.data tbody td strong { color: var(--ink); font-weight: 600; }
     transition-duration: .01ms !important;
   }
 }
+
+/* ---------- Boletim (preview in the modal, and the printed page) ---------- */
+.boletim { color: #111; font-size: 13px; line-height: 1.5; }
+.bol-head { display: flex; align-items: center; gap: 14px; padding-bottom: 14px; border-bottom: 2px solid #1e3a8a; margin-bottom: 16px; }
+.bol-head .logo-img { width: 56px; height: 56px; object-fit: contain; }
+.bol-head h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.01em; margin: 0; }
+.bol-head p { margin: 2px 0 0; color: #555; font-size: 12px; }
+.bol-info, .bol-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
+.bol-info div, .bol-summary div { border: 1px solid #d4d4d8; border-radius: 6px; padding: 8px 10px; }
+.bol-info span, .bol-summary span { display: block; font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; color: #666; }
+.bol-info strong, .bol-summary strong { font-size: 13.5px; }
+.bol-table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
+.bol-table th, .bol-table td { border: 1px solid #d4d4d8; padding: 7px 8px; text-align: center; font-variant-numeric: tabular-nums; }
+.bol-table th { background: #eef2ff; font-size: 11.5px; }
+.bol-table .left { text-align: left; }
+.bol-empty { padding: 20px; text-align: center; color: #666; border: 1px dashed #d4d4d8; border-radius: 6px; margin-bottom: 16px; }
+.bol-foot { font-size: 11px; color: #666; margin: 0; }
+@media (max-width: 640px) { .bol-info, .bol-summary { grid-template-columns: repeat(2, 1fr); } }
+
+#boletim-print { display: none; }
+@media print {
+  body > *:not(#boletim-print) { display: none !important; }
+  #boletim-print { display: block; padding: 0; }
+  body { background: #fff !important; }
+  .bol-info, .bol-summary { grid-template-columns: repeat(4, 1fr); }
+  .bol-table th { background: #eef2ff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  @page { margin: 16mm; }
+}

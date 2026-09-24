@@ -1,8 +1,8 @@
 # Portal of Future
 
 Sistema de gestão acadêmica para escola: turmas, alunos, professores, notas por
-bimestre, frequência, ocorrências e comunicados, com telas diferentes para
-diretor, coordenador, professor, aluno e responsável.
+bimestre, frequência, ocorrências, comunicados e boletim em PDF, com telas
+diferentes para diretor, coordenador, professor, aluno e responsável.
 
 ## Como rodar
 
@@ -53,6 +53,16 @@ aprovar em Usuários. Um responsável pode ter mais de um filho vinculado (a
 tabela `guardians`, gerenciada só pelo diretor em Usuários → editar → "Filhos
 vinculados"); com mais de um, a barra lateral mostra um seletor para trocar de
 qual filho está acompanhando.
+
+## Boletim em PDF
+
+Aluno e responsável abrem em Minhas Notas → "Boletim (PDF)"; diretor e
+coordenador, na ficha do aluno (Alunos → Ver). O boletim mostra a média de cada
+disciplina por bimestre, a média final, a frequência e a situação (aprovado a
+partir de 7,0; recuperação a partir de 5,0). "Imprimir / Salvar em PDF" usa a
+tela de impressão do próprio navegador — escolha "Salvar como PDF" como destino.
+A "Média geral" é a média das médias finais por disciplina, então cada
+disciplina conta uma vez, independente de quantas avaliações teve.
 
 ## Segurança
 

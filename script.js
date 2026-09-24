@@ -608,7 +608,16 @@ const App = {
     });
     return Util.avg(bimAvgs);
   },
-  averageOf(sid) { return this.gradesAverage(DB.state.grades.filter(x => x.studentId === sid)); },
+  // Overall average: the mean of each subject's own average, so a subject counts
+  // once however many assessments it has (and it matches the report card, whose
+  // last column is exactly those per-subject averages).
+  overallAverage(list) {
+    if (!list.length) return 0;
+    const bySub = {};
+    list.forEach(g => { (bySub[g.subjectId || ''] = bySub[g.subjectId || ''] || []).push(g); });
+    return Util.avg(Object.values(bySub).map(l => this.gradesAverage(l)));
+  },
+  averageOf(sid) { return this.overallAverage(DB.state.grades.filter(x => x.studentId === sid)); },
   averagesBySubject(sid) {
     const map = {};
     DB.state.grades.filter(g => g.studentId === sid).forEach(g => {
@@ -1047,7 +1056,11 @@ App.verAluno = function (id) {
     '<div class="grid-2 mb-24"><div><span class="text-xs text-muted text-bold" style="text-transform:uppercase;letter-spacing:0.08em;">Turma</span><div>' + (t ? Util.esc(t.name) : '—') + '</div></div><div><span class="text-xs text-muted text-bold" style="text-transform:uppercase;letter-spacing:0.08em;">Curso</span><div>' + Util.esc(s.course || '—') + '</div></div><div><span class="text-xs text-muted text-bold" style="text-transform:uppercase;letter-spacing:0.08em;">Período</span><div>' + Util.esc(s.period || '—') + '</div></div><div><span class="text-xs text-muted text-bold" style="text-transform:uppercase;letter-spacing:0.08em;">Situação</span><div><span class="badge ' + Util.statusClass(s.status) + '">' + Util.esc(s.status) + '</span></div></div><div><span class="text-xs text-muted text-bold" style="text-transform:uppercase;letter-spacing:0.08em;">E-mail</span><div>' + Util.esc(s.email || '—') + '</div></div><div><span class="text-xs text-muted text-bold" style="text-transform:uppercase;letter-spacing:0.08em;">Telefone</span><div>' + Util.esc(s.phone || '—') + '</div></div><div><span class="text-xs text-muted text-bold" style="text-transform:uppercase;letter-spacing:0.08em;">Responsável</span><div>' + Util.esc(s.guardian || '—') + '</div></div><div><span class="text-xs text-muted text-bold" style="text-transform:uppercase;letter-spacing:0.08em;">Tel. responsável</span><div>' + Util.esc(s.guardianPhone || '—') + '</div></div></div>' +
     '<div class="divider"></div>' +
     '<div class="grid-3" style="text-align:center;"><div><div class="mono" style="font-size:24px;font-weight:700;color:var(--blue);">' + Util.fmtNum(m, 1) + '</div><div class="text-xs text-muted" style="text-transform:uppercase;letter-spacing:0.08em;">Média</div></div><div><div class="mono" style="font-size:24px;font-weight:700;color:var(--success);">' + Util.fmtNum(a.freq, 0) + '%</div><div class="text-xs text-muted" style="text-transform:uppercase;letter-spacing:0.08em;">Frequência</div></div><div><div class="mono" style="font-size:24px;font-weight:700;color:var(--danger);">' + a.faltas + '</div><div class="text-xs text-muted" style="text-transform:uppercase;letter-spacing:0.08em;">Faltas</div></div></div>';
-  Modal.open({ title: 'Ficha do aluno', icon: Icons.student, body: body, size: 'lg', footer: '<button type="button" class="btn btn-primary" data-close>Fechar</button>' });
+  Modal.open({
+    title: 'Ficha do aluno', icon: Icons.student, body: body, size: 'lg',
+    footer: '<button type="button" class="btn btn-secondary" data-boletim>Boletim (PDF)</button><button type="button" class="btn btn-primary" data-close>Fechar</button>',
+    onMount: (bd, close) => bd.querySelector('[data-boletim]').addEventListener('click', () => { close(); this.abrirBoletim(s.id); })
+  });
 };
 
 App.views.turmas = function (el) {
@@ -1878,7 +1891,7 @@ App.renderNotasTabela = function () {
     let g = DB.state.grades.filter(x => x.studentId === s.id);
     if (disc) g = g.filter(x => x.subjectId === disc);
     if (bim) g = g.filter(x => x.bimestre === bim);
-    const m = this.gradesAverage(g);
+    const m = this.overallAverage(g);
     const t = this.classById(s.classId);
     h += '<tr><td><div class="cell-user"><div class="avatar-sm" style="background:' + Util.colorFor(s.name) + '">' + Util.esc(Util.initials(s.name)) + '</div><div class="u-meta"><strong>' + Util.esc(s.name) + '</strong><span class="mono" style="font-size:11px;">' + Util.esc(s.matricula) + '</span></div></div></td><td>' + (t ? Util.esc(t.name) : '—') + '</td><td class="text-sm mono">' + g.length + '</td><td><strong class="mono" style="font-size:15px;">' + Util.fmtNum(m, 1) + '</strong></td><td><span class="badge ' + Util.notaBadge(m) + '">' + (m >= 7 ? 'Aprovado' : m >= 5 ? 'Recuperação' : m === 0 ? 'Sem nota' : 'Reprovado') + '</span></td></tr>';
   });
@@ -2072,7 +2085,76 @@ App.views['minhas-notas'] = function (el) {
       this.statCard('bookOpen', 'amber', 'Disciplinas', Object.keys(porDisc).length) +
     '</div>' +
     '<div class="card mb-24"><div class="card-header"><h3>' + Icons.chart + ' Desempenho por disciplina</h3></div><div class="card-body">' + this.subjectBars(porDisc) + '</div></div>' +
-    '<div class="card"><div class="card-header"><h3>' + Icons.edit + ' Detalhamento das avaliações</h3></div><div class="card-body" style="padding:0;">' + this.notasDetalhadas(s.id) + '</div></div>';
+    '<div class="card"><div class="card-header"><h3>' + Icons.edit + ' Detalhamento das avaliações</h3><button type="button" class="btn btn-secondary btn-sm" id="btn-boletim">Boletim (PDF)</button></div><div class="card-body" style="padding:0;">' + this.notasDetalhadas(s.id) + '</div></div>';
+  document.getElementById('btn-boletim').addEventListener('click', () => this.abrirBoletim(s.id));
+};
+
+// The report card as a self-contained document: one row per subject with each
+// bimestre's average, the subject's final average, then attendance and the
+// overall situation (same 7 / 5 cut-offs the Notas screen already uses).
+App.boletimHtml = function (sid) {
+  const s = this.studentById(sid);
+  const t = this.classById(s.classId);
+  const grades = DB.state.grades.filter(g => g.studentId === sid);
+  const hasLoose = grades.some(g => !g.bimestre);
+  const cols = BIMESTRES.concat(hasLoose ? ['Sem bimestre'] : []);
+  const cell = v => v === null ? '—' : Util.fmtNum(v, 1);
+  const bySubject = {};
+  grades.forEach(g => { (bySubject[g.subjectId] = bySubject[g.subjectId] || []).push(g); });
+  const subjectIds = DB.state.subjects.map(x => x.id).filter(id => bySubject[id]).concat(Object.keys(bySubject).filter(id => !this.subjectById(id)));
+  let rows = '';
+  subjectIds.forEach(id => {
+    const list = bySubject[id];
+    const sub = this.subjectById(id);
+    rows += '<tr><td class="left">' + (sub ? Util.esc(sub.name) : '—') + '</td>' + cols.map(b => {
+      const l = list.filter(g => (g.bimestre || 'Sem bimestre') === b);
+      return '<td>' + cell(l.length ? this.gradesAverage(l) : null) + '</td>';
+    }).join('') + '<td><strong>' + cell(this.gradesAverage(list)) + '</strong></td></tr>';
+  });
+  const media = this.averageOf(sid);
+  const a = this.attendanceStats(sid);
+  const situacao = !grades.length ? 'Sem notas lançadas' : media >= 7 ? 'Aprovado' : media >= 5 ? 'Em recuperação' : 'Reprovado';
+  return '<div class="boletim">' +
+    '<div class="bol-head">' + LOGO_IMG + '<div><h1>Boletim escolar</h1><p>Portal of Future</p></div></div>' +
+    '<div class="bol-info">' +
+      '<div><span>Aluno(a)</span><strong>' + Util.esc(s.name) + '</strong></div>' +
+      '<div><span>Matrícula</span><strong>' + Util.esc(s.matricula) + '</strong></div>' +
+      '<div><span>Turma</span><strong>' + (t ? Util.esc(t.name) : '—') + '</strong></div>' +
+      '<div><span>Curso</span><strong>' + Util.esc(s.course || (t && t.course) || '—') + '</strong></div>' +
+    '</div>' +
+    (rows
+      ? '<table class="bol-table"><thead><tr><th class="left">Disciplina</th>' + cols.map(b => '<th>' + Util.esc(b) + '</th>').join('') + '<th>Média final</th></tr></thead><tbody>' + rows + '</tbody></table>'
+      : '<p class="bol-empty">Nenhuma nota lançada até o momento.</p>') +
+    '<div class="bol-summary">' +
+      '<div><span>Média geral</span><strong>' + Util.fmtNum(media, 1) + '</strong></div>' +
+      '<div><span>Frequência</span><strong>' + Util.fmtNum(a.freq, 1) + '%</strong></div>' +
+      '<div><span>Presenças / Faltas / Justif.</span><strong>' + a.pres + ' / ' + a.faltas + ' / ' + a.just + '</strong></div>' +
+      '<div><span>Situação</span><strong>' + situacao + '</strong></div>' +
+    '</div>' +
+    '<p class="bol-foot">Emitido em ' + Util.fmtDateLong(Util.todayISO()) + '. Aprovação com média igual ou superior a 7,0; recuperação a partir de 5,0.</p>' +
+  '</div>';
+};
+
+App.abrirBoletim = function (sid) {
+  if (!this.studentById(sid)) return;
+  Modal.open({
+    title: 'Boletim', icon: Icons.edit, size: 'lg',
+    body: this.boletimHtml(sid),
+    footer: '<button type="button" class="btn btn-secondary" data-close>Fechar</button><button type="button" class="btn btn-primary" data-print>Imprimir / Salvar em PDF</button>',
+    onMount: bd => bd.querySelector('[data-print]').addEventListener('click', () => this.imprimirBoletim(sid))
+  });
+};
+
+// Prints through the browser ("Salvar como PDF" in its print dialog): the report
+// goes into a #boletim-print div that style.css shows alone under @media print.
+App.imprimirBoletim = function (sid) {
+  const box = document.createElement('div');
+  box.id = 'boletim-print';
+  box.innerHTML = this.boletimHtml(sid);
+  document.body.appendChild(box);
+  const done = () => { window.removeEventListener('afterprint', done); if (box.parentNode) box.parentNode.removeChild(box); };
+  window.addEventListener('afterprint', done);
+  window.print();
 };
 
 App.notasDetalhadas = function (sid) {
