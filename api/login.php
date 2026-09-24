@@ -6,14 +6,17 @@ $in = json_input();
 $email = trim((string) ($in['email'] ?? ''));
 $password = (string) ($in['password'] ?? '');
 
-$ids = login_identifiers($email);
-if (too_many_attempts($ids)) {
+if (login_blocked($email)) {
     respond(['ok' => false, 'error' => 'Muitas tentativas. Aguarde alguns minutos antes de tentar de novo.'], 429);
 }
 
 $found = $email !== '' ? find_user('email', $email) : null;
-if (!$found || !check_password($found, $password)) {
-    record_attempt($ids);
+// Checked even when there's no such account, so the response takes about as long either
+// way and can't be used to tell which e-mails are registered.
+$hash = $found ? $found['password'] : '$2y$10$9hG0YpxnMb4RSepC6Gf.i.YpY/TKpHTobEiFP9vVnoCUfieEJ6tOC';
+$passwordOk = password_verify($password, $hash) && $found !== null;
+if (!$passwordOk) {
+    record_attempt(login_identifiers($email));
     respond(['ok' => false, 'error' => 'E-mail ou senha inválidos.']);
 }
 
@@ -24,7 +27,7 @@ if ($found['status'] === 'rejeitado') {
     respond(['ok' => false, 'error' => 'Seu cadastro foi recusado. Fale com a coordenação da escola.']);
 }
 
-clear_attempts($ids);
+clear_attempts(email_only(login_identifiers($email)));
 session_regenerate_id(true);
 $_SESSION['uid'] = $found['id'];
 respond(['ok' => true, 'user' => sanitize_user($found)]);

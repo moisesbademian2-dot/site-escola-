@@ -36,7 +36,7 @@ Requer PHP 8+ e MySQL/MariaDB — mais fácil com o
   - `preferences.php` — a pessoa liga ou desliga as próprias notificações por e-mail.
   - `state.php` — devolve os dados que o usuário logado pode ver, conforme o papel dele.
   - `sync.php` — recebe as alterações feitas na tela e grava, validando cada registro contra o papel do usuário.
-  - `reset.php` — apaga todos os dados (só o diretor pode usar).
+  - `reset.php` — apaga todos os dados (só o diretor, e só com a senha dele confirmada).
   - `config.php` — conexão com o banco, funções compartilhadas e as regras de quem pode ver/alterar o quê.
 - [db.sql](db.sql) — schema do banco (tabelas relacionais, uma por tipo de dado).
 - [scripts/send_queue.php](scripts/send_queue.php) — envia de uma vez toda a fila de e-mails (`php scripts/send_queue.php`); veja "Notificações por e-mail".
@@ -121,8 +121,13 @@ as válidas entram.
 - Cada rota confere o papel do usuário logado antes de devolver ou gravar dados.
 - Cookie de sessão com `SameSite=Lax` e toda requisição que altera dados exige
   um header customizado — proteção contra CSRF.
-- Login trava por 15 min após 5 tentativas erradas (por e-mail e por IP). Pedido
-  de redefinição de senha trava por 1h após 3 pedidos.
+- Login trava por 15 min após 5 tentativas erradas para o mesmo e-mail (e após 30 vindas do
+  mesmo IP — o limite por IP é maior porque uma escola inteira costuma dividir um IP).
+  O login certo zera só o contador do e-mail, nunca o do IP. Pedido de redefinição de
+  senha trava por 1h após 3 pedidos por e-mail (20 por IP); cadastro e confirmação de
+  senha ("apagar tudo", exclusões seguras) também têm limite.
+- Sair (`logout.php`) só aceita POST. A sessão dura 8h sem uso; ao expirar, a tela avisa e volta ao login.
+- O sistema nunca fica sem diretor: `sync.php` recusa alterações que deixariam zero diretores aprovados.
 - Link de redefinição de senha expira em 1h e só pode ser usado uma vez; pedir
   um novo invalida o anterior.
 - Não commite `api/db_config.php` nem `api/mail_config.php` — já estão no `.gitignore`.

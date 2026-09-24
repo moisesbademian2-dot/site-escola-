@@ -4,6 +4,11 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') respond(['error' => 'Método inválid
 
 $allowedRoles = ['aluno', 'responsavel', 'professor', 'coordenador'];
 
+// Anyone can call this, so cap how many sign-ups one address can pile onto the approval queue.
+$ipIds = ['signup:ip:' . ($_SERVER['REMOTE_ADDR'] ?? 'unknown')];
+if (too_many_attempts($ipIds, SIGNUP_IP_MAX_ATTEMPTS, SIGNUP_WINDOW_MINUTES)) respond(['ok' => false, 'error' => 'Muitos cadastros deste endereço. Tente mais tarde.'], 429);
+record_attempt($ipIds);
+
 $in = json_input();
 $role = (string) ($in['role'] ?? '');
 $name = trim((string) ($in['name'] ?? ''));
@@ -21,6 +26,7 @@ if ($name === '' || $email === '' || $celular === '' || strlen($password) < 4) {
 foreach ([$name, $email, $celular, $matricula, $curso, $turno] as $v) {
     if (mb_strlen($v) > 255) respond(['ok' => false, 'error' => 'Preencha todos os campos corretamente.']);
 }
+if (!filter_var($email, FILTER_VALIDATE_EMAIL)) respond(['ok' => false, 'error' => 'Informe um e-mail válido.']);
 if ($role === 'aluno' && ($curso === '' || $turno === '')) {
     respond(['ok' => false, 'error' => 'Selecione o curso e o turno.']);
 }

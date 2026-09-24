@@ -14,7 +14,7 @@ if (!$user) respond(['ok' => false, 'error' => 'Este link expirou ou já foi usa
 
 db()->prepare('UPDATE users SET password = ? WHERE id = ?')->execute([hash_password($password), $user['id']]);
 consume_reset_token($token);
-clear_attempts(login_identifiers($user['email']));
+clear_attempts(email_only(login_identifiers($user['email'])));
 
 if ($user['status'] === 'pendente') {
     respond(['ok' => true, 'message' => 'Senha redefinida. Seu cadastro ainda está aguardando aprovação do diretor.']);

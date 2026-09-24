@@ -155,12 +155,20 @@ try {
         }
     }
 
+    // Demoting or removing accounts must never leave the school with nobody who can manage it
+    // (nothing on screen could fix that afterwards).
+    if (isset($changes['users']) && (int) $pdo->query("SELECT COUNT(*) FROM users WHERE role = 'diretor' AND status = 'aprovado'")->fetchColumn() < 1) {
+        throw new BadInput('O sistema precisa ter pelo menos um diretor aprovado.');
+    }
+
     queue_change_notifications($notify);
     $pdo->commit();
 } catch (BadInput $e) {
     fail($e->getMessage(), 400);
 } catch (PDOException $e) {
     if ($e->getCode() === '23000') fail('Dados inválidos: e-mail já cadastrado ou registro relacionado inexistente.', 400);
+    // 22001 = text longer than its column, 22003 = number out of range: the person's input, not a server fault
+    if (in_array($e->getCode(), ['22001', '22003', '22007'], true)) fail('Dados inválidos: algum campo passou do tamanho ou do valor permitido.', 400);
     throw $e;
 }
 

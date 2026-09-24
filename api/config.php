@@ -8,6 +8,9 @@ session_set_cookie_params([
     'lifetime' => 0, 'path' => '/', 'httponly' => true, 'samesite' => 'Lax',
     'secure' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
 ]);
+// PHP's default drops the session after 24 minutes idle, which logs someone out in the
+// middle of, say, a long round of grades. Keep it for a school day instead.
+ini_set('session.gc_maxlifetime', '28800');
 session_start();
 
 set_exception_handler(function (Throwable $e): void {
@@ -168,7 +171,9 @@ function row_from_record(string $coll, array $rec): array {
             }
         } elseif ($type === 'num') {
             if (!is_numeric($v) || abs((float) $v) > 99999) throw new BadInput("Número inválido em $field.");
-        } elseif (mb_strlen($v) > ($type === 'text' ? 20000 : 255)) {
+        } elseif (mb_strlen($v) > ($type === 'text' ? 15000 : ($field === 'createdAt' ? 40 : 255))) {
+            // the limits match the columns in db.sql; MySQL/MariaDB in non-strict mode (XAMPP's default)
+            // would cut the text short without a word instead of failing
             throw new BadInput("Texto muito longo em $field.");
         }
         $cols[column($field)] = $v;
@@ -176,6 +181,9 @@ function row_from_record(string $coll, array $rec): array {
     if ($coll === 'events') {
         if ($cols['title'] === null || $cols['date'] === null) throw new BadInput('Informe o título e a data do evento.');
         if ($cols['end_date'] !== null && $cols['end_date'] < $cols['date']) throw new BadInput('A data final não pode ser antes da data inicial.');
+    }
+    if ($coll === 'grades' && $cols['weight'] !== null && (float) $cols['weight'] <= 0) {
+        throw new BadInput('O peso da nota deve ser maior que zero.');
     }
     if ($coll === 'grades' && $cols['value'] !== null && ((float) $cols['value'] < 0 || (float) $cols['value'] > 10)) {
         throw new BadInput('A nota deve estar entre 0 e 10.');
@@ -266,10 +274,17 @@ function gen_id(string $p): string {
 // Rate limiting (login attempts and "esqueci minha senha" requests)
 // ---------------------------------------------------------------------------
 
+// Per e-mail the limit is tight (someone guessing one person's password). Per IP it is
+// much looser: a whole school usually shares one public address, so a handful of
+// students mistyping their passwords must not lock everybody else out.
 const LOGIN_MAX_ATTEMPTS = 5;
+const LOGIN_IP_MAX_ATTEMPTS = 30;
 const LOGIN_WINDOW_MINUTES = 15;
 const RESET_MAX_ATTEMPTS = 3;
+const RESET_IP_MAX_ATTEMPTS = 20;
 const RESET_WINDOW_MINUTES = 60;
+const SIGNUP_IP_MAX_ATTEMPTS = 30;
+const SIGNUP_WINDOW_MINUTES = 60;
 
 // Checked per IP (stops one source from spraying many accounts) and per e-mail
 // (stops many sources from hammering a single account) independently. $prefix
@@ -281,6 +296,19 @@ function rate_limit_identifiers(string $prefix, string $email): array {
 }
 function login_identifiers(string $email): array { return rate_limit_identifiers('', $email); }
 function reset_identifiers(string $email): array { return rate_limit_identifiers('reset:', $email); }
+// Only the e-mail part: what a successful login clears. The IP's count is left alone, or
+// somebody spraying passwords could reset it just by logging into an account of their own.
+function email_only(array $identifiers): array { return array_values(array_filter($identifiers, fn($i) => strpos($i, 'ip:') === false)); }
+function ip_only(array $identifiers): array { return array_values(array_filter($identifiers, fn($i) => strpos($i, 'ip:') !== false)); }
+
+function login_blocked(string $email): bool {
+    $ids = login_identifiers($email);
+    return too_many_attempts(ip_only($ids), LOGIN_IP_MAX_ATTEMPTS, LOGIN_WINDOW_MINUTES) || too_many_attempts(email_only($ids), LOGIN_MAX_ATTEMPTS, LOGIN_WINDOW_MINUTES);
+}
+function reset_blocked(string $email): bool {
+    $ids = reset_identifiers($email);
+    return too_many_attempts(ip_only($ids), RESET_IP_MAX_ATTEMPTS, RESET_WINDOW_MINUTES) || too_many_attempts(email_only($ids), RESET_MAX_ATTEMPTS, RESET_WINDOW_MINUTES);
+}
 
 function too_many_attempts(array $identifiers, int $maxAttempts = LOGIN_MAX_ATTEMPTS, int $windowMinutes = LOGIN_WINDOW_MINUTES): bool {
     if (!$identifiers) return false;
@@ -421,7 +449,7 @@ function respond_then(array $data, callable $after, int $status = 200): void {
     $json = json_encode($data);
     ignore_user_abort(true);
     session_write_close();
-    header('Content-Length: ' . strlen($json));
+    if (!ini_get('zlib.output_compression')) header('Content-Length: ' . strlen($json)); // compressed output would no longer match it
     header('Connection: close');
     echo $json;
     while (ob_get_level() > 0) ob_end_flush();
@@ -535,7 +563,9 @@ function can_write(array $me, array $scope, string $coll, ?array $old, ?array $n
     if ($role !== 'professor') return false;
 
     $check = match ($coll) {
-        'attendance', 'lessons', 'activities' => fn($r) => in_array($r['classId'], $scope['classIds'], true),
+        'lessons', 'activities' => fn($r) => in_array($r['classId'], $scope['classIds'], true),
+        // the class AND the student must be theirs (otherwise attendance could be written for anybody's student)
+        'attendance' => fn($r) => in_array($r['classId'], $scope['classIds'], true) && in_array($r['studentId'], $scope['studentIds'], true),
         'grades', 'occurrences' => fn($r) => in_array($r['studentId'], $scope['studentIds'], true),
         // a professor schedules things for their own classes only (never school-wide)...
         'events' => fn($r) => $r['classId'] !== '' && in_array($r['classId'], $scope['classIds'], true),

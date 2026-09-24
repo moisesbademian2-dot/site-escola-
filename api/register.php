@@ -11,6 +11,8 @@ if ($name === '' || $email === '' || strlen($password) < 4 || mb_strlen($name) >
     respond(['ok' => false, 'error' => 'Preencha todos os campos corretamente.']);
 }
 
+if (!filter_var($email, FILTER_VALIDATE_EMAIL)) respond(['ok' => false, 'error' => 'Informe um e-mail válido.']);
+
 $pdo = db();
 $pdo->beginTransaction();
 // Lock the table so two simultaneous requests can't both create the first administrator.

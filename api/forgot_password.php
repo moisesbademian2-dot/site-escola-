@@ -11,7 +11,7 @@ $generic = ['ok' => true, 'message' => 'Se esse e-mail estiver cadastrado, envia
 if ($email === '') respond($generic);
 
 $ids = reset_identifiers($email);
-if (too_many_attempts($ids, RESET_MAX_ATTEMPTS, RESET_WINDOW_MINUTES)) {
+if (reset_blocked($email)) {
     respond(['ok' => false, 'error' => 'Muitos pedidos. Aguarde um pouco antes de tentar de novo.'], 429);
 }
 record_attempt($ids);
