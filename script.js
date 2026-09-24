@@ -206,7 +206,36 @@ const Util = {
   },
   roleLabel(r) { return { diretor:'Diretor(a)', coordenador:'Coordenador(a)', professor:'Professor(a)', aluno:'Aluno(a)', responsavel:'Responsável' }[r] || r; },
   on(el, evt, sel, fn) { el.addEventListener(evt, e => { const t = e.target.closest(sel); if (t && el.contains(t)) fn.call(t, e, t); }); },
-  debounce(fn, wait) { let t; return function () { const a = arguments, c = this; clearTimeout(t); t = setTimeout(() => fn.apply(c, a), wait); }; }
+  debounce(fn, wait) { let t; return function () { const a = arguments, c = this; clearTimeout(t); t = setTimeout(() => fn.apply(c, a), wait); }; },
+  // Lowercase, no accents, letters and digits only: "Data de Nascimento" -> "datadenascimento".
+  slug(s) { return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]/g, ''); },
+  // CSV -> [{ line, cells }]. Handles a BOM, quoted fields (with commas, doubled quotes
+  // and line breaks inside), CRLF, and picks ; , or tab from the header line, since
+  // Excel in Portuguese saves CSV with ";". Blank lines are dropped; `line` is the
+  // number of the line in the file, for error messages.
+  parseCsv(text) {
+    text = String(text).replace(/^﻿/, '');
+    const head = text.split(/\r?\n/, 1)[0];
+    const count = ch => head.split(ch).length - 1;
+    const delim = [';', ',', '\t'].sort((a, b) => count(b) - count(a))[0];
+    const rows = [];
+    let cells = [], field = '', inQ = false, line = 1, start = 1;
+    const endRow = () => { cells.push(field); if (cells.some(c => c.trim() !== '')) rows.push({ line: start, cells: cells }); cells = []; field = ''; start = line; };
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i];
+      if (c === '\n') line++;
+      if (inQ) {
+        if (c === '"') { if (text[i + 1] === '"') { field += '"'; i++; } else inQ = false; }
+        else field += c;
+      } else if (c === '"') inQ = true;
+      else if (c === delim) { cells.push(field); field = ''; }
+      else if (c === '\n') endRow();
+      else if (c === '\r') { if (text[i + 1] === '\n') continue; endRow(); }
+      else field += c;
+    }
+    if (field !== '' || cells.length) endRow();
+    return rows;
+  }
 };
 
 const Toast = {
@@ -956,12 +985,15 @@ App.wireGotos = function (el) {
 App.views.alunos = function (el) {
   const canEdit = ['diretor','coordenador'].includes(Auth.currentUser.role);
   this.setTitle('Alunos', DB.state.students.length + ' registros');
-  el.innerHTML = '<div class="card"><div class="card-header"><h3>' + Icons.student + ' Lista de alunos</h3>' + (canEdit ? '<button type="button" class="btn btn-primary btn-sm" id="btn-novo-aluno">' + Icons.plus + ' Cadastrar aluno</button>' : '') + '</div><div class="card-body"><div class="toolbar"><div class="search">' + Icons.search + '<input type="text" id="busca-aluno" placeholder="Buscar por nome, matrícula ou e-mail..."></div><select id="filtro-turma"><option value="">Todas as turmas</option>' + DB.state.classes.map(c => '<option value="' + Util.esc(c.id) + '">' + Util.esc(c.name) + '</option>').join('') + '</select><select id="filtro-situacao"><option value="">Todas as situações</option><option>Ativo</option><option>Inativo</option><option>Transferido</option><option>Concluído</option></select></div><div id="tabela-alunos"></div></div></div>';
+  el.innerHTML = '<div class="card"><div class="card-header"><h3>' + Icons.student + ' Lista de alunos</h3>' + (canEdit ? '<div class="flex gap-8"><button type="button" class="btn btn-secondary btn-sm" id="btn-importar-alunos">Importar CSV</button><button type="button" class="btn btn-primary btn-sm" id="btn-novo-aluno">' + Icons.plus + ' Cadastrar aluno</button></div>' : '') + '</div><div class="card-body"><div class="toolbar"><div class="search">' + Icons.search + '<input type="text" id="busca-aluno" placeholder="Buscar por nome, matrícula ou e-mail..."></div><select id="filtro-turma"><option value="">Todas as turmas</option>' + DB.state.classes.map(c => '<option value="' + Util.esc(c.id) + '">' + Util.esc(c.name) + '</option>').join('') + '</select><select id="filtro-situacao"><option value="">Todas as situações</option><option>Ativo</option><option>Inativo</option><option>Transferido</option><option>Concluído</option></select></div><div id="tabela-alunos"></div></div></div>';
   this.renderAlunosTable();
   document.getElementById('busca-aluno').addEventListener('input', Util.debounce(() => this.renderAlunosTable(), 200));
   document.getElementById('filtro-turma').addEventListener('change', () => this.renderAlunosTable());
   document.getElementById('filtro-situacao').addEventListener('change', () => this.renderAlunosTable());
-  if (canEdit) { const b = document.getElementById('btn-novo-aluno'); if (b) b.addEventListener('click', () => this.modalAluno()); }
+  if (canEdit) {
+    document.getElementById('btn-novo-aluno').addEventListener('click', () => this.modalAluno());
+    document.getElementById('btn-importar-alunos').addEventListener('click', () => this.modalImportarAlunos());
+  }
 };
 
 App.renderAlunosTable = function () {
@@ -1041,6 +1073,163 @@ App.modalAluno = function (id) {
         if (editing) { Object.assign(s, data); Toast.success('Aluno atualizado com sucesso.'); }
         else { data.id = DB.id('s'); DB.state.students.push(data); Toast.success('Aluno cadastrado com sucesso.'); }
         DB.save(); close(); this.renderAlunosTable();
+      });
+    }
+  });
+};
+
+// ---------------------------------------------------------------------------
+// Importar alunos por CSV: tudo é lido e conferido aqui no navegador, com
+// pré-visualização; o que for válido entra pelo mesmo DB.save() do cadastro
+// manual, então o servidor confere permissão e valida cada registro de novo.
+// ---------------------------------------------------------------------------
+
+// campo do aluno -> nomes aceitos no cabeçalho (comparados por Util.slug)
+const CSV_COLUMNS = {
+  name: ['nome', 'nomecompleto', 'aluno'],
+  matricula: ['matricula', 'ra'],
+  turma: ['turma'],
+  course: ['curso'],
+  period: ['periodo', 'turno'],
+  email: ['email'],
+  phone: ['telefone', 'celular', 'fone'],
+  birth: ['nascimento', 'datanascimento', 'datadenascimento'],
+  guardian: ['responsavel', 'nomedoresponsavel'],
+  guardianPhone: ['telefoneresponsavel', 'telefonedoresponsavel', 'celularresponsavel', 'fonedoresponsavel'],
+  status: ['situacao', 'status']
+};
+const CSV_MAX_ALUNOS = 1000;
+
+// "AAAA-MM-DD" or "DD/MM/AAAA" (also - or .) -> "AAAA-MM-DD", or null if it isn't a real date.
+Util.parseDate = function (s) {
+  let y, mo, d, m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (m) { y = +m[1]; mo = +m[2]; d = +m[3]; }
+  else if ((m = s.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/))) { d = +m[1]; mo = +m[2]; y = +m[3]; }
+  else return null;
+  const dt = new Date(Date.UTC(y, mo - 1, d));
+  if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== mo - 1 || dt.getUTCDate() !== d) return null;
+  return y + '-' + String(mo).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+};
+
+// -> { error } for a file that can't be used at all, or
+//    { ignored: [unrecognized column titles], rows: [{ line, turma, data, errors: [] }] }.
+App.parseAlunosCsv = function (text) {
+  const all = Util.parseCsv(text);
+  if (!all.length) return { error: 'O arquivo está vazio.' };
+  const col = {}, ignored = [];
+  all[0].cells.forEach((h, i) => {
+    const k = Util.slug(h);
+    const f = Object.keys(CSV_COLUMNS).find(f => CSV_COLUMNS[f].includes(k));
+    if (f && !(f in col)) col[f] = i; else if (k) ignored.push(h.trim());
+  });
+  const missing = [['name', 'nome'], ['matricula', 'matricula'], ['turma', 'turma']].filter(p => !(p[0] in col)).map(p => p[1]);
+  if (missing.length) return { error: 'Faltam colunas obrigatórias na primeira linha do arquivo: ' + missing.join(', ') + '.' };
+  if (all.length - 1 > CSV_MAX_ALUNOS) return { error: 'O arquivo tem mais de ' + CSV_MAX_ALUNOS + ' alunos. Divida em arquivos menores.' };
+
+  const classes = {};
+  DB.state.classes.forEach(c => { classes[Util.slug(c.name)] = c; });
+  const taken = new Set(DB.state.students.map(s => String(s.matricula).trim().toLowerCase()));
+  const seen = {}; // matrícula -> first line of the file that used it
+  const PERIODS = { manha: 'Manhã', tarde: 'Tarde', noite: 'Noite' };
+  const STATUSES = { ativo: 'Ativo', inativo: 'Inativo', transferido: 'Transferido', concluido: 'Concluído' };
+
+  const rows = all.slice(1).map(r => {
+    const get = f => (f in col && r.cells[col[f]] !== undefined) ? r.cells[col[f]].trim() : '';
+    const errors = [];
+    const data = { name: get('name'), matricula: get('matricula'), course: get('course'), email: get('email'), phone: get('phone'), guardian: get('guardian'), guardianPhone: get('guardianPhone'), birth: '', period: '', status: 'Ativo' };
+    if (!data.name) errors.push('nome em branco');
+    const turma = get('turma');
+    const cls = classes[Util.slug(turma)];
+    if (!turma) errors.push('turma em branco');
+    else if (!cls) errors.push('a turma "' + turma + '" não existe');
+    else data.classId = cls.id;
+    const p = get('period');
+    if (p) { if (PERIODS[Util.slug(p)]) data.period = PERIODS[Util.slug(p)]; else errors.push('período "' + p + '" inválido (use Manhã, Tarde ou Noite)'); }
+    else if (cls) data.period = cls.period || '';
+    const st = get('status');
+    if (st) { if (STATUSES[Util.slug(st)]) data.status = STATUSES[Util.slug(st)]; else errors.push('situação "' + st + '" inválida'); }
+    const b = get('birth');
+    if (b) { const iso = Util.parseDate(b); if (iso) data.birth = iso; else errors.push('nascimento inválido (use AAAA-MM-DD ou DD/MM/AAAA)'); }
+    if (data.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(data.email)) errors.push('e-mail inválido');
+    if (Object.values(data).some(v => String(v).length > 255)) errors.push('algum campo passa de 255 caracteres');
+    // last, so a row that failed for another reason doesn't "use up" its matrícula
+    if (!data.matricula) errors.push('matrícula em branco');
+    else {
+      const m = data.matricula.toLowerCase();
+      if (taken.has(m)) errors.push('matrícula já cadastrada');
+      else if (seen[m]) errors.push('matrícula repetida (já na linha ' + seen[m] + ')');
+      else if (!errors.length) seen[m] = r.line;
+    }
+    return { line: r.line, turma: turma, data: data, errors: errors };
+  });
+  return { ignored: ignored, rows: rows };
+};
+
+App.templateCsv = function () {
+  const q = v => /[;"\r\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+  const turma = q(DB.state.classes.length ? DB.state.classes[0].name : 'NOME DA TURMA');
+  return '﻿' + [
+    'nome;matricula;turma;curso;periodo;email;telefone;nascimento;responsavel;telefone_responsavel;situacao',
+    'Maria da Silva;2024001;' + turma + ';Técnico em Informática;Manhã;maria@exemplo.com;(11) 99999-0001;15/03/2008;Ana da Silva;(11) 99999-0002;Ativo',
+    'João Souza;2024002;' + turma + ';;;;;;;;'
+  ].join('\r\n') + '\r\n';
+};
+
+App.modalImportarAlunos = function () {
+  if (!DB.state.classes.length) { Toast.warning('Cadastre uma turma antes de importar alunos.'); this.navigate('turmas'); return; }
+  let valid = [];
+  const body = '<p class="text-sm" style="line-height:1.6;margin-bottom:14px;">Envie um arquivo <strong>.csv</strong> com um aluno por linha e os títulos na primeira linha. Obrigatórias: <strong>nome</strong>, <strong>matricula</strong> e <strong>turma</strong> (o nome de uma turma já cadastrada: ' + DB.state.classes.map(c => Util.esc(c.name)).join(', ') + '). Opcionais: curso, periodo, email, telefone, nascimento, responsavel, telefone_responsavel, situacao. Separador vírgula ou ponto e vírgula.</p>' +
+    '<div class="flex gap-8 mb-16" style="flex-wrap:wrap;align-items:center;"><input type="file" id="csv-file" accept=".csv,.txt,text/csv"><button type="button" class="btn btn-secondary btn-sm" id="csv-template">Baixar modelo</button></div>' +
+    '<div id="csv-preview"></div>';
+  Modal.open({
+    title: 'Importar alunos por CSV', icon: Icons.student, size: 'lg', body: body,
+    footer: '<button type="button" class="btn btn-secondary" data-close>Cancelar</button><button type="button" class="btn btn-primary" data-import disabled>Importar</button>',
+    onMount: (bd, close) => {
+      const fileEl = bd.querySelector('#csv-file'), prev = bd.querySelector('#csv-preview'), btn = bd.querySelector('[data-import]');
+      const problem = msg => '<p style="color:var(--danger);font-size:13.5px;line-height:1.5;">' + Util.esc(msg) + '</p>';
+      bd.querySelector('#csv-template').addEventListener('click', () => {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob([this.templateCsv()], { type: 'text/csv;charset=utf-8' }));
+        a.download = 'modelo-alunos.csv';
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+      });
+      fileEl.addEventListener('change', async () => {
+        valid = []; btn.disabled = true; btn.textContent = 'Importar';
+        const f = fileEl.files[0];
+        if (!f) { prev.innerHTML = ''; return; }
+        if (f.size > 1024 * 1024) { prev.innerHTML = problem('O arquivo passa de 1 MB.'); return; }
+        // Excel in Portuguese saves plain "CSV" as Windows-1252, not UTF-8
+        const buf = await f.arrayBuffer();
+        let text;
+        try { text = new TextDecoder('utf-8', { fatal: true }).decode(buf); } catch (e) { text = new TextDecoder('windows-1252').decode(buf); }
+        const r = this.parseAlunosCsv(text);
+        if (r.error) { prev.innerHTML = problem(r.error); return; }
+        valid = r.rows.filter(x => !x.errors.length);
+        const bad = r.rows.length - valid.length;
+        let h = '<p class="text-sm mb-8"><strong>' + valid.length + '</strong> aluno(s) prontos para importar' + (bad ? ' · <strong style="color:var(--danger);">' + bad + ' com problema</strong> (essas linhas não serão importadas)' : '') + '.' +
+          (r.ignored.length ? ' <span class="text-muted">Colunas ignoradas: ' + r.ignored.map(Util.esc).join(', ') + '.</span>' : '') + '</p>';
+        if (r.rows.length) {
+          h += '<div class="table-wrap" style="max-height:320px;overflow:auto;"><table class="data"><thead><tr><th>Linha</th><th>Nome</th><th>Matrícula</th><th>Turma</th><th>Resultado</th></tr></thead><tbody>' +
+            r.rows.map(x => '<tr><td class="mono text-sm">' + x.line + '</td><td>' + Util.esc(x.data.name) + '</td><td class="mono text-sm">' + Util.esc(x.data.matricula) + '</td><td>' + Util.esc(x.turma) + '</td><td>' +
+              (x.errors.length ? '<span class="badge red">' + Util.esc(x.errors.join('; ')) + '</span>' : '<span class="badge green">OK</span>') + '</td></tr>').join('') +
+            '</tbody></table></div>';
+        } else h += '<p class="text-muted text-sm">O arquivo tem só o cabeçalho, nenhum aluno.</p>';
+        prev.innerHTML = h;
+        btn.disabled = !valid.length;
+        if (valid.length) btn.textContent = 'Importar ' + valid.length + ' aluno(s)';
+      });
+      btn.addEventListener('click', () => {
+        if (!valid.length) return;
+        const used = new Set(DB.state.students.map(s => s.id));
+        valid.forEach(r => {
+          let id; do { id = DB.id('s'); } while (used.has(id));
+          used.add(id);
+          DB.state.students.push(Object.assign({ id: id }, r.data));
+        });
+        const n = valid.length;
+        DB.save(); close(); this.navigate('alunos');
+        Toast.success(n + ' aluno(s) importado(s).');
       });
     }
   });

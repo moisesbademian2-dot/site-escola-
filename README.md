@@ -1,7 +1,7 @@
 # Portal of Future
 
 Sistema de gestão acadêmica para escola: turmas, alunos, professores, notas por
-bimestre, frequência, ocorrências, comunicados e boletim em PDF, com telas
+bimestre, frequência, ocorrências, comunicados, boletim em PDF e importação de alunos por CSV, com telas
 diferentes para diretor, coordenador, professor, aluno e responsável.
 
 ## Como rodar
@@ -63,6 +63,19 @@ partir de 7,0; recuperação a partir de 5,0). "Imprimir / Salvar em PDF" usa a
 tela de impressão do próprio navegador — escolha "Salvar como PDF" como destino.
 A "Média geral" é a média das médias finais por disciplina, então cada
 disciplina conta uma vez, independente de quantas avaliações teve.
+
+## Importar alunos por CSV
+
+Diretor e coordenador: Alunos → "Importar CSV". O arquivo tem um aluno por linha e
+os títulos na primeira ("Baixar modelo" no próprio modal gera um exemplo).
+Obrigatórias: `nome`, `matricula` e `turma` (nome de uma turma já cadastrada);
+opcionais: `curso`, `periodo`, `email`, `telefone`, `nascimento` (AAAA-MM-DD ou
+DD/MM/AAAA), `responsavel`, `telefone_responsavel` e `situacao`. Serve vírgula ou
+ponto e vírgula (o Excel em português usa ;), UTF-8 ou Windows-1252, até 1000
+alunos e 1 MB por arquivo. Antes de importar, aparece uma pré-visualização com o
+resultado de cada linha; as linhas com problema (matrícula já cadastrada ou
+repetida, turma inexistente, data inválida...) são listadas e ficam de fora,
+as válidas entram.
 
 ## Segurança
 
