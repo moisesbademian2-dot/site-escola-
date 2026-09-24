@@ -277,6 +277,7 @@ function gen_id(string $p): string {
 // Per e-mail the limit is tight (someone guessing one person's password). Per IP it is
 // much looser: a whole school usually shares one public address, so a handful of
 // students mistyping their passwords must not lock everybody else out.
+const MIN_PASSWORD_LENGTH = 8;
 const LOGIN_MAX_ATTEMPTS = 5;
 const LOGIN_IP_MAX_ATTEMPTS = 30;
 const LOGIN_WINDOW_MINUTES = 15;

@@ -20,12 +20,13 @@ $curso = trim((string) ($in['curso'] ?? ''));
 $turno = trim((string) ($in['turno'] ?? ''));
 
 if (!in_array($role, $allowedRoles, true)) respond(['ok' => false, 'error' => 'Papel inválido.']);
-if ($name === '' || $email === '' || $celular === '' || strlen($password) < 4) {
+if ($name === '' || $email === '' || $celular === '') {
     respond(['ok' => false, 'error' => 'Preencha todos os campos corretamente.']);
 }
 foreach ([$name, $email, $celular, $matricula, $curso, $turno] as $v) {
     if (mb_strlen($v) > 255) respond(['ok' => false, 'error' => 'Preencha todos os campos corretamente.']);
 }
+if (mb_strlen($password) < MIN_PASSWORD_LENGTH) respond(['ok' => false, 'error' => 'A senha deve ter no mínimo ' . MIN_PASSWORD_LENGTH . ' caracteres.']);
 if (!filter_var($email, FILTER_VALIDATE_EMAIL)) respond(['ok' => false, 'error' => 'Informe um e-mail válido.']);
 if ($role === 'aluno' && ($curso === '' || $turno === '')) {
     respond(['ok' => false, 'error' => 'Selecione o curso e o turno.']);

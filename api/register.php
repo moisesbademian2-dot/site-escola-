@@ -7,10 +7,11 @@ $name = trim((string) ($in['name'] ?? ''));
 $email = trim((string) ($in['email'] ?? ''));
 $password = (string) ($in['password'] ?? '');
 
-if ($name === '' || $email === '' || strlen($password) < 4 || mb_strlen($name) > 255 || mb_strlen($email) > 255) {
+if ($name === '' || $email === '' || mb_strlen($name) > 255 || mb_strlen($email) > 255) {
     respond(['ok' => false, 'error' => 'Preencha todos os campos corretamente.']);
 }
 
+if (mb_strlen($password) < MIN_PASSWORD_LENGTH) respond(['ok' => false, 'error' => 'A senha deve ter no mínimo ' . MIN_PASSWORD_LENGTH . ' caracteres.']);
 if (!filter_var($email, FILTER_VALIDATE_EMAIL)) respond(['ok' => false, 'error' => 'Informe um e-mail válido.']);
 
 $pdo = db();

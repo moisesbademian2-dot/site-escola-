@@ -7,7 +7,7 @@ $token = (string) ($in['token'] ?? '');
 $password = (string) ($in['password'] ?? '');
 
 if ($token === '') respond(['ok' => false, 'error' => 'Link inválido.']);
-if (strlen($password) < 4) respond(['ok' => false, 'error' => 'A senha deve ter no mínimo 4 caracteres.']);
+if (mb_strlen($password) < MIN_PASSWORD_LENGTH) respond(['ok' => false, 'error' => 'A senha deve ter no mínimo ' . MIN_PASSWORD_LENGTH . ' caracteres.']);
 
 $user = user_for_reset_token($token);
 if (!$user) respond(['ok' => false, 'error' => 'Este link expirou ou já foi usado. Peça um novo.']);

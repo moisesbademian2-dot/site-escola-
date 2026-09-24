@@ -125,7 +125,7 @@ try {
             $password = null;
             if ($coll === 'users' && isset($rec['password']) && $rec['password'] !== '') {
                 $password = (string) $rec['password'];
-                if (strlen($password) < 4) throw new BadInput('A senha deve ter no mínimo 4 caracteres.');
+                if (mb_strlen($password) < MIN_PASSWORD_LENGTH) throw new BadInput('A senha deve ter no mínimo ' . MIN_PASSWORD_LENGTH . ' caracteres.');
             }
 
             // The front end resends records it didn't really change (or that a cascade already
