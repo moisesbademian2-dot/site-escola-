@@ -29,6 +29,54 @@ function same_record(array $a, array $b): bool {
     return true;
 }
 
+// Everything this request did that somebody should hear about. It becomes queued
+// e-mail right before the commit, so a request that fails sends nothing.
+$notify = ['approved' => [], 'rejected' => [], 'grades' => [], 'announcements' => []];
+
+// Turns $notify into rows of email_queue: same transaction as the change itself.
+function queue_change_notifications(array $n): void {
+    $footer = "\n\n--\nVocê recebe este e-mail porque tem conta no Portal of Future. Para deixar de receber\nnotificações, desmarque a opção em \"Minha conta\" (clique no seu nome no menu lateral).";
+
+    foreach ($n['approved'] as $u) {
+        queue_email($u['email'], 'Seu cadastro foi aprovado - Portal of Future',
+            "Olá, {$u['name']}!\n\nSeu cadastro no Portal of Future foi aprovado. Você já pode entrar:\n\n" . app_url());
+    }
+    foreach ($n['rejected'] as $u) {
+        queue_email($u['email'], 'Seu cadastro não foi aprovado - Portal of Future',
+            "Olá, {$u['name']}.\n\nSeu pedido de cadastro no Portal of Future não foi aprovado. Em caso de dúvida, fale com a coordenação da escola.");
+    }
+
+    $subjects = [];
+    foreach ($n['grades'] as $studentId => $grades) {
+        $student = fetch_record('students', $studentId);
+        $recipients = $student ? student_recipients($studentId) : [];
+        if (!$recipients) continue;
+        $lines = array_map(function ($g) use (&$subjects) {
+            $sid = $g['subjectId'];
+            if (!isset($subjects[$sid])) $subjects[$sid] = ($sid !== '' ? (fetch_record('subjects', $sid)['name'] ?? null) : null) ?? 'Disciplina';
+            return '- ' . $subjects[$sid] . ' / ' . ($g['assessment'] !== '' ? $g['assessment'] : 'Avaliação')
+                . ': ' . number_format((float) $g['value'], 1, ',', '.') . ($g['bimestre'] !== '' ? ' (' . $g['bimestre'] . ')' : '');
+        }, $grades);
+        foreach ($recipients as $r) {
+            queue_email($r['email'], 'Nova nota lançada - ' . $student['name'],
+                "Olá, {$r['name']}!\n\n" . (count($grades) === 1 ? 'Foi lançada uma nova nota' : 'Foram lançadas novas notas') . " para {$student['name']}:\n\n"
+                . implode("\n", $lines) . "\n\nVeja os detalhes no portal:\n" . app_url() . $footer);
+        }
+    }
+
+    $targets = ['Professores' => ['professor'], 'Alunos' => ['aluno'], 'Responsáveis' => ['responsavel']];
+    foreach ($n['announcements'] as $a) {
+        // Todos (or no target) reaches everyone the announcement is shown to; the staff
+        // who publish them aren't e-mailed about their own mural.
+        foreach (role_recipients($targets[$a['target']] ?? ['professor', 'aluno', 'responsavel']) as $r) {
+            queue_email($r['email'], 'Novo comunicado: ' . $a['title'],
+                "Olá, {$r['name']}!\n\n" . ($a['author'] !== '' ? $a['author'] . ' publicou' : 'Foi publicado') . " um comunicado no Portal of Future:\n\n"
+                . $a['title'] . "\n\n" . mb_substr($a['message'], 0, 1500) . (mb_strlen($a['message']) > 1500 ? '…' : '')
+                . "\n\nLeia no portal:\n" . app_url() . $footer);
+        }
+    }
+}
+
 $pdo->beginTransaction();
 try {
     foreach (DELETE_ORDER as $coll) {
@@ -40,6 +88,7 @@ try {
 
             if ($coll === 'users') {
                 if ($id === $me['id']) fail('Você não pode excluir a própria conta.', 400);
+                if ($old['status'] === 'pendente') $notify['rejected'][] = $old; // rejecting a signup deletes it
                 $pdo->prepare('UPDATE teachers SET user_id = NULL WHERE user_id = ?')->execute([$id]);
             }
             if ($coll === 'teachers') {
@@ -98,9 +147,15 @@ try {
                 $sets = implode(', ', array_map(fn($c) => "`$c` = ?", array_keys($cols)));
                 $pdo->prepare("UPDATE `$coll` SET $sets WHERE id = ?")->execute([...array_values($cols), $id]);
             }
+
+            if ($coll === 'users' && $old !== null && $old['status'] === 'pendente' && $new['status'] === 'aprovado') $notify['approved'][] = $new;
+            // only NEW grades and announcements notify; editing an existing one stays quiet
+            if ($old === null && $coll === 'grades' && $new['studentId'] !== '') $notify['grades'][$new['studentId']][] = $new;
+            if ($old === null && $coll === 'announcements') $notify['announcements'][] = $new;
         }
     }
 
+    queue_change_notifications($notify);
     $pdo->commit();
 } catch (BadInput $e) {
     fail($e->getMessage(), 400);
@@ -109,4 +164,6 @@ try {
     throw $e;
 }
 
+// Send whatever is queued only after answering, so saving never waits on the SMTP server.
+if (email_queue_due()) respond_then(['ok' => true], fn() => drain_email_queue());
 respond(['ok' => true]);

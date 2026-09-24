@@ -211,7 +211,12 @@ function check_password(array $user, string $p): bool {
 }
 
 function user_from_row(array $row): array {
-    return record_from_row('users', $row) + ['password' => (string) $row['password']];
+    // notifyEmail isn't in COLLECTIONS on purpose: sync.php never reads or writes it,
+    // so an admin re-saving a user can't undo that person's own choice.
+    return record_from_row('users', $row) + [
+        'password' => (string) $row['password'],
+        'notifyEmail' => ($row['notify_email'] ?? '1') === '0' ? '0' : '1',
+    ];
 }
 
 function find_user(string $column, string $value): ?array {
@@ -320,6 +325,105 @@ function user_for_reset_token(string $token): ?array {
 
 function consume_reset_token(string $token): void {
     db()->prepare('DELETE FROM password_resets WHERE token_hash = ?')->execute([hash('sha256', $token)]);
+}
+
+// ---------------------------------------------------------------------------
+// E-mail notifications (queue)
+// ---------------------------------------------------------------------------
+
+const EMAIL_MAX_ATTEMPTS = 5;
+// A row is due when it hasn't been sent, has tries left, and its last try (or claim
+// by a run that may have died) is older than a backoff of 2 min per attempt so far.
+const EMAIL_DUE_SQL = 'sent_at IS NULL AND attempts < ' . EMAIL_MAX_ATTEMPTS . ' AND (claimed_at IS NULL OR claimed_at < NOW() - INTERVAL (GREATEST(attempts, 1) * 2) MINUTE)';
+
+// Address of index.html, for links inside e-mails. Worked out from the request that
+// triggers the e-mail, since the queue may be drained later with no request at all.
+function app_url(): string {
+    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $root = rtrim(str_replace('\\', '/', dirname(dirname($_SERVER['SCRIPT_NAME'] ?? ''))), '/');
+    return $scheme . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . $root . '/index.html';
+}
+
+// Adds an e-mail to the queue (inside the caller's transaction, if there is one).
+// Addresses that aren't valid, or contain line breaks, are dropped here.
+function queue_email(string $to, string $subject, string $body): bool {
+    if (!smtp_safe_address($to)) return false;
+    db()->prepare('INSERT INTO email_queue (to_email, subject, body) VALUES (?, ?, ?)')
+        ->execute([$to, mb_substr($subject, 0, 255), $body]);
+    return true;
+}
+
+// Approved users who haven't turned notifications off, as [id, name, email] rows.
+const NOTIFY_OK_SQL = "u.status = 'aprovado' AND (u.notify_email IS NULL OR u.notify_email <> '0')";
+
+// The student's own login plus every responsável linked to the student.
+function student_recipients(string $studentId): array {
+    $stmt = db()->prepare("SELECT u.id, u.name, u.email FROM users u WHERE " . NOTIFY_OK_SQL . " AND (
+        (u.role = 'aluno' AND u.student_id = ?) OR
+        (u.role = 'responsavel' AND u.id IN (SELECT user_id FROM guardians WHERE student_id = ?)))");
+    $stmt->execute([$studentId, $studentId]);
+    return $stmt->fetchAll();
+}
+
+function role_recipients(array $roles): array {
+    if (!$roles) return [];
+    $in = implode(',', array_fill(0, count($roles), '?'));
+    $stmt = db()->prepare("SELECT u.id, u.name, u.email FROM users u WHERE " . NOTIFY_OK_SQL . " AND u.role IN ($in)");
+    $stmt->execute($roles);
+    return $stmt->fetchAll();
+}
+
+function email_queue_due(): bool {
+    return (bool) db()->query('SELECT 1 FROM email_queue WHERE ' . EMAIL_DUE_SQL . ' LIMIT 1')->fetchColumn();
+}
+
+// Sends up to $limit due e-mails over one SMTP connection and records the outcome:
+// sent ones are stamped, failed ones count an attempt and wait their backoff.
+// Rows are claimed first, so two runs at once never send the same e-mail twice.
+// Returns how many went out.
+function drain_email_queue(int $limit = 25): int {
+    $pdo = db();
+    $token = bin2hex(random_bytes(8));
+    $limit = max(1, $limit);
+    $pdo->prepare('UPDATE email_queue SET claimed_by = ?, claimed_at = NOW() WHERE ' . EMAIL_DUE_SQL . " ORDER BY id LIMIT $limit")->execute([$token]);
+    $stmt = $pdo->prepare('SELECT * FROM email_queue WHERE claimed_by = ? AND sent_at IS NULL ORDER BY id');
+    $stmt->execute([$token]);
+    $rows = $stmt->fetchAll();
+    if (!$rows) return 0;
+
+    $results = send_mail_batch(array_map(fn($r) => ['to' => $r['to_email'], 'subject' => $r['subject'], 'body' => $r['body']], $rows));
+    $sent = 0;
+    foreach ($rows as $i => $r) {
+        if ($results[$i] === true) {
+            $pdo->prepare('UPDATE email_queue SET sent_at = NOW(), claimed_by = NULL, last_error = NULL WHERE id = ?')->execute([$r['id']]);
+            $sent++;
+        } else {
+            // claimed_at stays as "time of the last try", which is what the backoff counts from
+            $pdo->prepare('UPDATE email_queue SET attempts = attempts + 1, last_error = ?, claimed_by = NULL WHERE id = ?')
+                ->execute([mb_substr((string) $results[$i], 0, 255), $r['id']]);
+        }
+    }
+    if (random_int(1, 20) === 1) $pdo->exec('DELETE FROM email_queue WHERE sent_at < NOW() - INTERVAL 7 DAY');
+    return $sent;
+}
+
+// Answers the request right away and only then does $after (sending queued e-mail),
+// so nobody waits on the SMTP server. The session lock is released first, otherwise
+// this user's next request would queue up behind the sending.
+function respond_then(array $data, callable $after, int $status = 200): void {
+    http_response_code($status);
+    $json = json_encode($data);
+    ignore_user_abort(true);
+    session_write_close();
+    header('Content-Length: ' . strlen($json));
+    header('Connection: close');
+    echo $json;
+    while (ob_get_level() > 0) ob_end_flush();
+    flush();
+    if (function_exists('fastcgi_finish_request')) fastcgi_finish_request();
+    set_time_limit(120);
+    try { $after(); } catch (Throwable $e) { error_log('respond_then: ' . $e->getMessage()); }
+    exit;
 }
 
 // ---------------------------------------------------------------------------

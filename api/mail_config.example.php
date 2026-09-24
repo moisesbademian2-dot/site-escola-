@@ -1,6 +1,7 @@
 <?php
-// Copy this file to mail_config.php (same folder) to send real e-mails for the
-// "esqueci minha senha" flow, over SMTP with implicit TLS (port 465).
+// Copy this file to mail_config.php (same folder) to send real e-mails (password reset
+// links and grade/announcement/approval notifications) over SMTP with implicit TLS
+// (port 465), instead of just logging them.
 // mail_config.php is gitignored, so it's never committed.
 //
 // Without this file, e-mails are written to api/mail_log.txt instead of being
@@ -16,3 +17,7 @@ define('MAIL_USER', 'seu-email@gmail.com');
 define('MAIL_PASS', 'sua-senha-de-app');
 define('MAIL_FROM', 'seu-email@gmail.com');
 define('MAIL_FROM_NAME', 'Portal of Future');
+
+// Only for an internal SMTP server with a self-signed certificate: skips checking it.
+// Leave this out (or true) for Gmail, Outlook and other public providers.
+// define('MAIL_VERIFY_PEER', false);

@@ -1,7 +1,7 @@
 # Portal of Future
 
 Sistema de gestão acadêmica para escola: turmas, alunos, professores, notas por
-bimestre, frequência, ocorrências, comunicados, boletim em PDF e importação de alunos por CSV, com telas
+bimestre, frequência, ocorrências, comunicados, boletim em PDF, importação de alunos por CSV e notificações por e-mail, com telas
 diferentes para diretor, coordenador, professor, aluno e responsável.
 
 ## Como rodar
@@ -19,11 +19,12 @@ Requer PHP 8+ e MySQL/MariaDB — mais fácil com o
    `api/db_config.php` e ajuste os valores — esse arquivo não entra no Git.
 4. Abra `http://localhost/<pasta-do-projeto>/index.html`. Na primeira vez, o
    sistema pede para criar a conta do diretor.
-5. (Opcional) Para o link de "esqueci minha senha" ser enviado por e-mail de
-   verdade, copie [api/mail_config.example.php](api/mail_config.example.php)
+5. (Opcional) Para o link de "esqueci minha senha" e as notificações serem
+   enviados por e-mail de verdade, copie [api/mail_config.example.php](api/mail_config.example.php)
    para `api/mail_config.php` e configure um SMTP (veja o próprio arquivo). Sem
-   isso, o sistema funciona igual, mas o e-mail é só escrito em
-   `api/mail_log.txt` em vez de enviado — abra esse arquivo para pegar o link.
+   isso, o sistema funciona igual, mas os e-mails são só escritos em
+   `api/mail_log.txt` em vez de enviados — abra esse arquivo para ler o conteúdo
+   (por exemplo, para pegar o link de redefinição).
 
 ## Estrutura
 
@@ -31,12 +32,14 @@ Requer PHP 8+ e MySQL/MariaDB — mais fácil com o
 - [api/](api/) — back-end em PHP. Cada arquivo é uma rota:
   - `login.php`, `signup.php`, `register.php`, `logout.php`, `session.php`, `bootstrap.php` — autenticação e cadastro.
   - `forgot_password.php`, `reset_password.php` — fluxo de "esqueci minha senha" (link por e-mail, válido por 1h).
-  - `mailer.php` — envio de e-mail (SMTP se `mail_config.php` existir, senão grava em `mail_log.txt`).
+  - `mailer.php` — envio de e-mail (SMTP se `mail_config.php` existir, senão grava em `mail_log.txt`), vários e-mails por conexão.
+  - `preferences.php` — a pessoa liga ou desliga as próprias notificações por e-mail.
   - `state.php` — devolve os dados que o usuário logado pode ver, conforme o papel dele.
   - `sync.php` — recebe as alterações feitas na tela e grava, validando cada registro contra o papel do usuário.
   - `reset.php` — apaga todos os dados (só o diretor pode usar).
   - `config.php` — conexão com o banco, funções compartilhadas e as regras de quem pode ver/alterar o quê.
 - [db.sql](db.sql) — schema do banco (tabelas relacionais, uma por tipo de dado).
+- [scripts/send_queue.php](scripts/send_queue.php) — envia de uma vez toda a fila de e-mails (`php scripts/send_queue.php`); veja "Notificações por e-mail".
 - [scripts/migrate_legacy.php](scripts/migrate_legacy.php) — importa dados de uma versão antiga do sistema, que guardava tudo como um JSON único (`app_state`). Rode com `php scripts/migrate_legacy.php` depois de importar o `db.sql`, se a tabela `app_state` ainda existir com dados.
 
 ## Papéis de acesso
@@ -63,6 +66,25 @@ partir de 7,0; recuperação a partir de 5,0). "Imprimir / Salvar em PDF" usa a
 tela de impressão do próprio navegador — escolha "Salvar como PDF" como destino.
 A "Média geral" é a média das médias finais por disciplina, então cada
 disciplina conta uma vez, independente de quantas avaliações teve.
+
+## Notificações por e-mail
+
+O sistema avisa por e-mail: o **aluno e seus responsáveis** quando uma nota nova é
+lançada (várias notas do mesmo pedido saem num e-mail só; corrigir uma nota que
+já existe não avisa), **professores, alunos e responsáveis** quando um comunicado
+é publicado (respeitando o "Destinatário"; quem publica não recebe) e **quem se
+cadastrou** quando o diretor aprova ou recusa o cadastro. Cada pessoa pode
+desligar as suas em "Minha conta" (clique no nome, no rodapé do menu lateral).
+
+Os e-mails vão para uma fila (`email_queue`), gravada junto com a alteração que
+os causa, e são enviados **depois** de a tela já ter recebido a resposta, então
+salvar nunca espera o servidor de e-mail. Se o envio falhar, tenta de novo
+quando alguém abrir uma página ou salvar algo (até 5 vezes, esperando 2 min a
+mais a cada falha) e depois desiste. Para esvaziar uma fila grande de uma vez
+(ou enviar sem ninguém usando o site), rode `php scripts/send_queue.php`, à mão
+ou agendado (cron / Agendador de Tarefas do Windows). Sem `mail_config.php`, tudo
+vai para `api/mail_log.txt`. Um Gmail comum aceita cerca de 500 e-mails por dia,
+que é o teto realista para um comunicado "para todos".
 
 ## Importar alunos por CSV
 

@@ -533,7 +533,7 @@ const App = {
       '<div class="sidebar-header"><div class="logo">' + LOGO_IMG + '</div></div>' +
       '<nav class="sidebar-nav">' + nav + '</nav>' +
       switcher +
-      '<div class="sidebar-footer">' +
+      '<div class="sidebar-footer" id="btn-minha-conta" role="button" tabindex="0" title="Minha conta" style="cursor:pointer;">' +
         '<div class="avatar">' + Util.esc(u.avatar || Util.initials(u.name)) + '</div>' +
         '<div class="uinfo">' +
           '<strong>' + Util.esc(u.name) + '</strong>' +
@@ -549,6 +549,9 @@ const App = {
         }
       });
     });
+    const conta = document.getElementById('btn-minha-conta');
+    conta.addEventListener('click', () => this.modalMinhaConta());
+    conta.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); this.modalMinhaConta(); } });
     const switcherSel = document.getElementById('child-switcher');
     if (switcherSel) switcherSel.addEventListener('change', () => {
       u.studentId = switcherSel.value;
@@ -1230,6 +1233,32 @@ App.modalImportarAlunos = function () {
         const n = valid.length;
         DB.save(); close(); this.navigate('alunos');
         Toast.success(n + ' aluno(s) importado(s).');
+      });
+    }
+  });
+};
+
+// "Minha conta": who you are logged in as, and the one setting a person can change
+// on their own — whether they get e-mail notifications (see api/preferences.php).
+App.modalMinhaConta = function () {
+  const u = Auth.currentUser;
+  const label = t => '<span class="text-xs text-muted text-bold" style="text-transform:uppercase;letter-spacing:0.08em;">' + t + '</span>';
+  Modal.open({
+    title: 'Minha conta', icon: Icons.user,
+    body: '<div class="grid-2 mb-24"><div>' + label('Nome') + '<div>' + Util.esc(u.name) + '</div></div><div>' + label('Perfil') + '<div>' + Util.roleLabel(u.role) + '</div></div><div class="full" style="grid-column:1/-1;">' + label('E-mail') + '<div>' + Util.esc(u.email) + '</div></div></div>' +
+      '<div class="divider"></div>' +
+      '<label style="display:flex;gap:10px;align-items:flex-start;cursor:pointer;"><input type="checkbox" id="conta-notify" style="width:auto;margin-top:4px;"' + (u.notifyEmail === '0' ? '' : ' checked') + '><span><strong>Receber notificações por e-mail</strong><br><span class="text-sm text-muted">Novas notas, comunicados e avisos sobre o seu cadastro.</span></span></label>',
+    footer: '<button type="button" class="btn btn-secondary" data-close>Fechar</button><button type="button" class="btn btn-primary" data-save>Salvar</button>',
+    onMount: (bd, close) => {
+      bd.querySelector('[data-save]').addEventListener('click', async () => {
+        const want = bd.querySelector('#conta-notify').checked;
+        try {
+          const res = await apiPost(DB.API + 'preferences.php', { notifyEmail: want });
+          const d = await res.json();
+          if (!res.ok || !d.ok) throw new Error(d.error || 'falha');
+          u.notifyEmail = d.notifyEmail;
+          Toast.success('Preferências salvas.'); close();
+        } catch (e) { Toast.error('Não foi possível salvar. Tente de novo.'); }
       });
     }
   });

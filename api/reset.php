@@ -7,6 +7,7 @@ if ($me['role'] !== 'diretor') respond(['error' => 'Sem permissão.'], 403);
 $pdo = db();
 $pdo->beginTransaction();
 foreach (DELETE_ORDER as $coll) $pdo->exec("DELETE FROM `$coll`");
+$pdo->exec('DELETE FROM email_queue'); // nobody is left to notify
 seed_default_subjects();
 $pdo->commit();
 

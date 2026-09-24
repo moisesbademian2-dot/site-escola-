@@ -67,8 +67,15 @@ CREATE TABLE IF NOT EXISTS users (
   curso_pretendido VARCHAR(255),
   turno_pretendido VARCHAR(255),
   created_at VARCHAR(40),
+  -- '0' = this person turned e-mail notifications off; NULL or '1' = on.
+  -- Not part of the synced records: only api/preferences.php changes it.
+  notify_email CHAR(1),
   FOREIGN KEY (student_id) REFERENCES students (id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
+
+-- Adds notify_email to a users table created before it existed (re-running this
+-- file on an existing database is safe).
+ALTER TABLE users ADD COLUMN IF NOT EXISTS notify_email CHAR(1);
 
 -- A responsável <-> student link; a responsável can have several, a student can
 -- (in principle) have more than one guardian account too.
@@ -186,6 +193,23 @@ CREATE TABLE IF NOT EXISTS password_resets (
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
   INDEX (user_id)
+) ENGINE=InnoDB;
+
+-- E-mails waiting to go out (grades, announcements, account approval). Written in the
+-- same transaction as the change that causes them, then sent after the response by
+-- api/config.php (or by scripts/send_queue.php); failures are retried up to 5 times.
+CREATE TABLE IF NOT EXISTS email_queue (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  to_email VARCHAR(255) NOT NULL,
+  subject VARCHAR(255) NOT NULL,
+  body TEXT NOT NULL,
+  attempts TINYINT NOT NULL DEFAULT 0,
+  last_error VARCHAR(255),
+  claimed_by CHAR(16),
+  claimed_at TIMESTAMP NULL,
+  sent_at TIMESTAMP NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX (sent_at, attempts, id)
 ) ENGINE=InnoDB;
 
 INSERT IGNORE INTO subjects (id, name, code) VALUES

@@ -19,9 +19,7 @@ record_attempt($ids);
 $user = find_user('email', $email);
 if ($user) {
     $token = create_reset_token($user['id']);
-    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-    $root = rtrim(str_replace('\\', '/', dirname(dirname($_SERVER['SCRIPT_NAME']))), '/');
-    $link = $scheme . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . $root . '/index.html?reset=' . $token;
+    $link = app_url() . '?reset=' . $token;
 
     $body = "Olá, {$user['name']}!\n\n" .
         "Recebemos um pedido para redefinir sua senha no Portal of Future. Para continuar, acesse o link abaixo (válido por " . RESET_TOKEN_MINUTES . " minutos):\n\n" .
