@@ -195,6 +195,22 @@ CREATE TABLE IF NOT EXISTS password_resets (
   INDEX (user_id)
 ) ENGINE=InnoDB;
 
+-- School calendar: tests, meetings, holidays... class_id empty = the whole school.
+-- created_by is who added it, because a professor may only change their own.
+CREATE TABLE IF NOT EXISTS events (
+  id VARCHAR(64) PRIMARY KEY,
+  title VARCHAR(255) NOT NULL,
+  type VARCHAR(20),
+  date DATE NOT NULL,
+  end_date DATE,
+  class_id VARCHAR(64),
+  description TEXT,
+  created_by VARCHAR(64),
+  FOREIGN KEY (class_id) REFERENCES classes (id) ON DELETE CASCADE,
+  FOREIGN KEY (created_by) REFERENCES users (id) ON DELETE SET NULL,
+  INDEX (date)
+) ENGINE=InnoDB;
+
 -- E-mails waiting to go out (grades, announcements, account approval). Written in the
 -- same transaction as the change that causes them, then sent after the response by
 -- api/config.php (or by scripts/send_queue.php); failures are retried up to 5 times.

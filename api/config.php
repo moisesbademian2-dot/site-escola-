@@ -78,6 +78,7 @@ function respond($data, int $status = 200): void {
 
 const ROLES = ['diretor', 'coordenador', 'professor', 'aluno', 'responsavel'];
 const BIMESTRES = ['1º Bimestre', '2º Bimestre', '3º Bimestre', '4º Bimestre'];
+const EVENT_TYPES = ['Prova', 'Evento', 'Feriado', 'Reunião'];
 
 const COLLECTIONS = [
     'subjects' => ['name' => 'str', 'code' => 'str'],
@@ -106,14 +107,15 @@ const COLLECTIONS = [
     'announcements' => ['title' => 'str', 'target' => 'str', 'author' => 'str', 'message' => 'text', 'date' => 'date'],
     // A responsável <-> student link (a responsável can have more than one child).
     'guardians' => ['userId' => 'ref', 'studentId' => 'ref'],
+    'events' => ['title' => 'str', 'type' => EVENT_TYPES, 'date' => 'date', 'endDate' => 'date', 'classId' => 'ref', 'description' => 'text', 'createdBy' => 'ref'],
 ];
 
 // Parents before children, so a record can reference one created in the same request.
-const UPSERT_ORDER = ['subjects', 'teachers', 'classes', 'students', 'users', 'guardians', 'grades', 'attendance', 'lessons', 'activities', 'occurrences', 'announcements'];
+const UPSERT_ORDER = ['subjects', 'teachers', 'classes', 'students', 'users', 'guardians', 'events', 'grades', 'attendance', 'lessons', 'activities', 'occurrences', 'announcements'];
 // Teachers go before users: deleting a teacher also removes its professor login (see sync.php).
 // guardians goes first: it references both users and students, so it's cleared
 // before either could be deleted in the same request.
-const DELETE_ORDER = ['guardians', 'announcements', 'occurrences', 'activities', 'lessons', 'attendance', 'grades', 'teachers', 'users', 'students', 'classes', 'subjects'];
+const DELETE_ORDER = ['guardians', 'events', 'announcements', 'occurrences', 'activities', 'lessons', 'attendance', 'grades', 'teachers', 'users', 'students', 'classes', 'subjects'];
 
 const ID_PATTERN = '/^[A-Za-z0-9_-]{1,64}$/';
 
@@ -170,6 +172,10 @@ function row_from_record(string $coll, array $rec): array {
             throw new BadInput("Texto muito longo em $field.");
         }
         $cols[column($field)] = $v;
+    }
+    if ($coll === 'events') {
+        if ($cols['title'] === null || $cols['date'] === null) throw new BadInput('Informe o título e a data do evento.');
+        if ($cols['end_date'] !== null && $cols['end_date'] < $cols['date']) throw new BadInput('A data final não pode ser antes da data inicial.');
     }
     if ($coll === 'grades' && $cols['value'] !== null && ((float) $cols['value'] < 0 || (float) $cols['value'] > 10)) {
         throw new BadInput('A nota deve estar entre 0 e 10.');
@@ -498,6 +504,8 @@ function visible_state(array $me): array {
     $state['grades'] = $keep('grades', $ofStudent);
     $state['attendance'] = $keep('attendance', $ofStudent);
     $state['activities'] = $keep('activities', $inClass);
+    // school-wide events plus those of the classes this person is tied to
+    $state['events'] = $keep('events', fn($r) => $r['classId'] === '' || $inClass($r));
 
     $targets = ['Todos'];
     if ($role === 'professor') {
@@ -529,9 +537,15 @@ function can_write(array $me, array $scope, string $coll, ?array $old, ?array $n
     $check = match ($coll) {
         'attendance', 'lessons', 'activities' => fn($r) => in_array($r['classId'], $scope['classIds'], true),
         'grades', 'occurrences' => fn($r) => in_array($r['studentId'], $scope['studentIds'], true),
+        // a professor schedules things for their own classes only (never school-wide)...
+        'events' => fn($r) => $r['classId'] !== '' && in_array($r['classId'], $scope['classIds'], true),
         default => null,
     };
     if ($check === null) return false;
-    foreach ([$old, $new] as $r) { if ($r !== null && !$check($r)) return false; }
+    foreach ([$old, $new] as $r) {
+        if ($r !== null && !$check($r)) return false;
+        // ...and only changes the events they created themselves
+        if ($r !== null && $coll === 'events' && $r['createdBy'] !== $me['id']) return false;
+    }
     return true;
 }

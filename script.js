@@ -36,6 +36,7 @@ const Icons = {
   close: '<svg class="ico ico-sm" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
   menu: '<svg class="ico" viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>',
   trendUp: '<svg class="ico" viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>',
+  calendar: '<svg class="ico" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>',
   clock: '<svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
   shield: '<svg class="ico" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>',
   lock: '<svg class="ico" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>'
@@ -43,8 +44,8 @@ const Icons = {
 
 const DB = {
   API: 'api/',
-  COLLECTIONS: ['users', 'students', 'classes', 'teachers', 'subjects', 'attendance', 'grades', 'activities', 'occurrences', 'announcements', 'lessons', 'guardians'],
-  state: { users: [], students: [], classes: [], teachers: [], subjects: [], attendance: [], grades: [], activities: [], occurrences: [], announcements: [], lessons: [], guardians: [] },
+  COLLECTIONS: ['users', 'students', 'classes', 'teachers', 'subjects', 'attendance', 'grades', 'activities', 'occurrences', 'announcements', 'lessons', 'guardians', 'events'],
+  state: { users: [], students: [], classes: [], teachers: [], subjects: [], attendance: [], grades: [], activities: [], occurrences: [], announcements: [], lessons: [], guardians: [], events: [] },
   synced: {},
   queue: Promise.resolve(),
   async load() {
@@ -175,11 +176,18 @@ const Util = {
   fmtDate(iso) { if (!iso) return '—'; const p = String(iso).slice(0, 10).split('-'); if (p.length !== 3) return Util.esc(iso); return Util.esc(p[2]) + '/' + Util.esc(p[1]) + '/' + Util.esc(p[0]); },
   fmtDateLong(iso) {
     if (!iso) return '—';
-    const d = new Date(iso); if (isNaN(d)) return Util.esc(iso);
+    // "2026-09-23" must be read as that day here, not as midnight UTC (which is the
+    // evening of the 22nd in Brazil, so the date used to show one day early).
+    const p = String(iso).slice(0, 10).split('-').map(Number);
+    const d = p.length === 3 && !p.some(isNaN) ? new Date(p[0], p[1] - 1, p[2]) : new Date(iso);
+    if (isNaN(d)) return Util.esc(iso);
     const m = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
     return d.getDate() + ' de ' + m[d.getMonth()] + ' de ' + d.getFullYear();
   },
-  todayISO() { return new Date().toISOString().slice(0, 10); },
+  // Today in the user's own time zone (toISOString() is UTC, which is already tomorrow after 21h in Brazil).
+  todayISO() { const d = new Date(); return Util.isoDate(d.getFullYear(), d.getMonth(), d.getDate()); },
+  // month is 0-based, like Date
+  isoDate(y, m, d) { return y + '-' + String(m + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0'); },
   esc(s) { if (s === null || s === undefined) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); },
   initials(n) { if (!n) return '?'; const p = String(n).trim().split(/\s+/); if (p.length === 1) return p[0].slice(0, 2).toUpperCase(); return (p[0][0] + p[p.length - 1][0]).toUpperCase(); },
   colorFor(s) {
@@ -283,27 +291,27 @@ const BIMESTRES = ['1º Bimestre', '2º Bimestre', '3º Bimestre', '4º Bimestre
 
 const MENUS = {
   diretor: [
-    { group: 'Visão Geral', items: [ { id: 'dashboard', icon: 'dashboard', label: 'Dashboard' }, { id: 'relatorios', icon: 'chart', label: 'Relatórios' } ]},
+    { group: 'Visão Geral', items: [ { id: 'dashboard', icon: 'dashboard', label: 'Dashboard' }, { id: 'calendario', icon: 'calendar', label: 'Calendário' }, { id: 'relatorios', icon: 'chart', label: 'Relatórios' } ]},
     { group: 'Administração', items: [ { id: 'admin', icon: 'shield', label: 'Painel Admin' }, { id: 'usuarios', icon: 'users', label: 'Usuários' } ]},
     { group: 'Instituição', items: [ { id: 'turmas', icon: 'building', label: 'Turmas' }, { id: 'professores', icon: 'teacher', label: 'Professores' }, { id: 'alunos', icon: 'student', label: 'Alunos' }, { id: 'disciplinas', icon: 'bookOpen', label: 'Disciplinas' } ]},
     { group: 'Acompanhamento', items: [ { id: 'diario', icon: 'book', label: 'Diário de Classe' }, { id: 'frequencia', icon: 'checkCircle', label: 'Frequência' }, { id: 'notas', icon: 'edit', label: 'Notas' }, { id: 'ocorrencias', icon: 'alert', label: 'Ocorrências' }, { id: 'comunicados', icon: 'megaphone', label: 'Comunicados' } ]}
   ],
   coordenador: [
-    { group: 'Painel', items: [{ id: 'dashboard', icon: 'dashboard', label: 'Dashboard' }]},
+    { group: 'Painel', items: [{ id: 'dashboard', icon: 'dashboard', label: 'Dashboard' }, { id: 'calendario', icon: 'calendar', label: 'Calendário' }]},
     { group: 'Gestão', items: [ { id: 'alunos', icon: 'student', label: 'Alunos' }, { id: 'turmas', icon: 'building', label: 'Turmas' }, { id: 'professores', icon: 'teacher', label: 'Professores' }, { id: 'disciplinas', icon: 'bookOpen', label: 'Disciplinas' } ]},
     { group: 'Acompanhamento', items: [ { id: 'diario', icon: 'book', label: 'Diário de Classe' }, { id: 'notas', icon: 'edit', label: 'Notas' }, { id: 'frequencia', icon: 'checkCircle', label: 'Frequência' }, { id: 'ocorrencias', icon: 'alert', label: 'Ocorrências' }, { id: 'comunicados', icon: 'megaphone', label: 'Comunicados' }, { id: 'relatorios', icon: 'chart', label: 'Relatórios' } ]}
   ],
   professor: [
-    { group: 'Painel', items: [ { id: 'dashboard', icon: 'dashboard', label: 'Dashboard' }, { id: 'minhas-turmas', icon: 'building', label: 'Minhas Turmas' } ]},
+    { group: 'Painel', items: [ { id: 'dashboard', icon: 'dashboard', label: 'Dashboard' }, { id: 'calendario', icon: 'calendar', label: 'Calendário' }, { id: 'minhas-turmas', icon: 'building', label: 'Minhas Turmas' } ]},
     { group: 'Diário de Classe', items: [ { id: 'diario', icon: 'book', label: 'Diário' }, { id: 'frequencia', icon: 'checkCircle', label: 'Frequência' }, { id: 'notas', icon: 'edit', label: 'Notas' }, { id: 'conteudos', icon: 'bookOpen', label: 'Conteúdos' } ]},
     { group: 'Extras', items: [ { id: 'atividades', icon: 'clipboard', label: 'Atividades' }, { id: 'ocorrencias', icon: 'alert', label: 'Ocorrências' }, { id: 'comunicados', icon: 'megaphone', label: 'Comunicados' } ]}
   ],
   aluno: [
-    { group: 'Meu Portal', items: [ { id: 'dashboard', icon: 'dashboard', label: 'Início' }, { id: 'minhas-notas', icon: 'edit', label: 'Minhas Notas' }, { id: 'minha-frequencia', icon: 'checkCircle', label: 'Minha Frequência' } ]},
+    { group: 'Meu Portal', items: [ { id: 'dashboard', icon: 'dashboard', label: 'Início' }, { id: 'calendario', icon: 'calendar', label: 'Calendário' }, { id: 'minhas-notas', icon: 'edit', label: 'Minhas Notas' }, { id: 'minha-frequencia', icon: 'checkCircle', label: 'Minha Frequência' } ]},
     { group: 'Escola', items: [ { id: 'atividades', icon: 'clipboard', label: 'Atividades' }, { id: 'comunicados', icon: 'megaphone', label: 'Comunicados' }, { id: 'ocorrencias', icon: 'alert', label: 'Ocorrências' }, { id: 'perfil', icon: 'user', label: 'Meu Perfil' } ]}
   ],
   responsavel: [
-    { group: 'Acompanhamento', items: [ { id: 'dashboard', icon: 'dashboard', label: 'Início' }, { id: 'minhas-notas', icon: 'edit', label: 'Notas' }, { id: 'minha-frequencia', icon: 'checkCircle', label: 'Frequência' } ]},
+    { group: 'Acompanhamento', items: [ { id: 'dashboard', icon: 'dashboard', label: 'Início' }, { id: 'calendario', icon: 'calendar', label: 'Calendário' }, { id: 'minhas-notas', icon: 'edit', label: 'Notas' }, { id: 'minha-frequencia', icon: 'checkCircle', label: 'Frequência' } ]},
     { group: 'Escola', items: [ { id: 'atividades', icon: 'clipboard', label: 'Atividades' }, { id: 'comunicados', icon: 'megaphone', label: 'Comunicados' }, { id: 'ocorrencias', icon: 'alert', label: 'Ocorrências' }, { id: 'perfil', icon: 'user', label: 'Perfil do Aluno' } ]}
   ]
 };
@@ -1414,6 +1422,7 @@ App.excluirTurmaFluxo = function (c) {
       DB.state.attendance = DB.state.attendance.filter(a => a.classId !== c.id);
       DB.state.lessons = DB.state.lessons.filter(l => l.classId !== c.id);
       DB.state.activities = DB.state.activities.filter(a => a.classId !== c.id);
+      DB.state.events = DB.state.events.filter(e => e.classId !== c.id);
       DB.state.students.forEach(s => { if (s.classId === c.id) s.classId = ''; });
       DB.save(); App.navigate('turmas'); Toast.success('Turma excluída com sucesso.');
     }
@@ -2464,6 +2473,159 @@ App.views.perfil = function (el) {
       '<div><span class="text-xs text-muted text-bold" style="text-transform:uppercase;letter-spacing:0.08em;">Responsável</span><div>' + Util.esc(s.guardian || '—') + '</div></div>' +
       '<div><span class="text-xs text-muted text-bold" style="text-transform:uppercase;letter-spacing:0.08em;">Tel. responsável</span><div>' + Util.esc(s.guardianPhone || '—') + '</div></div>' +
     '</div></div></div>';
+};
+
+// ---------------------------------------------------------------------------
+// Calendário: provas, eventos, feriados e reuniões (DB.state.events), mais o prazo
+// de entrega das atividades, que já existiam e aparecem aqui sem cadastro extra.
+// ---------------------------------------------------------------------------
+
+const EVENT_TYPES = ['Prova', 'Evento', 'Feriado', 'Reunião'];
+const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+const DIAS_CURTOS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+const DIAS_LONGOS = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'];
+const CAL_TYPE_CLASS = { 'Prova': 'prova', 'Evento': 'evento', 'Feriado': 'feriado', 'Reunião': 'reuniao', 'Atividade': 'atividade' };
+
+App.cal = null; // { y, m (0-based), sel (ISO day), cls (class filter, '' = all) } — kept while navigating
+
+// Who may add events: diretor and coordenador anywhere; a professor for their own classes.
+App.calCanCreate = function () {
+  const r = Auth.currentUser.role;
+  return r === 'diretor' || r === 'coordenador' || (r === 'professor' && DB.state.classes.length > 0);
+};
+// ...and change them: staff any; a professor only the ones they created (the server enforces the same).
+App.calCanEdit = function (ev) {
+  const u = Auth.currentUser;
+  return u.role === 'diretor' || u.role === 'coordenador' || (u.role === 'professor' && ev.createdBy === u.id);
+};
+
+App.calItems = function () {
+  const items = [];
+  DB.state.events.forEach(ev => items.push({ kind: 'event', title: ev.title, type: ev.type || 'Evento', start: ev.date, end: ev.endDate || ev.date, classId: ev.classId, ev: ev }));
+  DB.state.activities.forEach(a => { if (a.dueDate) items.push({ kind: 'activity', title: a.title, type: 'Atividade', start: a.dueDate, end: a.dueDate, classId: a.classId, act: a }); });
+  const cls = this.cal.cls;
+  return items.filter(i => !cls || i.classId === cls || i.classId === '')
+    .sort((a, b) => a.start.localeCompare(b.start) || a.title.localeCompare(b.title));
+};
+
+App.views.calendario = function (el) {
+  this.setTitle('Calendário', 'Provas, eventos e prazos');
+  if (!this.cal) { const t = Util.todayISO(); this.cal = { y: +t.slice(0, 4), m: +t.slice(5, 7) - 1, sel: t, cls: '' }; }
+  const canCreate = this.calCanCreate();
+  el.innerHTML =
+    '<div class="card mb-24"><div class="card-header"><h3>' + Icons.calendar + ' <span id="cal-title"></span></h3>' +
+      '<div class="flex gap-8" style="flex-wrap:wrap;align-items:center;">' +
+        (DB.state.classes.length > 1 ? '<select id="cal-cls" style="width:auto;"><option value="">Todas as turmas</option>' + DB.state.classes.map(c => '<option value="' + Util.esc(c.id) + '"' + (this.cal.cls === c.id ? ' selected' : '') + '>' + Util.esc(c.name) + '</option>').join('') + '</select>' : '') +
+        '<button type="button" class="btn btn-secondary btn-sm" id="cal-prev" aria-label="Mês anterior">‹</button>' +
+        '<button type="button" class="btn btn-secondary btn-sm" id="cal-today">Hoje</button>' +
+        '<button type="button" class="btn btn-secondary btn-sm" id="cal-next" aria-label="Próximo mês">›</button>' +
+        (canCreate ? '<button type="button" class="btn btn-primary btn-sm" id="cal-new">' + Icons.plus + ' Novo evento</button>' : '') +
+      '</div></div><div class="card-body" style="padding:0;"><div id="cal-grid"></div></div></div>' +
+    '<div class="grid-2"><div class="card"><div class="card-header"><h3 id="cal-day-title"></h3></div><div class="card-body" id="cal-day"></div></div>' +
+    '<div class="card"><div class="card-header"><h3>' + Icons.clock + ' Próximos</h3></div><div class="card-body" id="cal-upcoming"></div></div></div>';
+
+  const shift = n => { const d = new Date(this.cal.y, this.cal.m + n, 1); this.cal.y = d.getFullYear(); this.cal.m = d.getMonth(); this.renderCalendario(); };
+  const goTo = iso => { this.cal.sel = iso; this.cal.y = +iso.slice(0, 4); this.cal.m = +iso.slice(5, 7) - 1; this.renderCalendario(); };
+  document.getElementById('cal-prev').addEventListener('click', () => shift(-1));
+  document.getElementById('cal-next').addEventListener('click', () => shift(1));
+  document.getElementById('cal-today').addEventListener('click', () => goTo(Util.todayISO()));
+  const clsSel = document.getElementById('cal-cls');
+  if (clsSel) clsSel.addEventListener('change', () => { this.cal.cls = clsSel.value; this.renderCalendario(); });
+  if (canCreate) document.getElementById('cal-new').addEventListener('click', () => this.modalEvento(null, this.cal.sel));
+
+  Util.on(el, 'click', '[data-day]', (e, t) => goTo(t.dataset.day));
+  Util.on(el, 'keydown', '[data-day]', (e, t) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); goTo(t.dataset.day); } });
+  Util.on(el, 'click', '[data-ev-edit]', (e, t) => this.modalEvento(t.dataset.evEdit));
+  Util.on(el, 'click', '[data-ev-del]', (e, t) => {
+    const ev = DB.state.events.find(x => x.id === t.dataset.evDel);
+    if (!ev) return;
+    Modal.confirm('Excluir evento', 'Deseja excluir "' + ev.title + '"?', () => {
+      DB.state.events = DB.state.events.filter(x => x.id !== ev.id);
+      DB.save(); this.navigate('calendario'); Toast.success('Evento excluído.');
+    }, 'Excluir');
+  });
+  Util.on(el, 'click', '[data-day-new]', (e, t) => this.modalEvento(null, t.dataset.dayNew));
+  this.renderCalendario();
+};
+
+App.renderCalendario = function () {
+  const { y, m, sel } = this.cal;
+  const items = this.calItems();
+  const today = Util.todayISO();
+  const onDay = iso => items.filter(i => i.start <= iso && iso <= i.end);
+  document.getElementById('cal-title').textContent = MESES[m].charAt(0).toUpperCase() + MESES[m].slice(1) + ' de ' + y;
+
+  // 6 weeks at most, starting on the Sunday on or before the 1st
+  const first = new Date(y, m, 1);
+  const lead = first.getDay();
+  const total = Math.ceil((lead + new Date(y, m + 1, 0).getDate()) / 7) * 7;
+  let h = '<div class="cal-head">' + DIAS_CURTOS.map(d => '<div>' + d + '</div>').join('') + '</div><div class="cal-grid">';
+  for (let i = 0; i < total; i++) {
+    const d = new Date(y, m, 1 - lead + i);
+    const iso = Util.isoDate(d.getFullYear(), d.getMonth(), d.getDate());
+    const its = onDay(iso);
+    h += '<div class="cal-day' + (d.getMonth() !== m ? ' other' : '') + (iso === today ? ' today' : '') + (iso === sel ? ' sel' : '') + '" data-day="' + iso + '" role="button" tabindex="0" aria-label="' + d.getDate() + ' de ' + MESES[d.getMonth()] + (its.length ? ', ' + its.length + ' item(ns)' : '') + '">' +
+      '<span class="cal-num">' + d.getDate() + '</span><div class="cal-items">' +
+      its.slice(0, 3).map(i => '<span class="cal-chip cal-t-' + CAL_TYPE_CLASS[i.type] + '" title="' + Util.esc(i.type + ': ' + i.title) + '">' + Util.esc(i.title) + '</span>').join('') +
+      (its.length > 3 ? '<span class="cal-more">+' + (its.length - 3) + ' mais</span>' : '') +
+      '</div></div>';
+  }
+  document.getElementById('cal-grid').innerHTML = h + '</div>';
+
+  // the selected day
+  const sd = new Date(+sel.slice(0, 4), +sel.slice(5, 7) - 1, +sel.slice(8, 10));
+  document.getElementById('cal-day-title').textContent = DIAS_LONGOS[sd.getDay()].charAt(0).toUpperCase() + DIAS_LONGOS[sd.getDay()].slice(1) + ', ' + Util.fmtDateLong(sel);
+  const cls = id => { const c = id ? this.classById(id) : null; return c ? c.name : 'Toda a escola'; };
+  const dayItems = onDay(sel);
+  let dh = dayItems.length ? dayItems.map(i => {
+    const ev = i.ev;
+    return '<div class="cal-item"><div class="flex items-center justify-between" style="gap:8px;"><span class="badge ' + (i.type === 'Prova' ? 'red' : i.type === 'Feriado' ? 'green' : i.type === 'Atividade' ? 'amber' : 'blue') + '">' + Util.esc(i.type) + '</span>' +
+      (ev && this.calCanEdit(ev) ? '<span class="actions"><button type="button" class="btn btn-secondary btn-xs" data-ev-edit="' + Util.esc(ev.id) + '">Editar</button><button type="button" class="btn btn-danger btn-xs" data-ev-del="' + Util.esc(ev.id) + '">Excluir</button></span>' : '') + '</div>' +
+      '<strong style="display:block;margin-top:6px;">' + Util.esc(i.title) + '</strong>' +
+      '<span class="text-xs text-muted">' + (i.start !== i.end ? Util.fmtDate(i.start) + ' a ' + Util.fmtDate(i.end) + ' · ' : '') + Util.esc(cls(i.classId)) + (i.act ? ' · entrega da atividade' + (i.act.subject ? ' de ' + Util.esc(i.act.subject) : '') : '') + '</span>' +
+      ((ev && ev.description) ? '<p class="text-sm" style="margin-top:6px;white-space:pre-wrap;">' + Util.esc(ev.description) + '</p>' : '') + '</div>';
+  }).join('') : '<p class="text-muted text-sm">Nada marcado para este dia.</p>';
+  if (this.calCanCreate()) dh += '<button type="button" class="btn btn-secondary btn-sm mt-12" data-day-new="' + sel + '">' + Icons.plus + ' Novo evento neste dia</button>';
+  document.getElementById('cal-day').innerHTML = dh;
+
+  // what's coming (from today on, whichever month is on screen)
+  const next = items.filter(i => i.end >= today).slice(0, 6);
+  document.getElementById('cal-upcoming').innerHTML = next.length ? next.map(i =>
+    '<div class="cal-up" data-day="' + i.start + '" role="button" tabindex="0"><span class="mono text-sm">' + Util.fmtDate(i.start) + '</span><span class="badge ' + (i.type === 'Prova' ? 'red' : i.type === 'Feriado' ? 'green' : i.type === 'Atividade' ? 'amber' : 'blue') + '">' + Util.esc(i.type) + '</span><span class="cal-up-t">' + Util.esc(i.title) + '</span></div>').join('')
+    : '<p class="text-muted text-sm">Nada marcado daqui para frente.</p>';
+};
+
+App.modalEvento = function (id, date) {
+  const ev = id ? DB.state.events.find(e => e.id === id) : null;
+  if (id && !ev) return;
+  const me = Auth.currentUser, isProf = me.role === 'professor';
+  const body = '<form id="form-evento" novalidate><div class="form-grid">' +
+    '<div class="field-group full"><label>Título <span class="req">*</span></label><input name="title" value="' + Util.esc(ev ? ev.title : '') + '" required placeholder="Ex: Prova de Banco de Dados"><div class="err">Informe o título.</div></div>' +
+    '<div class="field-group"><label>Tipo</label><select name="type">' + EVENT_TYPES.map(t => '<option' + ((ev ? ev.type : 'Evento') === t ? ' selected' : '') + '>' + t + '</option>').join('') + '</select></div>' +
+    '<div class="field-group"><label>Turma' + (isProf ? ' <span class="req">*</span>' : '') + '</label><select name="classId"' + (isProf ? ' required' : '') + '>' + (isProf ? '<option value="">Selecione...</option>' : '<option value="">Toda a escola</option>') + DB.state.classes.map(c => '<option value="' + Util.esc(c.id) + '"' + (ev && ev.classId === c.id ? ' selected' : '') + '>' + Util.esc(c.name) + '</option>').join('') + '</select><div class="err">Selecione a turma.</div></div>' +
+    '<div class="field-group"><label>Data <span class="req">*</span></label><input type="date" name="date" value="' + Util.esc(ev ? ev.date : (date || Util.todayISO())) + '" required><div class="err">Informe a data.</div></div>' +
+    '<div class="field-group"><label>Data final (se durar mais de um dia)</label><input type="date" name="endDate" value="' + Util.esc(ev ? ev.endDate : '') + '"></div>' +
+    '<div class="field-group full"><label>Descrição</label><textarea name="description">' + Util.esc(ev ? ev.description : '') + '</textarea></div>' +
+    '</div></form>';
+  Modal.open({
+    title: ev ? 'Editar evento' : 'Novo evento', icon: Icons.calendar, body: body, size: 'lg',
+    footer: '<button type="button" class="btn btn-secondary" data-close>Cancelar</button><button type="button" class="btn btn-primary" data-save>' + (ev ? 'Salvar' : 'Adicionar') + '</button>',
+    onMount: (bd, close) => {
+      const form = bd.querySelector('#form-evento');
+      bd.querySelector('[data-save]').addEventListener('click', () => {
+        if (!this.validateForm(form)) { Toast.error('Preencha os campos obrigatórios.'); return; }
+        const d = Object.fromEntries(new FormData(form).entries());
+        d.title = d.title.trim();
+        if (!d.title) { Toast.error('Informe o título.'); return; }
+        if (d.endDate && d.endDate < d.date) { Toast.error('A data final não pode ser antes da inicial.'); return; }
+        if (ev) Object.assign(ev, d);
+        else { d.id = DB.id('ev'); d.createdBy = me.id; DB.state.events.push(d); }
+        this.cal = Object.assign(this.cal || {}, { sel: d.date, y: +d.date.slice(0, 4), m: +d.date.slice(5, 7) - 1 });
+        DB.save(); close(); this.navigate('calendario');
+        Toast.success(ev ? 'Evento atualizado.' : 'Evento adicionado.');
+      });
+    }
+  });
 };
 
 document.addEventListener('DOMContentLoaded', () => {

@@ -1,7 +1,7 @@
 # Portal of Future
 
 Sistema de gestão acadêmica para escola: turmas, alunos, professores, notas por
-bimestre, frequência, ocorrências, comunicados, boletim em PDF, importação de alunos por CSV e notificações por e-mail, com telas
+bimestre, frequência, ocorrências, comunicados, boletim em PDF, importação de alunos por CSV, notificações por e-mail e calendário, com telas
 diferentes para diretor, coordenador, professor, aluno e responsável.
 
 ## Como rodar
@@ -66,6 +66,22 @@ partir de 7,0; recuperação a partir de 5,0). "Imprimir / Salvar em PDF" usa a
 tela de impressão do próprio navegador — escolha "Salvar como PDF" como destino.
 A "Média geral" é a média das médias finais por disciplina, então cada
 disciplina conta uma vez, independente de quantas avaliações teve.
+
+## Calendário
+
+Todos os perfis têm o item **Calendário** no menu: um mês por vez, com provas,
+eventos, feriados e reuniões (cada tipo com uma cor) e, sem cadastro extra, o
+prazo de entrega das atividades. Clique num dia para ver os detalhes dele; a
+lista "Próximos" mostra o que vem a partir de hoje. Um evento pode durar vários
+dias e ser da escola toda ou de uma turma (quem tem mais de uma turma pode filtrar).
+
+- **Diretor e coordenador** marcam e alteram qualquer evento.
+- **Professor** marca eventos só para as turmas dele (nunca para a escola toda) e
+  só altera os que ele mesmo criou.
+- **Aluno e responsável** só consultam: veem os eventos da escola toda e das turmas
+  dos alunos que acompanham.
+
+Apagar uma turma apaga os eventos dela.
 
 ## Notificações por e-mail
 
