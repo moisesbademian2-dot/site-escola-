@@ -1,3 +1,7 @@
+-- Keeps accents intact when this file is imported from the mysql command line (its default
+-- client charset on Windows is not UTF-8).
+SET NAMES utf8mb4;
+
 CREATE DATABASE IF NOT EXISTS portal_of_future CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE portal_of_future;
 
