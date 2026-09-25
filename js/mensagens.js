@@ -22,16 +22,24 @@ App.msgTime = function (ts) {
   return m[3] + '/' + m[2] + (m[1] !== today.slice(0, 4) ? '/' + m[1] : '') + ' ' + m[4] + ':' + m[5];
 };
 
+App.setNavBadge = function (view, n) {
+  const btn = document.querySelector('.nav-item[data-view="' + view + '"]');
+  if (!btn) return;
+  let b = btn.querySelector('.nav-badge');
+  if (!n) { if (b) b.remove(); return; }
+  if (!b) { b = document.createElement('i'); b.className = 'nav-badge'; btn.appendChild(b); }
+  b.textContent = n > 99 ? '99+' : n;
+};
+
 App.updateMsgBadge = async function () {
-  const btn = document.querySelector('.nav-item[data-view="mensagens"]');
-  if (!btn || !Auth.currentUser) return;
+  if (!Auth.currentUser) return;
   try {
-    const { unread } = await this.msgApi('action=unread');
-    let b = btn.querySelector('.nav-badge');
-    if (!unread) { if (b) b.remove(); return; }
-    if (!b) { b = document.createElement('i'); b.className = 'nav-badge'; btn.appendChild(b); }
-    b.textContent = unread > 99 ? '99+' : unread;
-  } catch (e) { /* offline or logged out: leave the badge as it was */ }
+    this.setNavBadge('mensagens', (await this.msgApi('action=unread')).unread);
+    if (['diretor', 'coordenador'].includes(Auth.currentUser.role)) {
+      const res = await fetch(DB.API + 'justifications.php?action=pending', { credentials: 'include' });
+      if (res.ok) this.setNavBadge('justificativas', (await res.json()).pending);
+    }
+  } catch (e) { /* offline or logged out: leave the badges as they were */ }
 };
 
 // Called once after the sidebar exists; the timer only asks while the tab is visible.

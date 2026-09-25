@@ -9,7 +9,7 @@ const CACHE = 'portal-shell-v1';
 const SHELL = [
   './', 'index.html', 'style.css', 'manifest.webmanifest', 'logo2.0-quadrada.png',
   'js/core.js', 'js/app.js', 'js/dashboards.js', 'js/pessoas.js', 'js/academico.js', 'js/boletim.js',
-  'js/calendario.js', 'js/auditoria.js', 'js/anos.js', 'js/fechamento.js', 'js/export.js', 'js/mensagens.js', 'js/pwa.js', 'js/main.js'
+  'js/calendario.js', 'js/auditoria.js', 'js/anos.js', 'js/fechamento.js', 'js/export.js', 'js/mensagens.js', 'js/anexos.js', 'js/justificativas.js', 'js/pwa.js', 'js/main.js'
 ];
 
 self.addEventListener('install', event => {

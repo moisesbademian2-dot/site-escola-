@@ -28,7 +28,7 @@ Requer PHP 8+ e MySQL/MariaDB — mais fácil com o
 
 ## Estrutura
 
-- [index.html](index.html), [style.css](style.css), [js/](js/) — front-end (uma página só, sem build; scripts comuns carregados em ordem pelo `index.html`): `core.js` (DB, Auth, utilitários, modais), `app.js` (navegação e login), `dashboards.js`, `pessoas.js` (alunos, turmas, professores, usuários), `academico.js` (chamada, notas, atividades, ocorrências, comunicados), `boletim.js`, `calendario.js`, `auditoria.js`, `anos.js`, `fechamento.js`, `export.js` (Excel), `mensagens.js`, `pwa.js`, `main.js`. Também na raiz: `sw.js` e `manifest.webmanifest` (aplicativo instalável) e `icons/`.
+- [index.html](index.html), [style.css](style.css), [js/](js/) — front-end (uma página só, sem build; scripts comuns carregados em ordem pelo `index.html`): `core.js` (DB, Auth, utilitários, modais), `app.js` (navegação e login), `dashboards.js`, `pessoas.js` (alunos, turmas, professores, usuários), `academico.js` (chamada, notas, atividades, ocorrências, comunicados), `boletim.js`, `calendario.js`, `auditoria.js`, `anos.js`, `fechamento.js`, `export.js` (Excel), `mensagens.js`, `anexos.js`, `justificativas.js`, `pwa.js`, `main.js`. Também na raiz: `sw.js` e `manifest.webmanifest` (aplicativo instalável) e `icons/`.
 - [api/](api/) — back-end em PHP. Cada arquivo é uma rota:
   - `login.php`, `signup.php`, `register.php`, `logout.php`, `session.php`, `bootstrap.php` — autenticação e cadastro.
   - `forgot_password.php`, `reset_password.php` — fluxo de "esqueci minha senha" (link por e-mail, válido por 1h).
@@ -37,6 +37,8 @@ Requer PHP 8+ e MySQL/MariaDB — mais fácil com o
   - `state.php` — devolve os dados que o usuário logado pode ver, conforme o papel dele.
   - `sync.php` — recebe as alterações feitas na tela e grava, validando cada registro contra o papel do usuário.
   - `audit.php` — a auditoria (só leitura, só o diretor).
+  - `attachments.php`, `files.php` — arquivos anexados (envio, download, remoção; regras de tipo e tamanho).
+  - `justifications.php` — pedidos de justificativa de falta.
   - `messages.php` — mensagens diretas (contatos, conversas, envio).
   - `periods.php` — fechar e reabrir os bimestres para notas (coordenador e diretor).
   - `years.php` — anos letivos: encerrar o ano e abrir o próximo, renomear, histórico de um aluno num ano.
@@ -143,6 +145,37 @@ com um novo prazo. Quem lança notas vê um aviso no topo de Notas e o bimestre 
 aparece desabilitado no formulário. Notas antigas, sem bimestre, não são afetadas. Cada
 ano letivo tem seus próprios fechamentos (o ano novo começa com tudo aberto), e cada
 fechar/reabrir/prazo vai para a Auditoria.
+## Arquivos anexados
+
+- **Material de aula:** quem dá a aula (o professor da turma), a coordenação e o diretor anexam
+  arquivos a uma **atividade** (na hora de criá-la ou depois, com "Anexar") e a um **conteúdo de
+  aula** (Conteúdos das aulas). Alunos e responsáveis da turma baixam; ninguém mais vê.
+- **Atestado:** ao pedir uma justificativa de falta a família pode anexar até 3 arquivos.
+
+Aceitos: PDF, imagens (png, jpg, gif, webp), Word/Excel/PowerPoint (doc, docx, xls, xlsx, ppt, pptx),
+OpenDocument (odt, ods, odp), txt e csv; até **5 MB** por arquivo, 10 por atividade/aula. O servidor
+confere o **conteúdo** do arquivo, não só o nome (um programa renomeado para .pdf é recusado), e não
+aceita html, svg, zip nem executáveis. Os arquivos ficam em `api/storage/` com nome aleatório e **só
+saem por `api/attachments.php`**, que confere quem pode ler (o `.htaccess` da pasta também nega acesso
+direto no Apache); baixam como anexo, nunca executam. Apagar a atividade, a aula, o pedido, o aluno ou
+a turma apaga os arquivos; "Resetar todo o sistema" apaga todos. Os arquivos de anos encerrados ficam
+guardados e não podem mais ser alterados. **Faça backup também da pasta `api/storage/`** junto com o
+banco. Não há antivírus: o servidor não abre nem executa os arquivos, mas quem baixa deve ter o
+cuidado de sempre com o que recebe.
+
+## Justificativas de falta
+
+Aluno e responsável têm **Justificativas** no menu: informam o aluno, o período (até 60 dias, começando
+no máximo 120 dias atrás), o motivo e, se quiserem, o atestado. A coordenação e o diretor veem os pedidos
+(com selo de pendentes no menu) e **aceitam ou recusam**, com uma observação opcional:
+
+- ao **aceitar**, as faltas do aluno nesse período viram "Justificada" na frequência — e as que forem
+  lançadas depois, dentro do período, já entram justificadas;
+- recusar não muda nada; nos dois casos a família recebe um e-mail com o resultado;
+- a coordenação e o diretor são avisados por e-mail do pedido novo (o e-mail **não traz o motivo**,
+  que pode ser assunto de saúde, nem a auditoria: só datas e decisão);
+- a família pode retirar um pedido que ainda não foi respondido; o professor vê, só para consulta,
+  os pedidos dos alunos das suas turmas.
 ## Mensagens
 
 Todos os perfis têm **Mensagens** no menu: conversas diretas, uma por par de pessoas, com selo

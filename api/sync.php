@@ -24,7 +24,6 @@ function deny(): void {
     fail('Você não tem permissão para fazer essa alteração.', 403);
 }
 
-const CLOSED_YEAR_MSG = 'Este registro é de um ano letivo encerrado e não pode mais ser alterado.';
 
 // A record of a closed school year is history: read-only for everybody.
 function assert_open_year(string $coll, string $id): void {
@@ -139,6 +138,8 @@ try {
             }
 
             $cols = row_from_record($coll, $merged);
+            // an accepted justification covers absences recorded later too
+            if ($coll === 'attendance' && ($cols['status'] ?? null) === 'Falta' && attendance_excused((string) $cols['student_id'], (string) $cols['date'])) $cols['status'] = 'Justificada';
             $new = record_from_row($coll, ['id' => $id] + $cols);
 
             $password = null;
@@ -199,6 +200,9 @@ try {
     if (in_array($e->getCode(), ['22001', '22003', '22007'], true)) fail('Dados inválidos: algum campo passou do tamanho ou do valor permitido.', 400);
     throw $e;
 }
+
+// A deleted activity/lesson/student/class takes its attached files with it.
+if (array_filter($changes, fn($ops) => !empty($ops['delete']))) attach_sweep_orphans();
 
 // Send whatever is queued only after answering, so saving never waits on the SMTP server.
 if (email_queue_due()) respond_then(['ok' => true], fn() => drain_email_queue());

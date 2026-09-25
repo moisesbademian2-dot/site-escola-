@@ -131,12 +131,13 @@ App.views.conteudos = function (el) {
     list.forEach(l => {
       const c = this.classById(l.classId);
       const s = this.subjectById(l.subjectId);
-      h += '<div class="timeline-item"><div class="t-title">' + (s ? Util.esc(s.name) : 'Sem disciplina') + ' · ' + (c ? Util.esc(c.name) : '—') + '</div><div class="t-time mono">' + Util.fmtDateLong(l.date) + '</div><div class="t-desc">' + Util.esc(l.content) + (l.note ? '<br><em class="text-muted">Obs.: ' + Util.esc(l.note) + '</em>' : '') + '</div></div>';
+      h += '<div class="timeline-item"><div class="t-title">' + (s ? Util.esc(s.name) : 'Sem disciplina') + ' · ' + (c ? Util.esc(c.name) : '—') + '</div><div class="t-time mono">' + Util.fmtDateLong(l.date) + '</div><div class="t-desc">' + Util.esc(l.content) + (l.note ? '<br><em class="text-muted">Obs.: ' + Util.esc(l.note) + '</em>' : '') + this.anexosHtml('lesson', l) + '</div></div>';
     });
     h += '</div>';
   }
   h += '</div></div>';
   el.innerHTML = h;
+  this.bindAnexos(el, () => this.navigate('conteudos'));
 };
 
 App.views.perfil = function (el) {

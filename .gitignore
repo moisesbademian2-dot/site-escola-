@@ -14,3 +14,7 @@ Thumbs.db
 
 # Dependencies, if a build step is ever added
 node_modules/
+
+# Files people upload (class material, certificates): kept out of git
+api/storage/*
+!api/storage/.htaccess

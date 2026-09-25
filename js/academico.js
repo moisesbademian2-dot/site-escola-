@@ -385,6 +385,7 @@ App.views.atividades = function (el) {
   this.setTitle('Atividades', DB.state.activities.length + ' atividades');
   el.innerHTML = '<div class="card"><div class="card-header"><h3>' + Icons.clipboard + ' Atividades cadastradas</h3>' + (canEdit ? '<button type="button" class="btn btn-primary btn-sm" id="btn-nova-atv">' + Icons.plus + ' Nova atividade</button>' : '') + '</div><div class="card-body" id="lista-atividades" style="padding:0;"></div></div>';
   this.renderAtividades();
+  this.bindAnexos(el, () => this.renderAtividades());
   if (canEdit) { const b = document.getElementById('btn-nova-atv'); if (b) b.addEventListener('click', () => this.modalAtividade()); }
 };
 
@@ -395,9 +396,9 @@ App.renderAtividades = function () {
   let list = DB.state.activities.slice();
   if (u.role === 'aluno' || u.role === 'responsavel') { const s = this.studentById(u.studentId); if (s) list = list.filter(a => a.classId === s.classId); }
   if (!list.length) { ct.innerHTML = this.emptyState('clipboard', 'Nenhuma atividade', 'Ainda não há atividades cadastradas.'); return; }
-  let h = '<div class="table-wrap"><table class="data"><thead><tr><th>Título</th><th>Disciplina</th><th>Entrega</th><th>Valor</th><th>Status</th></tr></thead><tbody>';
+  let h = '<div class="table-wrap"><table class="data"><thead><tr><th>Título</th><th>Disciplina</th><th>Entrega</th><th>Valor</th><th>Status</th><th>Arquivos</th></tr></thead><tbody>';
   list.forEach(a => {
-    h += '<tr><td><strong>' + Util.esc(a.title) + '</strong><div class="text-xs text-muted" style="margin-top:3px;">' + Util.esc(a.description || '') + '</div></td><td>' + Util.esc(a.subject) + '</td><td class="mono text-sm">' + Util.fmtDate(a.dueDate) + '</td><td class="mono">' + Util.esc(a.value) + ' pts</td><td><span class="badge ' + Util.statusClass(a.status) + '">' + Util.esc(a.status) + '</span></td></tr>';
+    h += '<tr><td><strong>' + Util.esc(a.title) + '</strong><div class="text-xs text-muted" style="margin-top:3px;">' + Util.esc(a.description || '') + '</div></td><td>' + Util.esc(a.subject) + '</td><td class="mono text-sm">' + Util.fmtDate(a.dueDate) + '</td><td class="mono">' + Util.esc(a.value) + ' pts</td><td><span class="badge ' + Util.statusClass(a.status) + '">' + Util.esc(a.status) + '</span></td><td>' + this.anexosHtml('activity', a) + '</td></tr>';
   });
   h += '</tbody></table></div>';
   ct.innerHTML = h;
@@ -413,18 +414,27 @@ App.modalAtividade = function () {
     '<div class="field-group"><label>Valor (pontos)</label><input type="number" name="value" value="10" min="0"></div>' +
     '<div class="field-group"><label>Status</label><select name="status"><option>Disponível</option><option>Em andamento</option><option>Encerrada</option></select></div>' +
     '<div class="field-group full"><label>Descrição</label><textarea name="description"></textarea></div>' +
+    '<div class="field-group full"><label>Material de apoio (opcional; PDF, imagem, Word... até 5 MB cada)</label><input type="file" id="atv-arquivos" multiple accept="' + ANEXO_ACCEPT + '"></div>' +
     '</div></form>';
   Modal.open({
     title: 'Nova atividade', icon: Icons.clipboard, body: body, size: 'lg',
     footer: '<button type="button" class="btn btn-secondary" data-close>Cancelar</button><button type="button" class="btn btn-primary" data-save>Cadastrar</button>',
     onMount: (bd, close) => {
       const form = bd.querySelector('#form-atv');
-      bd.querySelector('[data-save]').addEventListener('click', () => {
+      bd.querySelector('[data-save]').addEventListener('click', async () => {
         if (!this.validateForm(form)) { Toast.error('Preencha os campos.'); return; }
+        const files = Array.from(bd.querySelector('#atv-arquivos').files);
+        for (const file of files) { const p = this.validarArquivo(file); if (p) { Toast.error(p); return; } }
         const d = Object.fromEntries(new FormData(form).entries());
         d.id = DB.id('a'); d.createdAt = Util.todayISO(); d.value = isNaN(Number(d.value)) ? 10 : Number(d.value);
         DB.state.activities.push(d);
         DB.save(); close(); this.renderAtividades(); Toast.success('Atividade cadastrada.');
+        if (files.length) {
+          await DB.queue; // the files need the activity to exist on the server first
+          const n = await this.enviarAnexos('activity', d.id, files);
+          if (n) Toast.success(n === 1 ? 'Arquivo anexado.' : n + ' arquivos anexados.');
+          if (this.currentView === 'atividades') this.renderAtividades();
+        }
       });
     }
   });

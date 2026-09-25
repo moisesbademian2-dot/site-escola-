@@ -49,6 +49,7 @@ if (file_exists($dbConfigFile)) {
 $mailConfigFile = __DIR__ . '/mail_config.php';
 if (file_exists($mailConfigFile)) require $mailConfigFile;
 require __DIR__ . '/mailer.php';
+require_once __DIR__ . '/files.php';
 
 function db(): PDO {
     static $pdo = null;
@@ -122,6 +123,7 @@ const DELETE_ORDER = ['guardians', 'events', 'announcements', 'occurrences', 'ac
 
 // What belongs to a school year (see school_years in db.sql): the screens only ever show the active year's.
 const YEAR_SCOPED = ['classes', 'grades', 'attendance', 'lessons', 'activities', 'events'];
+const CLOSED_YEAR_MSG = 'Este registro é de um ano letivo encerrado e não pode mais ser alterado.';
 
 const ID_PATTERN = '/^[A-Za-z0-9_-]{1,64}$/';
 
@@ -579,6 +581,14 @@ function assert_bimestre_open(?string $bimestre): void {
     }
 }
 
+// Whether an accepted justification covers this student on this day (then a "Falta" is stored as "Justificada").
+function attendance_excused(string $studentId, string $date): bool {
+    if ($studentId === '' || $date === '') return false;
+    $stmt = db()->prepare("SELECT 1 FROM justifications WHERE student_id = ? AND status = 'aceita' AND ? BETWEEN date_from AND date_to LIMIT 1");
+    $stmt->execute([$studentId, $date]);
+    return (bool) $stmt->fetchColumn();
+}
+
 // ---------------------------------------------------------------------------
 // Audit trail
 // ---------------------------------------------------------------------------
@@ -744,6 +754,17 @@ function visible_state(array $me): array {
         }
     }
     $state['enrollments'] = array_map('enrollment_record', $rows);
+
+    // Class material (attached to activities and lessons) of the active year that this person may see.
+    $sql = "SELECT * FROM attachments WHERE owner_type IN ('activity', 'lesson') AND (year_id = ? OR year_id IS NULL)";
+    $args = [active_year_id()];
+    if (!in_array($me['role'], ['diretor', 'coordenador'], true)) {
+        $classIds = access_scope($me)['classIds'];
+        if (!$classIds) $sql = null;
+        else { $sql .= ' AND class_id IN (' . implode(',', array_fill(0, count($classIds), '?')) . ')'; array_push($args, ...$classIds); }
+    }
+    $state['attachments'] = [];
+    if ($sql !== null) { $stmt = db()->prepare($sql); $stmt->execute($args); $state['attachments'] = array_map('attachment_record', $stmt->fetchAll()); }
     return $state;
 }
 

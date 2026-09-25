@@ -349,3 +349,44 @@ CREATE TABLE IF NOT EXISTS messages (
   FOREIGN KEY (sender_id) REFERENCES users (id) ON DELETE CASCADE,
   INDEX (thread_id, id)
 ) ENGINE=InnoDB;
+
+-- Files attached to something: class material on an activity or a lesson, or the certificate of a
+-- justification. The file itself lives in api/storage/ under a random name (never served directly:
+-- api/attachments.php checks who may read it); this row is its label. owner_id has no foreign
+-- key (three kinds of owner), so api/files.php sweeps rows whose owner is gone.
+CREATE TABLE IF NOT EXISTS attachments (
+  id VARCHAR(64) PRIMARY KEY,
+  owner_type VARCHAR(20) NOT NULL,
+  owner_id VARCHAR(64) NOT NULL,
+  class_id VARCHAR(64),
+  student_id VARCHAR(64),
+  year_id VARCHAR(64),
+  original_name VARCHAR(255) NOT NULL,
+  mime VARCHAR(100) NOT NULL,
+  size INT NOT NULL,
+  stored_name CHAR(40) NOT NULL,
+  uploaded_by VARCHAR(64),
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX (owner_type, owner_id),
+  INDEX (class_id)
+) ENGINE=InnoDB;
+
+-- A family's request to have absences excused. When the coordination accepts it, the absences of
+-- that student in those dates become "Justificada" (and later ones in the range too).
+CREATE TABLE IF NOT EXISTS justifications (
+  id VARCHAR(64) PRIMARY KEY,
+  student_id VARCHAR(64) NOT NULL,
+  year_id VARCHAR(64),
+  date_from DATE NOT NULL,
+  date_to DATE NOT NULL,
+  reason TEXT NOT NULL,
+  status VARCHAR(10) NOT NULL DEFAULT 'pendente',
+  created_by VARCHAR(64),
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  reviewed_by VARCHAR(64),
+  reviewed_at TIMESTAMP NULL,
+  review_note VARCHAR(255),
+  FOREIGN KEY (student_id) REFERENCES students (id) ON DELETE CASCADE,
+  INDEX (status, created_at),
+  INDEX (student_id, date_from)
+) ENGINE=InnoDB;

@@ -616,7 +616,7 @@ table.data tbody tr:last-child td { border-bottom: none; }
 table.data tbody td strong { color: var(--ink); font-weight: 600; }
 
 .cell-user { display: flex; align-items: center; gap: 12px; }
-.cell-user .avatar-sm {
+.cell-user .avatar-sm, .msg-item .avatar-sm, .msg-head .avatar-sm {
   width: 34px; height: 34px; border-radius: 8px;
   display: flex; align-items: center; justify-content: center;
   color: #fff; font-weight: 700; font-size: 12px;
@@ -1121,3 +1121,15 @@ table.data tbody td strong { color: var(--ink); font-weight: 600; }
   .msg-layout.show-thread .msg-main { display: flex; }
   .msg-back { display: inline-flex; }
 }
+
+/* ---- Arquivos anexados e justificativas ---- */
+.anexos { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 6px; }
+.anexo-chip { display: inline-flex; align-items: center; border: 1px solid var(--border-2); border-radius: 999px; background: var(--surface); max-width: 100%; }
+.anexo-chip a { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; color: var(--blue); text-decoration: none; font-size: 12.5px; min-width: 0; }
+.anexo-chip a .ico { width: 14px; height: 14px; flex-shrink: 0; }
+.anexo-chip a span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 220px; }
+.anexo-chip a em { color: var(--muted); font-style: normal; font-size: 11px; }
+.anexo-chip a:hover { text-decoration: underline; }
+.anexo-x { border: none; background: transparent; color: var(--muted); cursor: pointer; font-size: 16px; line-height: 1; padding: 3px 8px 3px 2px; }
+.anexo-x:hover { color: var(--danger); }
+.just-reason { white-space: pre-wrap; overflow-wrap: anywhere; margin: 6px 0; }
