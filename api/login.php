@@ -17,6 +17,7 @@ $hash = $found ? $found['password'] : '$2y$10$9hG0YpxnMb4RSepC6Gf.i.YpY/TKpHTobE
 $passwordOk = password_verify($password, $hash) && $found !== null;
 if (!$passwordOk) {
     record_attempt(login_identifiers($email));
+    audit('falha_login', 'sessao', $found['id'] ?? null, mb_substr($email, 0, 255), [], $found ?: ['id' => null, 'name' => null, 'role' => null]);
     respond(['ok' => false, 'error' => 'E-mail ou senha inválidos.']);
 }
 
@@ -30,4 +31,5 @@ if ($found['status'] === 'rejeitado') {
 clear_attempts(email_only(login_identifiers($email)));
 session_regenerate_id(true);
 $_SESSION['uid'] = $found['id'];
+audit('entrar', 'sessao', $found['id'], $found['name'], [], $found);
 respond(['ok' => true, 'user' => sanitize_user($found)]);

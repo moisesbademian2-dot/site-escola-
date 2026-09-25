@@ -29,6 +29,7 @@ $user = [
 ];
 $pdo->prepare('INSERT INTO users (id, name, email, password, role, avatar, created_at, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
     ->execute([$user['id'], $name, $email, hash_password($password), 'diretor', $user['avatar'], $user['createdAt'], 'aprovado']);
+audit('cadastro', 'users', $user['id'], $name, ['papel' => 'diretor', 'observacao' => 'primeiro acesso'], $user);
 $pdo->commit();
 
 session_regenerate_id(true);

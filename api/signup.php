@@ -59,6 +59,7 @@ try {
         $pdo->prepare('INSERT INTO guardians (id, user_id, student_id) VALUES (?, ?, ?)')
             ->execute([gen_id('gd'), $userId, $studentId]);
     }
+    audit('cadastro', 'users', $userId, $name, ['papel' => $role], ['id' => $userId, 'name' => $name, 'role' => $role]);
     $pdo->commit();
 } catch (PDOException $e) {
     $pdo->rollBack();

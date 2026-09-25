@@ -462,6 +462,60 @@ function respond_then(array $data, callable $after, int $status = 200): void {
 }
 
 // ---------------------------------------------------------------------------
+// Audit trail
+// ---------------------------------------------------------------------------
+
+// One line of the audit trail. $details is {field: [before, after]} for a change, or
+// {field: value} for a creation/removal; long values are cut so a huge text can't bloat the log.
+// Runs inside the caller's transaction when there is one, so a rolled-back change leaves no trace.
+function audit(string $action, string $entity, ?string $entityId = null, string $label = '', array $details = [], ?array $actor = null): void {
+    $actor = $actor ?? current_user();
+    $cut = fn($v) => is_string($v) && mb_strlen($v) > 200 ? mb_substr($v, 0, 200) . '…' : $v;
+    $clean = [];
+    foreach ($details as $k => $v) $clean[$k] = is_array($v) ? array_map($cut, $v) : $cut($v);
+    db()->prepare('INSERT INTO audit_log (user_id, user_name, user_role, action, entity, entity_id, label, details, ip)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
+        ->execute([
+            $actor['id'] ?? null, isset($actor['name']) ? mb_substr($actor['name'], 0, 255) : null, $actor['role'] ?? null,
+            $action, $entity, $entityId, mb_substr($label, 0, 255),
+            $clean ? json_encode($clean, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE) : null,
+            substr((string) ($_SERVER['REMOTE_ADDR'] ?? ''), 0, 45),
+        ]);
+}
+
+// A human-readable name for a record, so the trail says "Nota 8,0 - Ana / Matemática" rather than an id.
+function audit_label(string $coll, array $r): string {
+    static $cache = [];
+    $name = function (string $c, ?string $id) use (&$cache): string {
+        if ($id === null || $id === '') return '';
+        return $cache[$c][$id] ??= (string) (fetch_record($c, $id)['name'] ?? '');
+    };
+    $join = fn(array $parts) => implode(' / ', array_filter($parts, fn($p) => $p !== ''));
+    return match ($coll) {
+        'subjects', 'teachers', 'classes', 'students', 'users' => (string) $r['name'],
+        'grades' => $join([$name('students', $r['studentId']), $name('subjects', $r['subjectId']), (string) $r['assessment'], (string) $r['bimestre']]),
+        'attendance' => $join([$name('students', $r['studentId']), (string) $r['date'], (string) $r['status']]),
+        'lessons' => $join([$name('classes', $r['classId']), (string) $r['date']]),
+        'activities', 'announcements', 'events' => (string) $r['title'],
+        'occurrences' => $join([$name('students', $r['studentId']), (string) $r['category']]),
+        'guardians' => $join([$name('users', $r['userId']), $name('students', $r['studentId'])]),
+        default => (string) ($r['name'] ?? $r['title'] ?? $r['id']),
+    };
+}
+
+// What changed between two versions of a record (never includes a password).
+function audit_diff(string $coll, ?array $old, ?array $new): array {
+    $out = [];
+    foreach (array_keys(COLLECTIONS[$coll]) as $f) {
+        $a = $old[$f] ?? ''; $b = $new[$f] ?? '';
+        if ($old === null) { if ((string) $b !== '') $out[$f] = $b; }
+        elseif ($new === null) { if ((string) $a !== '') $out[$f] = $a; }
+        elseif ((string) $a !== (string) $b) $out[$f] = [$a, $b];
+    }
+    return $out;
+}
+
+// ---------------------------------------------------------------------------
 // Access rules
 // ---------------------------------------------------------------------------
 

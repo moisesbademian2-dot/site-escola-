@@ -28,7 +28,7 @@ Requer PHP 8+ e MySQL/MariaDB — mais fácil com o
 
 ## Estrutura
 
-- [index.html](index.html), [style.css](style.css), [js/](js/) — front-end (uma página só, sem build; scripts comuns carregados em ordem pelo `index.html`): `core.js` (DB, Auth, utilitários, modais), `app.js` (navegação e login), `dashboards.js`, `pessoas.js` (alunos, turmas, professores, usuários), `academico.js` (chamada, notas, atividades, ocorrências, comunicados), `boletim.js`, `calendario.js`, `main.js`.
+- [index.html](index.html), [style.css](style.css), [js/](js/) — front-end (uma página só, sem build; scripts comuns carregados em ordem pelo `index.html`): `core.js` (DB, Auth, utilitários, modais), `app.js` (navegação e login), `dashboards.js`, `pessoas.js` (alunos, turmas, professores, usuários), `academico.js` (chamada, notas, atividades, ocorrências, comunicados), `boletim.js`, `calendario.js`, `auditoria.js`, `main.js`.
 - [api/](api/) — back-end em PHP. Cada arquivo é uma rota:
   - `login.php`, `signup.php`, `register.php`, `logout.php`, `session.php`, `bootstrap.php` — autenticação e cadastro.
   - `forgot_password.php`, `reset_password.php` — fluxo de "esqueci minha senha" (link por e-mail, válido por 1h).
@@ -36,6 +36,7 @@ Requer PHP 8+ e MySQL/MariaDB — mais fácil com o
   - `preferences.php` — a pessoa liga ou desliga as próprias notificações por e-mail.
   - `state.php` — devolve os dados que o usuário logado pode ver, conforme o papel dele.
   - `sync.php` — recebe as alterações feitas na tela e grava, validando cada registro contra o papel do usuário.
+  - `audit.php` — a auditoria (só leitura, só o diretor).
   - `reset.php` — apaga todos os dados (só o diretor, e só com a senha dele confirmada).
   - `config.php` — conexão com o banco, funções compartilhadas e as regras de quem pode ver/alterar o quê.
 - [db.sql](db.sql) — schema do banco (tabelas relacionais, uma por tipo de dado).
@@ -101,6 +102,18 @@ mais a cada falha) e depois desiste. Para esvaziar uma fila grande de uma vez
 ou agendado (cron / Agendador de Tarefas do Windows). Sem `mail_config.php`, tudo
 vai para `api/mail_log.txt`. Um Gmail comum aceita cerca de 500 e-mails por dia,
 que é o teto realista para um comunicado "para todos".
+
+## Auditoria
+
+O diretor tem **Auditoria** no menu (Administração): o registro de tudo que foi criado,
+alterado ou excluído — quem fez, quando, em qual registro e, nas alterações, o que
+mudou ("Valor: 5 → 8") — além de logins, tentativas de login que falharam,
+cadastros, senhas redefinidas e resets do sistema. Dá para filtrar por item, ação,
+pessoa, texto e período. Senhas nunca entram no registro (uma troca aparece só como
+"(alterada)"). O registro é gravado na mesma transação da alteração (se ela for
+recusada, não sobra rastro), não tem tela nem rota para editar ou apagar, e nem
+"Resetar todo o sistema" o apaga. Fica na tabela `audit_log`; ela só cresce, então
+vale arquivar linhas antigas de tempos em tempos (por exemplo, com um dump e um `DELETE`).
 
 ## Importar alunos por CSV
 

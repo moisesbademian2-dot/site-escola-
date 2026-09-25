@@ -235,3 +235,23 @@ INSERT IGNORE INTO subjects (id, name, code) VALUES
   ('d4', 'Análise de Sistemas', 'ANSI'),
   ('d5', 'Matemática Aplicada', 'MATE'),
   ('d6', 'Português Instrumental', 'PORT');
+
+-- Audit trail: who did what and when. Written by api/config.php (audit()) in the same
+-- transaction as the change it records, and never edited or deleted by the app (not even by
+-- "resetar sistema"). No foreign keys on purpose: the trail must outlive the people in it.
+CREATE TABLE IF NOT EXISTS audit_log (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  user_id VARCHAR(64),
+  user_name VARCHAR(255),
+  user_role VARCHAR(20),
+  action VARCHAR(30) NOT NULL,
+  entity VARCHAR(40) NOT NULL,
+  entity_id VARCHAR(64),
+  label VARCHAR(255),
+  details TEXT,
+  ip VARCHAR(45),
+  INDEX (created_at),
+  INDEX (entity, entity_id),
+  INDEX (user_id, created_at)
+) ENGINE=InnoDB;

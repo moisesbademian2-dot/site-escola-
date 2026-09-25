@@ -14,6 +14,7 @@ if (!$user) respond(['ok' => false, 'error' => 'Este link expirou ou já foi usa
 
 db()->prepare('UPDATE users SET password = ? WHERE id = ?')->execute([hash_password($password), $user['id']]);
 consume_reset_token($token);
+audit('senha_redefinida', 'sessao', $user['id'], $user['name'], [], $user);
 clear_attempts(email_only(login_identifiers($user['email'])));
 
 if ($user['status'] === 'pendente') {

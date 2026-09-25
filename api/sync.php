@@ -100,6 +100,7 @@ try {
                 }
             }
             $pdo->prepare("DELETE FROM `$coll` WHERE id = ?")->execute([$id]);
+            audit('excluir', $coll, $id, audit_label($coll, $old), audit_diff($coll, $old, null), $me);
         }
     }
 
@@ -147,6 +148,10 @@ try {
                 $sets = implode(', ', array_map(fn($c) => "`$c` = ?", array_keys($cols)));
                 $pdo->prepare("UPDATE `$coll` SET $sets WHERE id = ?")->execute([...array_values($cols), $id]);
             }
+
+            $details = audit_diff($coll, $old, $new);
+            if ($password !== null && $old !== null) $details['senha'] = ['', '(alterada)'];
+            audit($old === null ? 'criar' : 'alterar', $coll, $id, audit_label($coll, $new), $details, $me);
 
             if ($coll === 'users' && $old !== null && $old['status'] === 'pendente' && $new['status'] === 'aprovado') $notify['approved'][] = $new;
             // only NEW grades and announcements notify; editing an existing one stays quiet
