@@ -7,11 +7,11 @@ const AUDIT_ENTITIES = {
   students: 'Alunos', classes: 'Turmas', teachers: 'Professores', subjects: 'Disciplinas', users: 'Usuários',
   grades: 'Notas', attendance: 'Frequência', lessons: 'Diário de classe', activities: 'Atividades',
   occurrences: 'Ocorrências', announcements: 'Comunicados', guardians: 'Vínculos de responsáveis', events: 'Calendário',
-  sessao: 'Acesso à conta', sistema: 'Sistema'
+  sessao: 'Acesso à conta', sistema: 'Sistema', ano_letivo: 'Ano letivo'
 };
 const AUDIT_ACTIONS = {
   criar: 'Criou', alterar: 'Alterou', excluir: 'Excluiu', entrar: 'Entrou', falha_login: 'Falha ao entrar',
-  cadastro: 'Cadastro', senha_redefinida: 'Redefiniu a senha', reset: 'Resetou o sistema'
+  cadastro: 'Cadastro', senha_redefinida: 'Redefiniu a senha', reset: 'Resetou o sistema', encerrar_ano: 'Encerrou o ano'
 };
 const AUDIT_FIELDS = {
   name: 'Nome', email: 'E-mail', phone: 'Telefone', role: 'Papel', status: 'Situação', matricula: 'Matrícula', studentId: 'Aluno',
@@ -21,7 +21,7 @@ const AUDIT_FIELDS = {
   title: 'Título', subject: 'Disciplina', dueDate: 'Entrega', description: 'Descrição', category: 'Categoria', situation: 'Situação',
   target: 'Destinatários', author: 'Autor', message: 'Mensagem', type: 'Tipo', endDate: 'Data final', createdBy: 'Criado por',
   senha: 'Senha', papel: 'Papel', avatar: 'Avatar', code: 'Código', cursoPretendido: 'Curso pretendido', turnoPretendido: 'Turno pretendido',
-  createdAt: 'Criado em', observacao: 'Observação'
+  createdAt: 'Criado em', observacao: 'Observação', novoAno: 'Novo ano', turmasNovas: 'Turmas criadas', promovidos: 'Promovidos', retidos: 'Retidos', concluidos: 'Concluídos', desligados: 'Desligados', startDate: 'Início'
 };
 
 App.audit = { page: 1, per: 50, total: 0, seq: 0, timer: null };

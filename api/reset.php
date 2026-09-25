@@ -15,6 +15,8 @@ if (!check_password($me, (string) (json_input()['password'] ?? ''))) {
 $pdo = db();
 $pdo->beginTransaction();
 foreach (DELETE_ORDER as $coll) $pdo->exec("DELETE FROM `$coll`");
+$pdo->exec('DELETE FROM school_years'); // enrollments go with the students
+active_year_id(); // and a fresh year opens straight away
 $pdo->exec('DELETE FROM email_queue'); // nobody is left to notify
 seed_default_subjects();
 audit('reset', 'sistema', null, 'Todos os dados foram apagados', [], $me);

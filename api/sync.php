@@ -24,6 +24,22 @@ function deny(): void {
     fail('Você não tem permissão para fazer essa alteração.', 403);
 }
 
+const CLOSED_YEAR_MSG = 'Este registro é de um ano letivo encerrado e não pode mais ser alterado.';
+
+// A record of a closed school year is history: read-only for everybody.
+function assert_open_year(string $coll, string $id): void {
+    if (!in_array($coll, YEAR_SCOPED, true)) return;
+    $y = record_year($coll, $id);
+    if ($y !== null && $y !== active_year_id()) throw new BadInput(CLOSED_YEAR_MSG);
+}
+
+// New attendance/lessons/activities/events (and students) can only point at a class of the active year.
+function assert_current_class(?string $classId): void {
+    if ($classId === null || $classId === '') return;
+    $y = record_year('classes', $classId);
+    if ($y !== null && $y !== active_year_id()) throw new BadInput('Essa turma é de um ano letivo encerrado.');
+}
+
 function same_record(array $a, array $b): bool {
     foreach ($a as $k => $v) { if ((string) $v !== (string) ($b[$k] ?? '')) return false; }
     return true;
@@ -85,6 +101,7 @@ try {
             $old = fetch_record($coll, $id);
             if ($old === null) continue; // already gone, e.g. removed by a cascade earlier in this request
             if (!can_write($me, $scope, $coll, $old, null)) deny();
+            assert_open_year($coll, $id);
 
             if ($coll === 'users') {
                 if ($id === $me['id']) fail('Você não pode excluir a própria conta.', 400);
@@ -133,6 +150,9 @@ try {
             // updated here); those are no-ops and need no permission.
             if ($old !== null && $password === null && same_record($old, $new)) continue;
             if (!can_write($me, $scope, $coll, $old, $new)) deny();
+            if ($old !== null) assert_open_year($coll, $id);
+            if ($coll !== 'classes' && in_array($coll, YEAR_SCOPED, true)) assert_current_class($new['classId'] ?? null);
+            if ($coll === 'students' && ($old === null || $old['classId'] !== $new['classId'])) assert_current_class($new['classId']);
 
             if ($coll === 'users') {
                 if ($password !== null) $cols['password'] = hash_password($password);
@@ -140,6 +160,7 @@ try {
             }
 
             if ($old === null) {
+                if (in_array($coll, YEAR_SCOPED, true)) $cols['year_id'] = active_year_id();
                 $cols = ['id' => $id] + $cols;
                 $names = implode(', ', array_map(fn($c) => "`$c`", array_keys($cols)));
                 $marks = implode(', ', array_fill(0, count($cols), '?'));

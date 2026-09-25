@@ -3,10 +3,13 @@
 // The report card as a self-contained document: one row per subject with each
 // bimestre's average, the subject's final average, then attendance and the
 // overall situation (same 7 / 5 cut-offs the Notas screen already uses).
-App.boletimHtml = function (sid) {
-  const s = this.studentById(sid);
-  const t = this.classById(s.classId);
-  const grades = DB.state.grades.filter(g => g.studentId === sid);
+// ctx (optional) renders a closed school year instead of the current one:
+// { student, className, yearName, grades, attendance } as api/years.php returns them.
+App.boletimHtml = function (sid, ctx) {
+  const s = (ctx && ctx.student) || this.studentById(sid);
+  const t = ctx ? null : this.classById(s.classId);
+  const className = ctx ? ctx.className : (t ? t.name : '');
+  const grades = ctx ? ctx.grades : DB.state.grades.filter(g => g.studentId === sid);
   const hasLoose = grades.some(g => !g.bimestre);
   const cols = BIMESTRES.concat(hasLoose ? ['Sem bimestre'] : []);
   const cell = v => v === null ? '—' : Util.fmtNum(v, 1);
@@ -22,15 +25,16 @@ App.boletimHtml = function (sid) {
       return '<td>' + cell(l.length ? this.gradesAverage(l) : null) + '</td>';
     }).join('') + '<td><strong>' + cell(this.gradesAverage(list)) + '</strong></td></tr>';
   });
-  const media = this.averageOf(sid);
-  const a = this.attendanceStats(sid);
+  const media = this.overallAverage(grades);
+  const a = ctx ? this.attendanceStatsOf(ctx.attendance) : this.attendanceStats(sid);
   const situacao = !grades.length ? 'Sem notas lançadas' : media >= 7 ? 'Aprovado' : media >= 5 ? 'Em recuperação' : 'Reprovado';
   return '<div class="boletim">' +
     '<div class="bol-head">' + LOGO_IMG + '<div><h1>Boletim escolar</h1><p>Portal of Future</p></div></div>' +
     '<div class="bol-info">' +
       '<div><span>Aluno(a)</span><strong>' + Util.esc(s.name) + '</strong></div>' +
       '<div><span>Matrícula</span><strong>' + Util.esc(s.matricula) + '</strong></div>' +
-      '<div><span>Turma</span><strong>' + (t ? Util.esc(t.name) : '—') + '</strong></div>' +
+      '<div><span>Turma</span><strong>' + (className ? Util.esc(className) : '—') + '</strong></div>' +
+      (ctx && ctx.yearName ? '<div><span>Ano letivo</span><strong>' + Util.esc(ctx.yearName) + '</strong></div>' : '') +
       '<div><span>Curso</span><strong>' + Util.esc(s.course || (t && t.course) || '—') + '</strong></div>' +
     '</div>' +
     (rows
@@ -46,22 +50,22 @@ App.boletimHtml = function (sid) {
   '</div>';
 };
 
-App.abrirBoletim = function (sid) {
-  if (!this.studentById(sid)) return;
+App.abrirBoletim = function (sid, ctx) {
+  if (!ctx && !this.studentById(sid)) return;
   Modal.open({
     title: 'Boletim', icon: Icons.edit, size: 'lg',
-    body: this.boletimHtml(sid),
+    body: this.boletimHtml(sid, ctx),
     footer: '<button type="button" class="btn btn-secondary" data-close>Fechar</button><button type="button" class="btn btn-primary" data-print>Imprimir / Salvar em PDF</button>',
-    onMount: bd => bd.querySelector('[data-print]').addEventListener('click', () => this.imprimirBoletim(sid))
+    onMount: bd => bd.querySelector('[data-print]').addEventListener('click', () => this.imprimirBoletim(sid, ctx))
   });
 };
 
 // Prints through the browser ("Salvar como PDF" in its print dialog): the report
 // goes into a #boletim-print div that style.css shows alone under @media print.
-App.imprimirBoletim = function (sid) {
+App.imprimirBoletim = function (sid, ctx) {
   const box = document.createElement('div');
   box.id = 'boletim-print';
-  box.innerHTML = this.boletimHtml(sid);
+  box.innerHTML = this.boletimHtml(sid, ctx);
   document.body.appendChild(box);
   const done = () => { window.removeEventListener('afterprint', done); if (box.parentNode) box.parentNode.removeChild(box); };
   window.addEventListener('afterprint', done);

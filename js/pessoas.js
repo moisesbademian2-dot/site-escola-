@@ -254,8 +254,11 @@ App.verAluno = function (id) {
     '<div class="grid-3" style="text-align:center;"><div><div class="mono" style="font-size:24px;font-weight:700;color:var(--blue);">' + Util.fmtNum(m, 1) + '</div><div class="text-xs text-muted" style="text-transform:uppercase;letter-spacing:0.08em;">Média</div></div><div><div class="mono" style="font-size:24px;font-weight:700;color:var(--success);">' + Util.fmtNum(a.freq, 0) + '%</div><div class="text-xs text-muted" style="text-transform:uppercase;letter-spacing:0.08em;">Frequência</div></div><div><div class="mono" style="font-size:24px;font-weight:700;color:var(--danger);">' + a.faltas + '</div><div class="text-xs text-muted" style="text-transform:uppercase;letter-spacing:0.08em;">Faltas</div></div></div>';
   Modal.open({
     title: 'Ficha do aluno', icon: Icons.student, body: body, size: 'lg',
-    footer: '<button type="button" class="btn btn-secondary" data-boletim>Boletim (PDF)</button><button type="button" class="btn btn-primary" data-close>Fechar</button>',
-    onMount: (bd, close) => bd.querySelector('[data-boletim]').addEventListener('click', () => { close(); this.abrirBoletim(s.id); })
+    footer: '<button type="button" class="btn btn-secondary" data-historico>Histórico escolar</button><button type="button" class="btn btn-secondary" data-boletim>Boletim (PDF)</button><button type="button" class="btn btn-primary" data-close>Fechar</button>',
+    onMount: (bd, close) => {
+      bd.querySelector('[data-boletim]').addEventListener('click', () => { close(); this.abrirBoletim(s.id); });
+      bd.querySelector('[data-historico]').addEventListener('click', () => { close(); this.historicoEscolar(s.id); });
+    }
   });
 };
 

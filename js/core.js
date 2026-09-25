@@ -58,7 +58,7 @@ const Icons = {
 const DB = {
   API: 'api/',
   COLLECTIONS: ['users', 'students', 'classes', 'teachers', 'subjects', 'attendance', 'grades', 'activities', 'occurrences', 'announcements', 'lessons', 'guardians', 'events'],
-  state: { users: [], students: [], classes: [], teachers: [], subjects: [], attendance: [], grades: [], activities: [], occurrences: [], announcements: [], lessons: [], guardians: [], events: [] },
+  state: { users: [], students: [], classes: [], teachers: [], subjects: [], attendance: [], grades: [], activities: [], occurrences: [], announcements: [], lessons: [], guardians: [], events: [], years: [], enrollments: [], activeYearId: '' },
   synced: {},
   queue: Promise.resolve(),
   async load() {

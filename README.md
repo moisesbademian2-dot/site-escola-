@@ -28,7 +28,7 @@ Requer PHP 8+ e MySQL/MariaDB — mais fácil com o
 
 ## Estrutura
 
-- [index.html](index.html), [style.css](style.css), [js/](js/) — front-end (uma página só, sem build; scripts comuns carregados em ordem pelo `index.html`): `core.js` (DB, Auth, utilitários, modais), `app.js` (navegação e login), `dashboards.js`, `pessoas.js` (alunos, turmas, professores, usuários), `academico.js` (chamada, notas, atividades, ocorrências, comunicados), `boletim.js`, `calendario.js`, `auditoria.js`, `main.js`.
+- [index.html](index.html), [style.css](style.css), [js/](js/) — front-end (uma página só, sem build; scripts comuns carregados em ordem pelo `index.html`): `core.js` (DB, Auth, utilitários, modais), `app.js` (navegação e login), `dashboards.js`, `pessoas.js` (alunos, turmas, professores, usuários), `academico.js` (chamada, notas, atividades, ocorrências, comunicados), `boletim.js`, `calendario.js`, `auditoria.js`, `anos.js`, `main.js`.
 - [api/](api/) — back-end em PHP. Cada arquivo é uma rota:
   - `login.php`, `signup.php`, `register.php`, `logout.php`, `session.php`, `bootstrap.php` — autenticação e cadastro.
   - `forgot_password.php`, `reset_password.php` — fluxo de "esqueci minha senha" (link por e-mail, válido por 1h).
@@ -37,6 +37,7 @@ Requer PHP 8+ e MySQL/MariaDB — mais fácil com o
   - `state.php` — devolve os dados que o usuário logado pode ver, conforme o papel dele.
   - `sync.php` — recebe as alterações feitas na tela e grava, validando cada registro contra o papel do usuário.
   - `audit.php` — a auditoria (só leitura, só o diretor).
+  - `years.php` — anos letivos: encerrar o ano e abrir o próximo, renomear, histórico de um aluno num ano.
   - `reset.php` — apaga todos os dados (só o diretor, e só com a senha dele confirmada).
   - `config.php` — conexão com o banco, funções compartilhadas e as regras de quem pode ver/alterar o quê.
 - [db.sql](db.sql) — schema do banco (tabelas relacionais, uma por tipo de dado).
@@ -102,6 +103,32 @@ mais a cada falha) e depois desiste. Para esvaziar uma fila grande de uma vez
 ou agendado (cron / Agendador de Tarefas do Windows). Sem `mail_config.php`, tudo
 vai para `api/mail_log.txt`. Um Gmail comum aceita cerca de 500 e-mails por dia,
 que é o teto realista para um comunicado "para todos".
+
+## Anos letivos
+
+Tudo que as telas mostram (turmas, notas, frequência, diário, atividades e calendário)
+pertence ao **ano letivo ativo**, que aparece no topo da tela. O diretor (e o
+coordenador, só para consultar) tem **Anos letivos** no menu.
+
+**Encerrar o ano** (diretor): a tela mostra, turma por turma, a média e a situação de
+cada aluno e sugere o destino — quem tem média a partir de 5,0 é *promovido* e quem
+ficou abaixo é *retido* — que você ajusta aluno a aluno; uma turma pode ser marcada
+como *de formandos* (todos concluem). O nome da turma dos promovidos vem sugerido
+(TDS1 → TDS2). Depois de confirmar com a senha e o código, num só passo:
+
+- o ano encerrado fica **congelado**: notas, presenças, turmas e o resto continuam
+  guardados, mas nem o diretor consegue alterá-los;
+- abre o novo ano com as turmas criadas (mesmo professor, sala e curso) e os alunos
+  já colocados: promovidos na turma nova, retidos numa cópia da turma antiga,
+  formandos como "Concluído", alunos não ativos saem da turma;
+- grava em `enrollments` o **histórico escolar** de cada aluno (turma, média,
+  frequência, resultado e destino daquele ano).
+
+O histórico aparece em Anos letivos → Anos encerrados, na ficha do aluno ("Histórico
+escolar") e, para alunos e responsáveis, no item **Histórico** do menu; de qualquer
+ano encerrado dá para abrir e imprimir o boletim daquela época. Dados anteriores a
+esta função (sem ano) contam como do ano ativo e passam para o ano certo na primeira
+virada. "Resetar todo o sistema" recomeça com um único ano ativo.
 
 ## Auditoria
 

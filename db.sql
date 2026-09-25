@@ -255,3 +255,55 @@ CREATE TABLE IF NOT EXISTS audit_log (
   INDEX (entity, entity_id),
   INDEX (user_id, created_at)
 ) ENGINE=InnoDB;
+
+-- School years. Exactly one is 'ativo'; everything the screens show (classes, grades,
+-- attendance, lessons, activities, calendar) belongs to it. api/years.php closes it,
+-- opens the next one and carries the students over, keeping the old year's data
+-- readable but frozen.
+CREATE TABLE IF NOT EXISTS school_years (
+  id VARCHAR(64) PRIMARY KEY,
+  name VARCHAR(100) NOT NULL UNIQUE,
+  start_date DATE,
+  end_date DATE,
+  status VARCHAR(20) NOT NULL DEFAULT 'ativo',
+  closed_at TIMESTAMP NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+INSERT INTO school_years (id, name, start_date, end_date, status)
+  SELECT 'y-inicial', CONCAT('Ano letivo ', YEAR(CURDATE())), CONCAT(YEAR(CURDATE()), '-01-01'), CONCAT(YEAR(CURDATE()), '-12-31'), 'ativo'
+  FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM school_years);
+
+-- year_id on what is per-year. NULL (rows from before this existed, or from
+-- scripts/migrate_legacy.php) counts as "the active year", and is stamped with the
+-- real year when that year is closed.
+ALTER TABLE classes ADD COLUMN IF NOT EXISTS year_id VARCHAR(64);
+ALTER TABLE grades ADD COLUMN IF NOT EXISTS year_id VARCHAR(64);
+ALTER TABLE attendance ADD COLUMN IF NOT EXISTS year_id VARCHAR(64);
+ALTER TABLE lessons ADD COLUMN IF NOT EXISTS year_id VARCHAR(64);
+ALTER TABLE activities ADD COLUMN IF NOT EXISTS year_id VARCHAR(64);
+ALTER TABLE events ADD COLUMN IF NOT EXISTS year_id VARCHAR(64);
+ALTER TABLE classes ADD INDEX IF NOT EXISTS idx_classes_year (year_id);
+ALTER TABLE grades ADD INDEX IF NOT EXISTS idx_grades_year (year_id);
+ALTER TABLE attendance ADD INDEX IF NOT EXISTS idx_attendance_year (year_id);
+ALTER TABLE lessons ADD INDEX IF NOT EXISTS idx_lessons_year (year_id);
+ALTER TABLE activities ADD INDEX IF NOT EXISTS idx_activities_year (year_id);
+ALTER TABLE events ADD INDEX IF NOT EXISTS idx_events_year (year_id);
+
+-- The school record: one row per student per closed year, with what they ended up with.
+-- The names are copied so the history still reads right after a class is renamed or gone.
+CREATE TABLE IF NOT EXISTS enrollments (
+  id VARCHAR(64) PRIMARY KEY,
+  year_id VARCHAR(64) NOT NULL,
+  student_id VARCHAR(64) NOT NULL,
+  student_name VARCHAR(255),
+  class_id VARCHAR(64),
+  class_name VARCHAR(255),
+  average DECIMAL(5,2),
+  frequency DECIMAL(5,1),
+  result VARCHAR(20),
+  decision VARCHAR(20),
+  FOREIGN KEY (year_id) REFERENCES school_years (id) ON DELETE CASCADE,
+  FOREIGN KEY (student_id) REFERENCES students (id) ON DELETE CASCADE,
+  UNIQUE (year_id, student_id)
+) ENGINE=InnoDB;

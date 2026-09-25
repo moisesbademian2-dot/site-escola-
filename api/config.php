@@ -120,6 +120,9 @@ const UPSERT_ORDER = ['subjects', 'teachers', 'classes', 'students', 'users', 'g
 // before either could be deleted in the same request.
 const DELETE_ORDER = ['guardians', 'events', 'announcements', 'occurrences', 'activities', 'lessons', 'attendance', 'grades', 'teachers', 'users', 'students', 'classes', 'subjects'];
 
+// What belongs to a school year (see school_years in db.sql): the screens only ever show the active year's.
+const YEAR_SCOPED = ['classes', 'grades', 'attendance', 'lessons', 'activities', 'events'];
+
 const ID_PATTERN = '/^[A-Za-z0-9_-]{1,64}$/';
 
 const DEFAULT_SUBJECTS = [
@@ -199,7 +202,14 @@ function fetch_record(string $coll, string $id): ?array {
 }
 
 function fetch_all(string $coll): array {
-    return array_map(fn($row) => record_from_row($coll, $row), db()->query("SELECT * FROM `$coll`")->fetchAll());
+    if (in_array($coll, YEAR_SCOPED, true)) {
+        $stmt = db()->prepare("SELECT * FROM `$coll` WHERE (year_id = ? OR year_id IS NULL)");
+        $stmt->execute([active_year_id()]);
+        $rows = $stmt->fetchAll();
+    } else {
+        $rows = db()->query("SELECT * FROM `$coll`")->fetchAll();
+    }
+    return array_map(fn($row) => record_from_row($coll, $row), $rows);
 }
 
 function seed_default_subjects(): void {
@@ -462,6 +472,85 @@ function respond_then(array $data, callable $after, int $status = 200): void {
 }
 
 // ---------------------------------------------------------------------------
+// School years
+// ---------------------------------------------------------------------------
+
+function active_year_id(): string {
+    $id = db()->query("SELECT id FROM school_years WHERE status = 'ativo' ORDER BY created_at DESC, id DESC LIMIT 1")->fetchColumn();
+    if ($id) return (string) $id;
+    // Nothing active (a freshly reset system): start a year so there is always somewhere to put data.
+    $base = 'Ano letivo ' . date('Y'); $name = $base; $n = 1;
+    while (db()->query('SELECT COUNT(*) FROM school_years WHERE name = ' . db()->quote($name))->fetchColumn() > 0) $name = $base . ' (' . ++$n . ')';
+    $id = gen_id('y');
+    db()->prepare("INSERT INTO school_years (id, name, start_date, end_date, status) VALUES (?, ?, ?, ?, 'ativo')")
+        ->execute([$id, $name, date('Y') . '-01-01', date('Y') . '-12-31']);
+    return $id;
+}
+
+// The year a stored record belongs to (NULL = from before years existed = the active one).
+function record_year(string $coll, string $id): ?string {
+    $stmt = db()->prepare("SELECT year_id FROM `$coll` WHERE id = ?");
+    $stmt->execute([$id]);
+    $y = $stmt->fetchColumn();
+    return $y === false ? null : (($y === null || $y === '') ? active_year_id() : (string) $y);
+}
+
+function year_record(array $row): array {
+    return ['id' => $row['id'], 'name' => $row['name'], 'startDate' => (string) $row['start_date'], 'endDate' => (string) $row['end_date'], 'status' => $row['status']];
+}
+
+function enrollment_record(array $r): array {
+    return [
+        'id' => $r['id'], 'yearId' => $r['year_id'], 'studentId' => $r['student_id'], 'studentName' => (string) $r['student_name'],
+        'classId' => (string) $r['class_id'], 'className' => (string) $r['class_name'],
+        'average' => $r['average'] === null ? null : (float) $r['average'], 'frequency' => $r['frequency'] === null ? null : (float) $r['frequency'],
+        'result' => (string) $r['result'], 'decision' => (string) $r['decision'],
+    ];
+}
+
+// Same rule as the screens (App.overallAverage): each subject's average counts once, and a subject's
+// average is the mean of its bimestres' weighted averages. null = no grades at all.
+function overall_average(array $grades): ?float {
+    if (!$grades) return null;
+    $bySubject = [];
+    foreach ($grades as $g) $bySubject[$g['subjectId'] ?? ''][] = $g;
+    $subjectAvgs = [];
+    foreach ($bySubject as $list) {
+        $byBim = [];
+        foreach ($list as $g) $byBim[($g['bimestre'] ?? '') !== '' ? $g['bimestre'] : 'Sem bimestre'][] = $g;
+        $bimAvgs = [];
+        foreach ($byBim as $bl) {
+            $tw = 0.0; $sum = 0.0;
+            foreach ($bl as $g) { $w = (float) ($g['weight'] ?? 0) ?: 1.0; $tw += $w; $sum += (float) $g['value'] * $w; }
+            $bimAvgs[] = $sum / ($tw ?: 1);
+        }
+        $subjectAvgs[] = array_sum($bimAvgs) / count($bimAvgs);
+    }
+    return array_sum($subjectAvgs) / count($subjectAvgs);
+}
+
+function result_for_average(?float $avg): string {
+    return $avg === null ? 'Sem notas' : ($avg >= 7 ? 'Aprovado' : ($avg >= 5 ? 'Recuperação' : 'Reprovado'));
+}
+
+// A student's grades and attendance in one school year, and the summary the school record keeps.
+function student_year_data(string $studentId, string $yearId): array {
+    $g = db()->prepare('SELECT * FROM grades WHERE student_id = ? AND year_id = ?'); $g->execute([$studentId, $yearId]);
+    $a = db()->prepare('SELECT * FROM attendance WHERE student_id = ? AND year_id = ?'); $a->execute([$studentId, $yearId]);
+    $grades = array_map(fn($r) => record_from_row('grades', $r), $g->fetchAll());
+    $attendance = array_map(fn($r) => record_from_row('attendance', $r), $a->fetchAll());
+    $avg = overall_average($grades);
+    $total = count($attendance);
+    $pres = count(array_filter($attendance, fn($x) => $x['status'] === 'Presente'));
+    $just = count(array_filter($attendance, fn($x) => $x['status'] === 'Justificada'));
+    return [
+        'grades' => $grades, 'attendance' => $attendance,
+        'average' => $avg, 'frequency' => $total ? (($pres + $just * 0.5) / $total) * 100 : null,
+        'result' => result_for_average($avg),
+    ];
+}
+
+// ---------------------------------------------------------------------------
 // Audit trail
 // ---------------------------------------------------------------------------
 
@@ -529,8 +618,8 @@ function access_scope(array $me): array {
         $scope['teacherIds'] = $stmt->fetchAll(PDO::FETCH_COLUMN);
         if ($scope['teacherIds']) {
             $in = implode(',', array_fill(0, count($scope['teacherIds']), '?'));
-            $stmt = db()->prepare("SELECT id FROM classes WHERE teacher_id IN ($in)");
-            $stmt->execute($scope['teacherIds']);
+            $stmt = db()->prepare("SELECT id FROM classes WHERE teacher_id IN ($in) AND (year_id = ? OR year_id IS NULL)");
+            $stmt->execute([...$scope['teacherIds'], active_year_id()]);
             $scope['classIds'] = $stmt->fetchAll(PDO::FETCH_COLUMN);
         }
         if ($scope['classIds']) {
@@ -561,7 +650,7 @@ function access_scope(array $me): array {
 }
 
 // The whole state the front end needs, limited to what this user may see.
-function visible_state(array $me): array {
+function visible_collections(array $me): array {
     $role = $me['role'];
     $state = [];
     foreach (array_keys(COLLECTIONS) as $coll) $state[$coll] = [];
@@ -605,6 +694,26 @@ function visible_state(array $me): array {
         }
     }
     $state['announcements'] = $keep('announcements', fn($r) => in_array($r['target'], $targets, true) || $r['target'] === '');
+    return $state;
+}
+
+// Collections plus what is not a synced collection: the school years and the school record.
+function visible_state(array $me): array {
+    $state = visible_collections($me);
+    $state['years'] = array_map('year_record', db()->query('SELECT * FROM school_years ORDER BY start_date DESC, created_at DESC')->fetchAll());
+    $state['activeYearId'] = active_year_id();
+    $rows = [];
+    if ($me['role'] === 'diretor' || $me['role'] === 'coordenador') {
+        $rows = db()->query('SELECT * FROM enrollments')->fetchAll();
+    } elseif ($me['role'] === 'aluno' || $me['role'] === 'responsavel') {
+        $ids = access_scope($me)['studentIds'];
+        if ($ids) {
+            $stmt = db()->prepare('SELECT * FROM enrollments WHERE student_id IN (' . implode(',', array_fill(0, count($ids), '?')) . ')');
+            $stmt->execute($ids);
+            $rows = $stmt->fetchAll();
+        }
+    }
+    $state['enrollments'] = array_map('enrollment_record', $rows);
     return $state;
 }
 
