@@ -307,3 +307,17 @@ CREATE TABLE IF NOT EXISTS enrollments (
   FOREIGN KEY (student_id) REFERENCES students (id) ON DELETE CASCADE,
   UNIQUE (year_id, student_id)
 ) ENGINE=InnoDB;
+
+-- Closing grades by bimestre. A bimestre is closed when a coordenador/diretor closes it, or when its
+-- deadline has passed; while closed, nobody (diretor included) can add, change or remove a grade in it
+-- until it is reopened. A missing row means "open, no deadline".
+CREATE TABLE IF NOT EXISTS grade_periods (
+  year_id VARCHAR(64) NOT NULL,
+  bimestre VARCHAR(20) NOT NULL,
+  status VARCHAR(10) NOT NULL DEFAULT 'aberto',
+  deadline DATE,
+  updated_by VARCHAR(64),
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (year_id, bimestre),
+  FOREIGN KEY (year_id) REFERENCES school_years (id) ON DELETE CASCADE
+) ENGINE=InnoDB;

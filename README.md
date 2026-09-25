@@ -28,7 +28,7 @@ Requer PHP 8+ e MySQL/MariaDB — mais fácil com o
 
 ## Estrutura
 
-- [index.html](index.html), [style.css](style.css), [js/](js/) — front-end (uma página só, sem build; scripts comuns carregados em ordem pelo `index.html`): `core.js` (DB, Auth, utilitários, modais), `app.js` (navegação e login), `dashboards.js`, `pessoas.js` (alunos, turmas, professores, usuários), `academico.js` (chamada, notas, atividades, ocorrências, comunicados), `boletim.js`, `calendario.js`, `auditoria.js`, `anos.js`, `main.js`.
+- [index.html](index.html), [style.css](style.css), [js/](js/) — front-end (uma página só, sem build; scripts comuns carregados em ordem pelo `index.html`): `core.js` (DB, Auth, utilitários, modais), `app.js` (navegação e login), `dashboards.js`, `pessoas.js` (alunos, turmas, professores, usuários), `academico.js` (chamada, notas, atividades, ocorrências, comunicados), `boletim.js`, `calendario.js`, `auditoria.js`, `anos.js`, `fechamento.js`, `main.js`.
 - [api/](api/) — back-end em PHP. Cada arquivo é uma rota:
   - `login.php`, `signup.php`, `register.php`, `logout.php`, `session.php`, `bootstrap.php` — autenticação e cadastro.
   - `forgot_password.php`, `reset_password.php` — fluxo de "esqueci minha senha" (link por e-mail, válido por 1h).
@@ -37,6 +37,7 @@ Requer PHP 8+ e MySQL/MariaDB — mais fácil com o
   - `state.php` — devolve os dados que o usuário logado pode ver, conforme o papel dele.
   - `sync.php` — recebe as alterações feitas na tela e grava, validando cada registro contra o papel do usuário.
   - `audit.php` — a auditoria (só leitura, só o diretor).
+  - `periods.php` — fechar e reabrir os bimestres para notas (coordenador e diretor).
   - `years.php` — anos letivos: encerrar o ano e abrir o próximo, renomear, histórico de um aluno num ano.
   - `reset.php` — apaga todos os dados (só o diretor, e só com a senha dele confirmada).
   - `config.php` — conexão com o banco, funções compartilhadas e as regras de quem pode ver/alterar o quê.
@@ -130,6 +131,17 @@ ano encerrado dá para abrir e imprimir o boletim daquela época. Dados anterior
 esta função (sem ano) contam como do ano ativo e passam para o ano certo na primeira
 virada. "Resetar todo o sistema" recomeça com um único ano ativo.
 
+## Fechamento de notas
+
+Coordenador e diretor têm **Fechamento** no menu: os 4 bimestres do ano ativo, cada um
+com sua situação e um **prazo** opcional para lançar notas. Um bimestre está fechado
+quando alguém o fecha ("Fechar agora") ou quando o prazo passa (vale até o fim do dia do
+prazo). Fechado, **ninguém** — nem o diretor — lança, altera, move ou apaga notas dele; a
+regra é do servidor, não só da tela. Para mexer de novo é preciso reabrir, opcionalmente
+com um novo prazo. Quem lança notas vê um aviso no topo de Notas e o bimestre fechado
+aparece desabilitado no formulário. Notas antigas, sem bimestre, não são afetadas. Cada
+ano letivo tem seus próprios fechamentos (o ano novo começa com tudo aberto), e cada
+fechar/reabrir/prazo vai para a Auditoria.
 ## Auditoria
 
 O diretor tem **Auditoria** no menu (Administração): o registro de tudo que foi criado,

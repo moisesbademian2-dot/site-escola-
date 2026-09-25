@@ -551,6 +551,35 @@ function student_year_data(string $studentId, string $yearId): array {
 }
 
 // ---------------------------------------------------------------------------
+// Closing grades by bimestre
+// ---------------------------------------------------------------------------
+
+// One bimestre of the active year: closed by hand (status) or because its deadline has passed.
+function grade_period(string $bimestre): array {
+    $stmt = db()->prepare('SELECT status, deadline FROM grade_periods WHERE year_id = ? AND bimestre = ?');
+    $stmt->execute([active_year_id(), $bimestre]);
+    $row = $stmt->fetch() ?: ['status' => 'aberto', 'deadline' => null];
+    $deadline = $row['deadline'] ?? null;
+    $byHand = $row['status'] === 'fechado';
+    $expired = !$byHand && $deadline !== null && $deadline < date('Y-m-d');
+    return [
+        'bimestre' => $bimestre, 'status' => $row['status'], 'deadline' => (string) $deadline,
+        'closed' => $byHand || $expired, 'reason' => $byHand ? 'manual' : ($expired ? 'prazo' : ''),
+    ];
+}
+
+function grade_periods(): array {
+    return array_map('grade_period', BIMESTRES);
+}
+
+function assert_bimestre_open(?string $bimestre): void {
+    if ($bimestre === null || $bimestre === '') return; // grades from before bimestres existed
+    if (grade_period($bimestre)['closed']) {
+        throw new BadInput("O $bimestre está fechado para lançamento de notas. Peça à coordenação para reabri-lo.");
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Audit trail
 // ---------------------------------------------------------------------------
 
@@ -702,6 +731,7 @@ function visible_state(array $me): array {
     $state = visible_collections($me);
     $state['years'] = array_map('year_record', db()->query('SELECT * FROM school_years ORDER BY start_date DESC, created_at DESC')->fetchAll());
     $state['activeYearId'] = active_year_id();
+    $state['periods'] = grade_periods();
     $rows = [];
     if ($me['role'] === 'diretor' || $me['role'] === 'coordenador') {
         $rows = db()->query('SELECT * FROM enrollments')->fetchAll();

@@ -102,6 +102,7 @@ try {
             if ($old === null) continue; // already gone, e.g. removed by a cascade earlier in this request
             if (!can_write($me, $scope, $coll, $old, null)) deny();
             assert_open_year($coll, $id);
+            if ($coll === 'grades') assert_bimestre_open($old['bimestre']);
 
             if ($coll === 'users') {
                 if ($id === $me['id']) fail('Você não pode excluir a própria conta.', 400);
@@ -151,6 +152,7 @@ try {
             if ($old !== null && $password === null && same_record($old, $new)) continue;
             if (!can_write($me, $scope, $coll, $old, $new)) deny();
             if ($old !== null) assert_open_year($coll, $id);
+            if ($coll === 'grades') { if ($old !== null) assert_bimestre_open($old['bimestre']); assert_bimestre_open($new['bimestre']); }
             if ($coll !== 'classes' && in_array($coll, YEAR_SCOPED, true)) assert_current_class($new['classId'] ?? null);
             if ($coll === 'students' && ($old === null || $old['classId'] !== $new['classId'])) assert_current_class($new['classId']);
 
