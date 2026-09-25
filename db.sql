@@ -321,3 +321,31 @@ CREATE TABLE IF NOT EXISTS grade_periods (
   PRIMARY KEY (year_id, bimestre),
   FOREIGN KEY (year_id) REFERENCES school_years (id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
+
+-- Direct messages between two people (api/messages.php decides who may write to whom).
+-- One thread per pair; user_a < user_b so the pair has a single spelling. read_a/read_b are
+-- the last message id each of them has seen. Nothing here is copied to the audit trail:
+-- conversations are private, not even to the diretor.
+CREATE TABLE IF NOT EXISTS message_threads (
+  id VARCHAR(64) PRIMARY KEY,
+  user_a VARCHAR(64) NOT NULL,
+  user_b VARCHAR(64) NOT NULL,
+  read_a BIGINT NOT NULL DEFAULT 0,
+  read_b BIGINT NOT NULL DEFAULT 0,
+  last_message_at TIMESTAMP NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE (user_a, user_b),
+  FOREIGN KEY (user_a) REFERENCES users (id) ON DELETE CASCADE,
+  FOREIGN KEY (user_b) REFERENCES users (id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS messages (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  thread_id VARCHAR(64) NOT NULL,
+  sender_id VARCHAR(64) NOT NULL,
+  body TEXT NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (thread_id) REFERENCES message_threads (id) ON DELETE CASCADE,
+  FOREIGN KEY (sender_id) REFERENCES users (id) ON DELETE CASCADE,
+  INDEX (thread_id, id)
+) ENGINE=InnoDB;

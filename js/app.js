@@ -4,27 +4,27 @@ const BIMESTRES = ['1º Bimestre', '2º Bimestre', '3º Bimestre', '4º Bimestre
 
 const MENUS = {
   diretor: [
-    { group: 'Visão Geral', items: [ { id: 'dashboard', icon: 'dashboard', label: 'Dashboard' }, { id: 'calendario', icon: 'calendar', label: 'Calendário' }, { id: 'relatorios', icon: 'chart', label: 'Relatórios' } ]},
+    { group: 'Visão Geral', items: [ { id: 'dashboard', icon: 'dashboard', label: 'Dashboard' }, { id: 'calendario', icon: 'calendar', label: 'Calendário' }, { id: 'mensagens', icon: 'chat', label: 'Mensagens' }, { id: 'relatorios', icon: 'chart', label: 'Relatórios' } ]},
     { group: 'Administração', items: [ { id: 'admin', icon: 'shield', label: 'Painel Admin' }, { id: 'usuarios', icon: 'users', label: 'Usuários' }, { id: 'anos', icon: 'calendar', label: 'Anos letivos' }, { id: 'auditoria', icon: 'clipboard', label: 'Auditoria' } ]},
     { group: 'Instituição', items: [ { id: 'turmas', icon: 'building', label: 'Turmas' }, { id: 'professores', icon: 'teacher', label: 'Professores' }, { id: 'alunos', icon: 'student', label: 'Alunos' }, { id: 'disciplinas', icon: 'bookOpen', label: 'Disciplinas' } ]},
     { group: 'Acompanhamento', items: [ { id: 'diario', icon: 'book', label: 'Diário de Classe' }, { id: 'frequencia', icon: 'checkCircle', label: 'Frequência' }, { id: 'notas', icon: 'edit', label: 'Notas' }, { id: 'fechamento', icon: 'lock', label: 'Fechamento' }, { id: 'ocorrencias', icon: 'alert', label: 'Ocorrências' }, { id: 'comunicados', icon: 'megaphone', label: 'Comunicados' } ]}
   ],
   coordenador: [
-    { group: 'Painel', items: [{ id: 'dashboard', icon: 'dashboard', label: 'Dashboard' }, { id: 'calendario', icon: 'calendar', label: 'Calendário' }]},
+    { group: 'Painel', items: [{ id: 'dashboard', icon: 'dashboard', label: 'Dashboard' }, { id: 'calendario', icon: 'calendar', label: 'Calendário' }, { id: 'mensagens', icon: 'chat', label: 'Mensagens' }]},
     { group: 'Gestão', items: [ { id: 'anos', icon: 'calendar', label: 'Anos letivos' }, { id: 'alunos', icon: 'student', label: 'Alunos' }, { id: 'turmas', icon: 'building', label: 'Turmas' }, { id: 'professores', icon: 'teacher', label: 'Professores' }, { id: 'disciplinas', icon: 'bookOpen', label: 'Disciplinas' } ]},
     { group: 'Acompanhamento', items: [ { id: 'diario', icon: 'book', label: 'Diário de Classe' }, { id: 'notas', icon: 'edit', label: 'Notas' }, { id: 'fechamento', icon: 'lock', label: 'Fechamento' }, { id: 'frequencia', icon: 'checkCircle', label: 'Frequência' }, { id: 'ocorrencias', icon: 'alert', label: 'Ocorrências' }, { id: 'comunicados', icon: 'megaphone', label: 'Comunicados' }, { id: 'relatorios', icon: 'chart', label: 'Relatórios' } ]}
   ],
   professor: [
-    { group: 'Painel', items: [ { id: 'dashboard', icon: 'dashboard', label: 'Dashboard' }, { id: 'calendario', icon: 'calendar', label: 'Calendário' }, { id: 'minhas-turmas', icon: 'building', label: 'Minhas Turmas' } ]},
+    { group: 'Painel', items: [ { id: 'dashboard', icon: 'dashboard', label: 'Dashboard' }, { id: 'calendario', icon: 'calendar', label: 'Calendário' }, { id: 'mensagens', icon: 'chat', label: 'Mensagens' }, { id: 'minhas-turmas', icon: 'building', label: 'Minhas Turmas' } ]},
     { group: 'Diário de Classe', items: [ { id: 'diario', icon: 'book', label: 'Diário' }, { id: 'frequencia', icon: 'checkCircle', label: 'Frequência' }, { id: 'notas', icon: 'edit', label: 'Notas' }, { id: 'conteudos', icon: 'bookOpen', label: 'Conteúdos' } ]},
     { group: 'Extras', items: [ { id: 'atividades', icon: 'clipboard', label: 'Atividades' }, { id: 'ocorrencias', icon: 'alert', label: 'Ocorrências' }, { id: 'comunicados', icon: 'megaphone', label: 'Comunicados' } ]}
   ],
   aluno: [
-    { group: 'Meu Portal', items: [ { id: 'dashboard', icon: 'dashboard', label: 'Início' }, { id: 'calendario', icon: 'calendar', label: 'Calendário' }, { id: 'minhas-notas', icon: 'edit', label: 'Minhas Notas' }, { id: 'minha-frequencia', icon: 'checkCircle', label: 'Minha Frequência' } ]},
+    { group: 'Meu Portal', items: [ { id: 'dashboard', icon: 'dashboard', label: 'Início' }, { id: 'calendario', icon: 'calendar', label: 'Calendário' }, { id: 'mensagens', icon: 'chat', label: 'Mensagens' }, { id: 'minhas-notas', icon: 'edit', label: 'Minhas Notas' }, { id: 'minha-frequencia', icon: 'checkCircle', label: 'Minha Frequência' } ]},
     { group: 'Escola', items: [ { id: 'historico', icon: 'clipboard', label: 'Histórico' }, { id: 'atividades', icon: 'clipboard', label: 'Atividades' }, { id: 'comunicados', icon: 'megaphone', label: 'Comunicados' }, { id: 'ocorrencias', icon: 'alert', label: 'Ocorrências' }, { id: 'perfil', icon: 'user', label: 'Meu Perfil' } ]}
   ],
   responsavel: [
-    { group: 'Acompanhamento', items: [ { id: 'dashboard', icon: 'dashboard', label: 'Início' }, { id: 'calendario', icon: 'calendar', label: 'Calendário' }, { id: 'minhas-notas', icon: 'edit', label: 'Notas' }, { id: 'minha-frequencia', icon: 'checkCircle', label: 'Frequência' } ]},
+    { group: 'Acompanhamento', items: [ { id: 'dashboard', icon: 'dashboard', label: 'Início' }, { id: 'calendario', icon: 'calendar', label: 'Calendário' }, { id: 'mensagens', icon: 'chat', label: 'Mensagens' }, { id: 'minhas-notas', icon: 'edit', label: 'Notas' }, { id: 'minha-frequencia', icon: 'checkCircle', label: 'Frequência' } ]},
     { group: 'Escola', items: [ { id: 'historico', icon: 'clipboard', label: 'Histórico' }, { id: 'atividades', icon: 'clipboard', label: 'Atividades' }, { id: 'comunicados', icon: 'megaphone', label: 'Comunicados' }, { id: 'ocorrencias', icon: 'alert', label: 'Ocorrências' }, { id: 'perfil', icon: 'user', label: 'Perfil do Aluno' } ]}
   ]
 };
@@ -270,6 +270,7 @@ const App = {
         }
       });
     });
+    this.startMsgBadge();
     const conta = document.getElementById('btn-minha-conta');
     conta.addEventListener('click', () => this.modalMinhaConta());
     conta.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); this.modalMinhaConta(); } });
@@ -289,6 +290,7 @@ const App = {
         '<div class="topbar-actions">' +
           '<button type="button" class="icon-btn" id="btn-notif" title="Notificações">' + Icons.bell + '<span class="dot"></span></button>' +
           '<button type="button" class="icon-btn" id="btn-refresh" title="Recarregar">' + Icons.refresh + '</button>' +
+          '<button type="button" class="btn btn-secondary btn-sm hidden" id="btn-install" title="Instalar o Portal como aplicativo">Instalar app</button>' +
           '<button type="button" class="btn btn-secondary btn-sm" id="btn-logout">Sair</button>' +
         '</div>' +
       '</div>';
@@ -301,6 +303,8 @@ const App = {
     });
     document.getElementById('btn-refresh').addEventListener('click', async () => { await DB.load(); this.ensureActiveChild(); this.buildSidebar(); this.buildTopbarYear(); this.navigate(this.currentView); Toast.info('Dados recarregados.'); });
     document.getElementById('btn-notif').addEventListener('click', () => this.showNotifications());
+    document.getElementById('btn-install').addEventListener('click', () => PWA.install());
+    PWA.showInstall(true);
     this.buildTopbarYear();
   },
   setTitle(t, s) { const el = document.getElementById('page-title'); if (!el) return; el.innerHTML = Util.esc(t) + (s ? '<small>' + Util.esc(s) + '</small>' : ''); },

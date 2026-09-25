@@ -290,14 +290,18 @@ App.views.frequencia = function (el) {
   document.getElementById('freq-turma').addEventListener('change', () => this.renderFrequenciaTabela());
 };
 
-App.renderFrequenciaTabela = function () {
+App.frequenciaFiltrada = function () {
   const busca = (document.getElementById('freq-busca') || {}).value || '';
   const turma = (document.getElementById('freq-turma') || {}).value || '';
-  const ct = document.getElementById('freq-tabela');
-  if (!ct) return;
   let list = DB.state.students.filter(s => s.status === 'Ativo');
   if (busca) list = list.filter(s => s.name.toLowerCase().includes(busca.toLowerCase()));
   if (turma) list = list.filter(s => s.classId === turma);
+  return list;
+};
+App.renderFrequenciaTabela = function () {
+  const ct = document.getElementById('freq-tabela');
+  if (!ct) return;
+  const list = this.frequenciaFiltrada();
   if (!list.length) { ct.innerHTML = DB.state.students.length === 0 ? this.emptyState('student', 'Nenhum aluno cadastrado', 'Cadastre alunos para acompanhar a frequência.') : '<div class="empty"><p>Nenhum aluno encontrado.</p></div>'; return; }
   let h = '<div class="table-wrap"><table class="data"><thead><tr><th>Aluno</th><th>Turma</th><th>Aulas</th><th>Presenças</th><th>Faltas</th><th>Justificadas</th><th>Frequência</th></tr></thead><tbody>';
   list.forEach(s => {
@@ -434,13 +438,16 @@ App.views.ocorrencias = function (el) {
   if (canEdit) { const b = document.getElementById('btn-nova-oc'); if (b) b.addEventListener('click', () => this.modalOcorrencia()); }
 };
 
-App.renderOcorrencias = function () {
-  const ct = document.getElementById('lista-oc');
-  if (!ct) return;
+App.ocorrenciasVisiveis = function () {
   const u = Auth.currentUser;
   let list = DB.state.occurrences.slice();
   if (u.role === 'aluno' || u.role === 'responsavel') { const s = this.studentById(u.studentId); if (s) list = list.filter(o => o.studentId === s.id); }
-  list.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  return list.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+};
+App.renderOcorrencias = function () {
+  const ct = document.getElementById('lista-oc');
+  if (!ct) return;
+  const list = this.ocorrenciasVisiveis();
   if (!list.length) { ct.innerHTML = this.emptyState('alert', 'Nenhuma ocorrência', 'Ainda não há ocorrências registradas.'); return; }
   let h = '<div class="table-wrap"><table class="data"><thead><tr><th>Aluno</th><th>Data</th><th>Categoria</th><th>Descrição</th><th>Situação</th></tr></thead><tbody>';
   list.forEach(o => {

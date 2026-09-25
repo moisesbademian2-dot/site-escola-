@@ -28,7 +28,7 @@ Requer PHP 8+ e MySQL/MariaDB — mais fácil com o
 
 ## Estrutura
 
-- [index.html](index.html), [style.css](style.css), [js/](js/) — front-end (uma página só, sem build; scripts comuns carregados em ordem pelo `index.html`): `core.js` (DB, Auth, utilitários, modais), `app.js` (navegação e login), `dashboards.js`, `pessoas.js` (alunos, turmas, professores, usuários), `academico.js` (chamada, notas, atividades, ocorrências, comunicados), `boletim.js`, `calendario.js`, `auditoria.js`, `anos.js`, `fechamento.js`, `main.js`.
+- [index.html](index.html), [style.css](style.css), [js/](js/) — front-end (uma página só, sem build; scripts comuns carregados em ordem pelo `index.html`): `core.js` (DB, Auth, utilitários, modais), `app.js` (navegação e login), `dashboards.js`, `pessoas.js` (alunos, turmas, professores, usuários), `academico.js` (chamada, notas, atividades, ocorrências, comunicados), `boletim.js`, `calendario.js`, `auditoria.js`, `anos.js`, `fechamento.js`, `export.js` (Excel), `mensagens.js`, `pwa.js`, `main.js`. Também na raiz: `sw.js` e `manifest.webmanifest` (aplicativo instalável) e `icons/`.
 - [api/](api/) — back-end em PHP. Cada arquivo é uma rota:
   - `login.php`, `signup.php`, `register.php`, `logout.php`, `session.php`, `bootstrap.php` — autenticação e cadastro.
   - `forgot_password.php`, `reset_password.php` — fluxo de "esqueci minha senha" (link por e-mail, válido por 1h).
@@ -37,6 +37,7 @@ Requer PHP 8+ e MySQL/MariaDB — mais fácil com o
   - `state.php` — devolve os dados que o usuário logado pode ver, conforme o papel dele.
   - `sync.php` — recebe as alterações feitas na tela e grava, validando cada registro contra o papel do usuário.
   - `audit.php` — a auditoria (só leitura, só o diretor).
+  - `messages.php` — mensagens diretas (contatos, conversas, envio).
   - `periods.php` — fechar e reabrir os bimestres para notas (coordenador e diretor).
   - `years.php` — anos letivos: encerrar o ano e abrir o próximo, renomear, histórico de um aluno num ano.
   - `reset.php` — apaga todos os dados (só o diretor, e só com a senha dele confirmada).
@@ -142,6 +143,48 @@ com um novo prazo. Quem lança notas vê um aviso no topo de Notas e o bimestre 
 aparece desabilitado no formulário. Notas antigas, sem bimestre, não são afetadas. Cada
 ano letivo tem seus próprios fechamentos (o ano novo começa com tudo aberto), e cada
 fechar/reabrir/prazo vai para a Auditoria.
+## Mensagens
+
+Todos os perfis têm **Mensagens** no menu: conversas diretas, uma por par de pessoas, com selo
+de não lidas no menu (atualiza a cada 45 s) e a conversa aberta se atualiza sozinha. Quem pode
+escrever para quem é regra do servidor (`api/messages.php`):
+
+- **Diretor e coordenador:** qualquer pessoa com cadastro aprovado.
+- **Professor:** a coordenação, a direção, os outros professores e os alunos e responsáveis dos
+  **próprios** alunos.
+- **Aluno e responsável:** a coordenação, a direção e os professores da turma do aluno (alunos
+  não escrevem entre si, nem responsáveis entre si).
+
+A lista de contatos mostra o que cada um é ("Responsável por Ana", "Aluno(a) da turma TDS1"). Se a
+relação acabar (o aluno muda de turma), o histórico continua legível, mas o envio é recusado. Até
+2000 caracteres por mensagem e 30 mensagens a cada 5 minutos por pessoa. A primeira mensagem não
+lida de uma sequência avisa por e-mail (respeitando "Minha conta"), **sem o texto** da mensagem.
+As conversas são privadas: nem o diretor as lê, e elas não vão para a Auditoria.
+
+## Exportar para Excel
+
+Alunos, Notas, Frequência, Ocorrências, o histórico de um ano encerrado e a Auditoria têm o botão
+**Exportar Excel**, que baixa um `.xlsx` de verdade (montado no navegador, sem biblioteca), com
+cabeçalho em destaque, filtro automático, primeira linha congelada, datas como datas e notas como
+números. Alunos e Frequência exportam **o que a lista mostra** (com a busca e os filtros aplicados);
+Notas traz uma planilha de médias por bimestre e outra com todas as notas; Frequência, um resumo e
+as chamadas. Cada pessoa só exporta o que já vê na tela (o professor, só as próprias turmas), e o
+texto nunca é interpretado como fórmula. A Auditoria exporta até 5000 linhas.
+
+## Aplicativo no celular (PWA)
+
+O site pode ser **instalado** como aplicativo (no Chrome/Edge: ícone de instalar na barra de
+endereço ou o botão "Instalar app" do topo; no Android, "Adicionar à tela inicial"; no iPhone, Safari
+→ Compartilhar → "Adicionar à Tela de Início"). Instalado, abre em tela cheia com o ícone da escola. O
+`sw.js` guarda a casca do site (página, estilos e scripts) para abrir mesmo sem internet, mas **os
+dados da escola nunca ficam guardados no aparelho**: sem conexão aparece um aviso e nada é salvo
+até a internet voltar. O site sempre busca a versão nova quando há internet.
+
+Requisitos: o navegador só instala e usa o modo offline em **https** (ou `localhost`), então isso
+depende de publicar o site com certificado. Ao criar um arquivo novo em `js/`, coloque-o também na lista
+`SHELL` do `sw.js` (o teste automático confere isso). **Notificações push** (aviso no celular com o
+app fechado) não estão incluídas: exigem https e um serviço de push; por enquanto os avisos seguem
+por e-mail.
 ## Auditoria
 
 O diretor tem **Auditoria** no menu (Administração): o registro de tudo que foi criado,

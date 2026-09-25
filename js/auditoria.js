@@ -79,6 +79,7 @@ App.views.auditoria = function (el) {
     const row = document.getElementById('aud-det-' + t.dataset.audDet);
     if (row) row.classList.toggle('hidden');
   });
+  this.botaoExportar(document.getElementById('aud-tools'), () => this.exportarAuditoria());
   this.loadAudit();
 };
 

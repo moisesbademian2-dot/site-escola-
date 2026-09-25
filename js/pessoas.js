@@ -1,6 +1,7 @@
 'use strict';
 
-App.renderAlunosTable = function () {
+// The students the list shows right now (search and filters applied): the table and the Excel export share it.
+App.alunosFiltrados = function () {
   const busca = (document.getElementById('busca-aluno') || {}).value || '';
   const ft = (document.getElementById('filtro-turma') || {}).value || '';
   const fs = (document.getElementById('filtro-situacao') || {}).value || '';
@@ -8,6 +9,10 @@ App.renderAlunosTable = function () {
   if (busca) { const q = busca.toLowerCase(); list = list.filter(s => s.name.toLowerCase().includes(q) || String(s.matricula).toLowerCase().includes(q) || (s.email || '').toLowerCase().includes(q)); }
   if (ft) list = list.filter(s => s.classId === ft);
   if (fs) list = list.filter(s => s.status === fs);
+  return list;
+};
+App.renderAlunosTable = function () {
+  const list = this.alunosFiltrados();
   const canEdit = ['diretor','coordenador'].includes(Auth.currentUser.role);
   const ct = document.getElementById('tabela-alunos');
   if (!ct) return;
