@@ -237,11 +237,12 @@ function check_password(array $user, string $p): bool {
 }
 
 function user_from_row(array $row): array {
-    // notifyEmail isn't in COLLECTIONS on purpose: sync.php never reads or writes it,
-    // so an admin re-saving a user can't undo that person's own choice.
+    // notifyEmail/photo aren't in COLLECTIONS on purpose: sync.php never reads or writes
+    // them, so an admin re-saving a user can't undo that person's own choice or photo.
     return record_from_row('users', $row) + [
         'password' => (string) $row['password'],
         'notifyEmail' => ($row['notify_email'] ?? '1') === '0' ? '0' : '1',
+        'photo' => (string) ($row['photo'] ?? ''),
     ];
 }
 

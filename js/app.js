@@ -65,12 +65,54 @@ const App = {
         (d.courses || []).forEach(c => { sel.insertAdjacentHTML('beforeend', '<option value="' + Util.esc(c) + '">' + Util.esc(c) + '</option>'); });
       } catch (e) {}
     };
+    // For responsável, the rest of the form only appears after the matrícula they typed
+    // is confirmed to be the right kid (api/lookup_matricula.php) -- that confirmation is
+    // what lets responsável skip the diretor's approval queue everyone else goes through.
+    let matriculaConfirmed = false;
+    const matriculaMsg = (text, ok) => {
+      const el = document.getElementById('signup-matricula-msg');
+      el.textContent = text;
+      el.style.color = ok ? '#15803d' : '#b91c1c';
+      el.classList.toggle('hidden', !text);
+    };
+    const setMatriculaConfirmed = confirmed => {
+      matriculaConfirmed = confirmed;
+      // The confirm box (with the "é esse aluno?" question) is only ever shown right
+      // after a successful lookup -- leaving this step, either way, hides it again.
+      document.getElementById('signup-matricula-confirm').classList.add('hidden');
+      document.getElementById('signup-rest-fields').classList.toggle('hidden', document.getElementById('signup-role').value === 'responsavel' && !confirmed);
+    };
     const syncSignupFields = () => {
       const role = document.getElementById('signup-role').value;
       document.getElementById('signup-matricula-field').classList.toggle('hidden', role !== 'responsavel');
       document.getElementById('signup-curso-field').classList.toggle('hidden', role !== 'aluno');
       document.getElementById('signup-turno-field').classList.toggle('hidden', role !== 'aluno');
+      matriculaMsg('', true);
+      setMatriculaConfirmed(role !== 'responsavel');
     };
+    document.getElementById('signup-matricula').addEventListener('input', () => { matriculaMsg('', true); setMatriculaConfirmed(false); });
+    document.getElementById('signup-matricula-verificar').addEventListener('click', async () => {
+      const matricula = document.getElementById('signup-matricula').value.trim();
+      if (!matricula) { matriculaMsg('Informe a matrícula.', false); return; }
+      const btn = document.getElementById('signup-matricula-verificar');
+      btn.disabled = true;
+      try {
+        const res = await fetch(DB.API + 'lookup_matricula.php?matricula=' + encodeURIComponent(matricula));
+        const d = await res.json();
+        if (!d.found) { matriculaMsg('Matrícula não encontrada. Verifique o número e tente novamente.', false); setMatriculaConfirmed(false); return; }
+        if (!d.available) { matriculaMsg('Este aluno já possui um responsável vinculado.', false); setMatriculaConfirmed(false); return; }
+        matriculaMsg('', true);
+        document.getElementById('signup-matricula-confirm-name').textContent = d.name;
+        document.getElementById('signup-matricula-confirm').classList.remove('hidden');
+      } catch (e) { matriculaMsg('Não foi possível verificar agora. Tente de novo.', false); }
+      btn.disabled = false;
+    });
+    document.getElementById('signup-matricula-sim').addEventListener('click', () => setMatriculaConfirmed(true));
+    document.getElementById('signup-matricula-nao').addEventListener('click', () => {
+      setMatriculaConfirmed(false);
+      document.getElementById('signup-matricula').value = '';
+      document.getElementById('signup-matricula').focus();
+    });
     document.getElementById('link-to-signup').addEventListener('click', e => {
       e.preventDefault();
       document.getElementById('login-form').classList.add('hidden');
@@ -147,9 +189,10 @@ const App = {
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { msg.textContent = 'Informe um e-mail válido.'; msg.className = 'auth-msg error show'; return; }
       if (senha.length < MIN_PASSWORD) { msg.textContent = MIN_PASSWORD_MSG; msg.className = 'auth-msg error show'; return; }
       if (role === 'aluno' && (!curso || !turno)) { msg.textContent = 'Selecione o curso e o turno.'; msg.className = 'auth-msg error show'; return; }
+      if (role === 'responsavel' && !matriculaConfirmed) { msg.textContent = 'Verifique a matrícula e confirme o aluno antes de continuar.'; msg.className = 'auth-msg error show'; return; }
       const r = await Auth.signup({ role, name, email, celular, password: senha, matricula, curso, turno });
       if (!r.ok) { msg.textContent = r.error; msg.className = 'auth-msg error show'; return; }
-      msg.textContent = 'Cadastro enviado! Aguarde a aprovação do diretor para conseguir entrar.';
+      msg.textContent = r.autoApproved ? 'Cadastro concluído! Você já pode entrar com seu e-mail e senha.' : 'Cadastro enviado! Aguarde a aprovação do diretor para conseguir entrar.';
       msg.className = 'auth-msg success show';
       document.getElementById('signup-form').reset();
       setTimeout(() => {
@@ -255,7 +298,7 @@ const App = {
       '<nav class="sidebar-nav">' + nav + '</nav>' +
       switcher +
       '<div class="sidebar-footer" id="btn-minha-conta" role="button" tabindex="0" title="Minha conta" style="cursor:pointer;">' +
-        '<div class="avatar">' + Util.esc(u.avatar || Util.initials(u.name)) + '</div>' +
+        Util.avatarHtml(u, 'avatar') +
         '<div class="uinfo">' +
           '<strong>' + Util.esc(u.name) + '</strong>' +
           '<span>' + Util.roleLabel(u.role) + '</span>' +

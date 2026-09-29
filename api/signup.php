@@ -34,18 +34,24 @@ if ($role === 'aluno' && ($curso === '' || $turno === '')) {
 
 if (find_user('email', $email)) respond(['ok' => false, 'error' => 'Este e-mail já está cadastrado.']);
 
-// A matrícula hint for responsável just pre-links the first child, same as
-// today; the diretor can add more (or fix a typo) later from Usuários.
+// Unlike the other roles, responsável needs a real matrícula match to sign up at all --
+// that check (plus the front end's "is this your child?" confirmation, api/lookup_matricula.php)
+// is what stands in for diretor approval, so responsável skips the pending queue entirely.
 $studentId = null;
-$savedMatricula = null;
-if ($role === 'responsavel' && $matricula !== '') {
+if ($role === 'responsavel') {
+    if ($matricula === '') respond(['ok' => false, 'error' => 'Informe a matrícula do aluno.']);
     $stmt = db()->prepare('SELECT id FROM students WHERE matricula = ? LIMIT 1');
     $stmt->execute([$matricula]);
     $studentId = $stmt->fetchColumn() ?: null;
-    $savedMatricula = $matricula;
+    if ($studentId === null) respond(['ok' => false, 'error' => 'Matrícula não encontrada. Verifique o número e tente novamente.']);
+    // One responsável per student (see the comment on the guardians table in db.sql).
+    $stmt = db()->prepare('SELECT 1 FROM guardians WHERE student_id = ? LIMIT 1');
+    $stmt->execute([$studentId]);
+    if ($stmt->fetchColumn()) respond(['ok' => false, 'error' => 'Este aluno já possui um responsável vinculado. Se isso estiver errado, fale com a coordenação da escola.']);
 }
 
 $userId = gen_id('u');
+$status = $role === 'responsavel' ? 'aprovado' : 'pendente';
 $pdo = db();
 $pdo->beginTransaction();
 try {
@@ -53,7 +59,7 @@ try {
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
         ->execute([
             $userId, $name, $email, $celular, hash_password($password), $role, initials_of($name), date('c'),
-            $savedMatricula, 'pendente', $role === 'aluno' ? $curso : null, $role === 'aluno' ? $turno : null,
+            $role === 'responsavel' ? $matricula : null, $status, $role === 'aluno' ? $curso : null, $role === 'aluno' ? $turno : null,
         ]);
     if ($studentId !== null) {
         $pdo->prepare('INSERT INTO guardians (id, user_id, student_id) VALUES (?, ?, ?)')
@@ -67,4 +73,4 @@ try {
     throw $e;
 }
 
-respond(['ok' => true]);
+respond(['ok' => true, 'autoApproved' => $status === 'aprovado']);

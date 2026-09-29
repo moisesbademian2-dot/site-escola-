@@ -142,6 +142,13 @@ try {
             if ($coll === 'attendance' && ($cols['status'] ?? null) === 'Falta' && attendance_excused((string) $cols['student_id'], (string) $cols['date'])) $cols['status'] = 'Justificada';
             $new = record_from_row($coll, ['id' => $id] + $cols);
 
+            // One responsável per student (see the comment on the guardians table in db.sql).
+            if ($coll === 'guardians' && $old === null) {
+                $stmt = $pdo->prepare('SELECT 1 FROM guardians WHERE student_id = ?');
+                $stmt->execute([$new['studentId']]);
+                if ($stmt->fetchColumn()) throw new BadInput('Este aluno já possui um responsável vinculado.');
+            }
+
             $password = null;
             if ($coll === 'users' && isset($rec['password']) && $rec['password'] !== '') {
                 $password = (string) $rec['password'];

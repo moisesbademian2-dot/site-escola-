@@ -154,7 +154,7 @@ const Auth = {
       const res = await apiPost(DB.API + 'signup.php', data);
       const d = await res.json();
       if (!d.ok) return { ok: false, error: d.error || 'Não foi possível enviar o cadastro.' };
-      return { ok: true };
+      return { ok: true, autoApproved: !!d.autoApproved };
     } catch (e) { return { ok: false, error: 'Não foi possível conectar ao servidor.' }; }
   },
   async logout() {
@@ -236,6 +236,14 @@ const Util = {
     return map[s] || 'gray';
   },
   roleLabel(r) { return { diretor:'Diretor(a)', coordenador:'Coordenador(a)', professor:'Professor(a)', aluno:'Aluno(a)', responsavel:'Responsável' }[r] || r; },
+  // A user's avatar: their uploaded photo if they have one, else the initials div
+  // everywhere already used. className should be 'avatar-sm' or 'avatar'; extraStyle
+  // (optional) is merged in, e.g. to size it up for "Minha conta".
+  avatarHtml(u, className, extraStyle) {
+    extraStyle = extraStyle || '';
+    if (u && u.photo) return '<img class="' + className + '" style="' + extraStyle + '" src="' + DB.API + 'avatar.php?id=' + encodeURIComponent(u.id) + '&v=' + encodeURIComponent(u.photo) + '" alt="">';
+    return '<div class="' + className + '" style="background:' + Util.colorFor(u ? u.name : '') + ';' + extraStyle + '">' + Util.esc(Util.initials(u ? u.name : '')) + '</div>';
+  },
   on(el, evt, sel, fn) { el.addEventListener(evt, e => { const t = e.target.closest(sel); if (t && el.contains(t)) fn.call(t, e, t); }); },
   debounce(fn, wait) { let t; return function () { const a = arguments, c = this; clearTimeout(t); t = setTimeout(() => fn.apply(c, a), wait); }; },
   // Lowercase, no accents, letters and digits only: "Data de Nascimento" -> "datadenascimento".

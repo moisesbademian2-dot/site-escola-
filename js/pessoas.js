@@ -33,6 +33,12 @@ App.modalAluno = function (id) {
   const s = id ? this.studentById(id) : null;
   const editing = !!s;
   if (!DB.state.classes.length) { Toast.warning('Cadastre uma turma antes de adicionar alunos.'); this.navigate('turmas'); return; }
+  const existingUser = editing ? DB.state.users.find(u => u.role === 'aluno' && u.studentId === s.id) : null;
+  const acessoBody = existingUser
+    ? '<div class="field-group full"><label>E-mail de acesso</label><input value="' + Util.esc(existingUser.email) + '" disabled></div>' +
+      '<div class="field-group full"><label>Nova senha (deixe em branco para manter)</label><input type="text" name="accessPassword" placeholder="Mínimo ' + MIN_PASSWORD + ' caracteres"></div>'
+    : '<div class="field-group"><label>E-mail de acesso</label><input type="email" name="accessEmail" placeholder="aluno@escola.com"></div>' +
+      '<div class="field-group"><label>Senha de acesso</label><input type="text" name="accessPassword" placeholder="Mínimo ' + MIN_PASSWORD + ' caracteres"></div>';
   const body = '<form id="form-aluno" novalidate><div class="form-grid">' +
     '<div class="field-group full"><label>Nome completo <span class="req">*</span></label><input name="name" value="' + Util.esc(s ? s.name : '') + '" required autofocus><div class="err">Informe o nome completo.</div></div>' +
     '<div class="field-group"><label>Matrícula <span class="req">*</span></label><input name="matricula" value="' + Util.esc(s ? s.matricula : '') + '" required placeholder="Ex: 2024011"><div class="err">Informe a matrícula.</div></div>' +
@@ -45,7 +51,11 @@ App.modalAluno = function (id) {
     '<div class="field-group"><label>Nome do responsável</label><input name="guardian" value="' + Util.esc(s ? s.guardian : '') + '"></div>' +
     '<div class="field-group"><label>Telefone do responsável</label><input name="guardianPhone" value="' + Util.esc(s ? s.guardianPhone : '') + '"></div>' +
     '<div class="field-group"><label>Situação</label><select name="status">' + ['Ativo','Inativo','Transferido','Concluído'].map(x => '<option' + (s && s.status === x ? ' selected' : '') + '>' + x + '</option>').join('') + '</select></div>' +
-    '</div></form>';
+    '</div>' +
+    '<div class="divider"></div>' +
+    '<p class="text-xs text-muted text-bold mb-8" style="text-transform:uppercase;letter-spacing:0.08em;">Acesso ao sistema' + (existingUser ? '' : ' (opcional)') + '</p>' +
+    '<div class="form-grid">' + acessoBody + '</div>' +
+    '</form>';
   Modal.open({
     title: editing ? 'Editar aluno' : 'Cadastrar novo aluno', icon: Icons.student, body: body, size: 'lg',
     footer: '<button type="button" class="btn btn-secondary" data-close>Cancelar</button><button type="button" class="btn btn-primary" data-save>' + (editing ? 'Salvar alterações' : 'Cadastrar aluno') + '</button>',
@@ -56,8 +66,33 @@ App.modalAluno = function (id) {
         const data = Object.fromEntries(new FormData(form).entries());
         const dup = DB.state.students.find(x => x.matricula === data.matricula && x.id !== (s ? s.id : ''));
         if (dup) { Toast.error('Já existe um aluno com esta matrícula.'); return; }
+
+        const accessPassword = (data.accessPassword || '').trim();
+        const accessEmail = existingUser ? existingUser.email : (data.accessEmail || '').trim();
+        delete data.accessEmail; delete data.accessPassword;
+
+        if (!existingUser && (accessEmail || accessPassword)) {
+          if (!accessEmail || !accessPassword) { Toast.error('Para criar o acesso, preencha o e-mail e a senha.'); return; }
+          if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(accessEmail)) { Toast.error('Informe um e-mail de acesso válido.'); return; }
+          if (accessPassword.length < MIN_PASSWORD) { Toast.error(MIN_PASSWORD_MSG); return; }
+          if (DB.state.users.find(x => x.email.toLowerCase() === accessEmail.toLowerCase())) { Toast.error('Este e-mail de acesso já está em uso.'); return; }
+        }
+        if (existingUser && accessPassword && accessPassword.length < MIN_PASSWORD) { Toast.error(MIN_PASSWORD_MSG); return; }
+
         if (editing) { Object.assign(s, data); Toast.success('Aluno atualizado com sucesso.'); }
         else { data.id = DB.id('s'); DB.state.students.push(data); Toast.success('Aluno cadastrado com sucesso.'); }
+
+        if (existingUser) {
+          if (accessPassword) existingUser.password = accessPassword;
+        } else if (accessEmail && accessPassword) {
+          DB.state.users.push({
+            id: DB.id('u'), name: data.name, email: accessEmail, password: accessPassword, role: 'aluno',
+            studentId: data.id, matricula: data.matricula, status: 'aprovado',
+            avatar: data.name.split(/\s+/).map(n => n[0]).slice(0, 2).join('').toUpperCase(), createdAt: new Date().toISOString(),
+          });
+          Toast.success('Acesso do aluno criado.');
+        }
+
         DB.save(); close(); this.renderAlunosTable();
       });
     }
@@ -228,11 +263,37 @@ App.modalMinhaConta = function () {
   const label = t => '<span class="text-xs text-muted text-bold" style="text-transform:uppercase;letter-spacing:0.08em;">' + t + '</span>';
   Modal.open({
     title: 'Minha conta', icon: Icons.user,
-    body: '<div class="grid-2 mb-24"><div>' + label('Nome') + '<div>' + Util.esc(u.name) + '</div></div><div>' + label('Perfil') + '<div>' + Util.roleLabel(u.role) + '</div></div><div class="full" style="grid-column:1/-1;">' + label('E-mail') + '<div>' + Util.esc(u.email) + '</div></div></div>' +
+    body: '<div class="flex items-center gap-16 mb-24">' +
+        '<div id="conta-avatar-wrap" style="width:72px;height:72px;flex-shrink:0;cursor:pointer;" title="Alterar foto">' +
+          '<div id="conta-avatar-preview">' + Util.avatarHtml(u, 'avatar', 'width:72px;height:72px;border-radius:14px;font-size:22px;') + '</div>' +
+        '</div>' +
+        '<div><p class="text-sm" style="font-weight:700;">Foto de perfil</p><p class="text-xs text-muted">Clique na foto para trocar. JPG, PNG ou WEBP, até 2 MB.</p></div>' +
+        '<input type="file" id="conta-foto-input" accept="image/png,image/jpeg,image/webp" class="hidden">' +
+      '</div>' +
+      '<div class="grid-2 mb-24"><div>' + label('Nome') + '<div>' + Util.esc(u.name) + '</div></div><div>' + label('Perfil') + '<div>' + Util.roleLabel(u.role) + '</div></div><div class="full" style="grid-column:1/-1;">' + label('E-mail') + '<div>' + Util.esc(u.email) + '</div></div></div>' +
       '<div class="divider"></div>' +
       '<label style="display:flex;gap:10px;align-items:flex-start;cursor:pointer;"><input type="checkbox" id="conta-notify" style="width:auto;margin-top:4px;"' + (u.notifyEmail === '0' ? '' : ' checked') + '><span><strong>Receber notificações por e-mail</strong><br><span class="text-sm text-muted">Novas notas, comunicados e avisos sobre o seu cadastro.</span></span></label>',
     footer: '<button type="button" class="btn btn-secondary" data-close>Fechar</button><button type="button" class="btn btn-primary" data-save>Salvar</button>',
     onMount: (bd, close) => {
+      const fotoInput = bd.querySelector('#conta-foto-input');
+      bd.querySelector('#conta-avatar-wrap').addEventListener('click', () => fotoInput.click());
+      fotoInput.addEventListener('change', async () => {
+        const file = fotoInput.files[0];
+        if (!file) return;
+        if (file.size > 2 * 1024 * 1024) { Toast.error('A imagem deve ter até 2 MB.'); fotoInput.value = ''; return; }
+        const form = new FormData();
+        form.append('photo', file);
+        try {
+          const res = await fetch(DB.API + 'avatar.php', { method: 'POST', credentials: 'include', headers: { 'X-Requested-With': 'PortalOfFuture' }, body: form });
+          const d = await res.json().catch(() => ({}));
+          if (!res.ok || !d.ok) throw new Error(d.error || 'falha');
+          u.photo = d.photo;
+          Toast.success('Foto atualizada.');
+          this.buildSidebar();
+          bd.querySelector('#conta-avatar-preview').innerHTML = Util.avatarHtml(u, 'avatar', 'width:72px;height:72px;border-radius:14px;font-size:22px;');
+        } catch (e) { Toast.error(e.message === 'falha' ? 'Não foi possível enviar a foto.' : e.message); }
+        finally { fotoInput.value = ''; }
+      });
       bd.querySelector('[data-save]').addEventListener('click', async () => {
         const want = bd.querySelector('#conta-notify').checked;
         try {
@@ -534,7 +595,7 @@ App.views.usuarios = function (el) {
         const filhos = DB.state.guardians.filter(g => g.userId === u.id).map(g => this.studentById(g.studentId)).filter(Boolean);
         contexto = (u.matricula ? 'Matrícula informada: ' + u.matricula + ' — ' : '') + (filhos.length ? 'vinculado(a) a ' + filhos.map(f => f.name).join(', ') : (u.matricula ? 'nenhum aluno com essa matrícula' : 'sem aluno vinculado'));
       }
-      h += '<tr><td><div class="cell-user"><div class="avatar-sm" style="background:' + Util.colorFor(u.name) + '">' + Util.esc(Util.initials(u.name)) + '</div><div class="u-meta"><strong>' + Util.esc(u.name) + '</strong></div></div></td><td>' + Util.esc(u.email) + '</td><td class="mono text-sm">' + Util.esc(u.phone || '—') + '</td><td><span class="badge amber">' + Util.roleLabel(u.role) + '</span>' + (contexto ? '<div class="text-xs text-muted mt-4">' + Util.esc(contexto) + '</div>' : '') + '</td><td><div class="actions"><button type="button" class="btn btn-primary btn-xs" data-aprovar-user="' + Util.esc(u.id) + '">Aprovar</button><button type="button" class="btn btn-danger btn-xs" data-rejeitar-user="' + Util.esc(u.id) + '">Rejeitar</button></div></td></tr>';
+      h += '<tr><td><div class="cell-user">' + Util.avatarHtml(u, 'avatar-sm') + '<div class="u-meta"><strong>' + Util.esc(u.name) + '</strong></div></div></td><td>' + Util.esc(u.email) + '</td><td class="mono text-sm">' + Util.esc(u.phone || '—') + '</td><td><span class="badge amber">' + Util.roleLabel(u.role) + '</span>' + (contexto ? '<div class="text-xs text-muted mt-4">' + Util.esc(contexto) + '</div>' : '') + '</td><td><div class="actions"><button type="button" class="btn btn-primary btn-xs" data-aprovar-user="' + Util.esc(u.id) + '">Aprovar</button><button type="button" class="btn btn-danger btn-xs" data-rejeitar-user="' + Util.esc(u.id) + '">Rejeitar</button></div></td></tr>';
     });
     h += '</tbody></table></div></div></div>';
   }
@@ -550,7 +611,7 @@ App.views.usuarios = function (el) {
       const filhos = DB.state.guardians.filter(g => g.userId === u.id).map(g => this.studentById(g.studentId)).filter(Boolean);
       vinculo = filhos.length ? filhos.map(s => Util.esc(s.name)).join(', ') + (filhos.length > 1 ? ' <span class="text-xs text-muted">(' + filhos.length + ' filhos)</span>' : '') : '—';
     }
-    h += '<tr><td><div class="cell-user"><div class="avatar-sm" style="background:' + Util.colorFor(u.name) + '">' + Util.esc(Util.initials(u.name)) + '</div><div class="u-meta"><strong>' + Util.esc(u.name) + (isMe ? ' <span style="color:var(--blue);font-size:11px;">(você)</span>' : '') + '</strong><span class="mono" style="font-size:11px;">ID ' + Util.esc(u.id.slice(0, 8)) + '</span></div></div></td><td>' + Util.esc(u.email) + '</td><td><span class="badge ' + (u.role === 'diretor' ? 'purple' : u.role === 'coordenador' ? 'blue' : u.role === 'professor' ? 'sky' : u.role === 'aluno' ? 'green' : 'amber') + '">' + Util.roleLabel(u.role) + '</span></td><td>' + vinculo + '</td><td><div class="actions"><button type="button" class="btn btn-secondary btn-xs" data-edit-user="' + Util.esc(u.id) + '">Editar</button>' + (isMe ? '' : '<button type="button" class="btn btn-danger btn-xs" data-del-user="' + Util.esc(u.id) + '">Excluir</button>') + '</div></td></tr>';
+    h += '<tr><td><div class="cell-user">' + Util.avatarHtml(u, 'avatar-sm') + '<div class="u-meta"><strong>' + Util.esc(u.name) + (isMe ? ' <span style="color:var(--blue);font-size:11px;">(você)</span>' : '') + '</strong><span class="mono" style="font-size:11px;">ID ' + Util.esc(u.id.slice(0, 8)) + '</span></div></div></td><td>' + Util.esc(u.email) + '</td><td><span class="badge ' + (u.role === 'diretor' ? 'purple' : u.role === 'coordenador' ? 'blue' : u.role === 'professor' ? 'sky' : u.role === 'aluno' ? 'green' : 'amber') + '">' + Util.roleLabel(u.role) + '</span></td><td>' + vinculo + '</td><td><div class="actions"><button type="button" class="btn btn-secondary btn-xs" data-edit-user="' + Util.esc(u.id) + '">Editar</button>' + (isMe ? '' : '<button type="button" class="btn btn-danger btn-xs" data-del-user="' + Util.esc(u.id) + '">Excluir</button>') + '</div></td></tr>';
   });
   h += '</tbody></table></div></div></div>';
   el.innerHTML = h;
@@ -624,7 +685,8 @@ App.modalUser = function (id) {
   const body = '<form id="form-user" novalidate><div class="form-grid">' +
     '<div class="field-group full"><label>Nome completo <span class="req">*</span></label><input name="name" value="' + Util.esc(u ? u.name : '') + '" required><div class="err">Informe o nome.</div></div>' +
     '<div class="field-group"><label>E-mail <span class="req">*</span></label><input type="email" name="email" value="' + Util.esc(u ? u.email : '') + '" required><div class="err">Informe o e-mail.</div></div>' +
-    '<div class="field-group"><label>Perfil de acesso <span class="req">*</span></label><select name="role" id="user-role-select" required>' + ['diretor','coordenador','professor','aluno','responsavel'].map(r => '<option value="' + r + '"' + (u && u.role === r ? ' selected' : '') + '>' + Util.roleLabel(r) + '</option>').join('') + '</select></div>' +
+    '<div class="field-group"><label>Perfil de acesso <span class="req">*</span></label><select name="role" id="user-role-select" required>' + (editing ? ['diretor','coordenador','professor','aluno','responsavel'] : ['diretor','coordenador','professor','responsavel']).map(r => '<option value="' + r + '"' + (u && u.role === r ? ' selected' : '') + '>' + Util.roleLabel(r) + '</option>').join('') + '</select>' +
+      (editing ? '' : '<p class="text-xs text-muted mt-4">Para criar o acesso de um aluno, cadastre-o em Alunos → Cadastrar aluno.</p>') + '</div>' +
     '<div class="field-group"><label>Senha ' + (editing ? '(deixe em branco para manter)' : '<span class="req">*</span>') + '</label><input type="text" name="password" ' + (editing ? '' : 'required') + ' placeholder="Mínimo 8 caracteres"><div class="err">Informe a senha.</div></div>' +
     '<div class="field-group full" id="user-aluno-field"><label>Aluno vinculado</label><select name="studentId"><option value="">— Nenhum vínculo —</option>' + DB.state.students.map(s => { const c = this.classById(s.classId); return '<option value="' + Util.esc(s.id) + '"' + (currentStudentId === s.id ? ' selected' : '') + '>' + Util.esc(s.name) + ' — ' + Util.esc(s.matricula) + (c ? ' — ' + Util.esc(c.name) : '') + '</option>'; }).join('') + '</select></div>' +
     '</div></form>' +

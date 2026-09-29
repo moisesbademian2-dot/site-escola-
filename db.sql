@@ -70,15 +70,22 @@ CREATE TABLE IF NOT EXISTS users (
   -- '0' = this person turned e-mail notifications off; NULL or '1' = on.
   -- Not part of the synced records: only api/preferences.php changes it.
   notify_email CHAR(1),
+  -- Random filename in api/storage/avatars/ (never a user-supplied path). Not part of
+  -- COLLECTIONS/sync.php on purpose, same reasoning as notify_email: only api/avatar.php
+  -- touches it, so re-saving a user elsewhere can't wipe someone's photo.
+  photo VARCHAR(255),
   FOREIGN KEY (student_id) REFERENCES students (id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
--- Adds notify_email to a users table created before it existed (re-running this
+-- Adds notify_email/photo to a users table created before they existed (re-running this
 -- file on an existing database is safe).
 ALTER TABLE users ADD COLUMN IF NOT EXISTS notify_email CHAR(1);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS photo VARCHAR(255);
 
--- A responsável <-> student link; a responsável can have several, a student can
--- (in principle) have more than one guardian account too.
+-- A responsável <-> student link; a responsável can have several children, but each
+-- student may have at most one responsável (enforced in api/signup.php and api/sync.php,
+-- not with a UNIQUE(student_id) here -- MariaDB 10.4 has no "ADD INDEX IF NOT EXISTS",
+-- so a constraint added later couldn't be re-applied safely by re-running this file).
 CREATE TABLE IF NOT EXISTS guardians (
   id VARCHAR(64) PRIMARY KEY,
   user_id VARCHAR(64) NOT NULL,

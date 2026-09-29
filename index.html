@@ -17,17 +17,24 @@
 
 <!-- ==================== TELA DE LOGIN ==================== -->
 <div id="auth-screen" class="auth-screen">
-  <div class="auth-stars" aria-hidden="true"></div>
-  <span class="auth-sparkle s1" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c.9 5.7 2.9 8.4 8.6 9.7-5.7 1.3-7.7 4-8.6 9.7-.9-5.7-2.9-8.4-8.6-9.7C9.1 8.4 11.1 5.7 12 0z"/></svg></span>
-  <span class="auth-sparkle s2" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c.9 5.7 2.9 8.4 8.6 9.7-5.7 1.3-7.7 4-8.6 9.7-.9-5.7-2.9-8.4-8.6-9.7C9.1 8.4 11.1 5.7 12 0z"/></svg></span>
-  <span class="auth-sparkle s3" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c.9 5.7 2.9 8.4 8.6 9.7-5.7 1.3-7.7 4-8.6 9.7-.9-5.7-2.9-8.4-8.6-9.7C9.1 8.4 11.1 5.7 12 0z"/></svg></span>
-
   <div class="auth-card">
-    <div class="auth-card-logo">
-      <div class="auth-card-logo-inner">
-        <img src="logo2.0-quadrada.png" alt="Portal of Future" class="logo-img">
-      </div>
+    <div class="auth-card-header">
+      <svg viewBox="0 0 440 176" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+        <circle cx="404" cy="18" r="92" fill="#3b82f6" opacity=".30"/>
+        <circle cx="34" cy="150" r="76" fill="#60a5fa" opacity=".16"/>
+        <circle cx="360" cy="132" r="30" fill="none" stroke="#93c5fd" stroke-width="2" opacity=".45"/>
+        <circle cx="70" cy="34" r="5" fill="#ffffff" opacity=".5"/>
+        <circle cx="255" cy="24" r="3.5" fill="#ffffff" opacity=".4"/>
+        <circle cx="205" cy="86" r="3" fill="#ffffff" opacity=".35"/>
+        <polygon points="64,14 106,14 85,50" fill="#3b82f6" opacity=".28"/>
+        <polygon points="160,144 196,144 178,178" fill="#ffffff" opacity=".08"/>
+        <polygon points="242,150 270,150 256,174" fill="#93c5fd" opacity=".22"/>
+      </svg>
     </div>
+    <div class="auth-card-logo">
+      <img src="logo2.0-quadrada.png" alt="Portal of Future" class="logo-img">
+    </div>
+    <div class="auth-card-body">
     <h1 class="auth-card-title">Portal of Future</h1>
     <p class="auth-card-sub">Gestão acadêmica completa em um só lugar.</p>
 
@@ -139,40 +146,6 @@
           </div>
         </label>
 
-        <label class="auth-field">
-          <span>Nome completo</span>
-          <div class="input-wrap">
-            <svg class="input-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-              <circle cx="12" cy="7" r="4"/>
-            </svg>
-            <input type="text" id="signup-nome" placeholder="Seu nome completo" autocomplete="name" required>
-          </div>
-        </label>
-
-        <div class="auth-row">
-          <label class="auth-field">
-            <span>E-mail</span>
-            <div class="input-wrap">
-              <svg class="input-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-                <polyline points="22,6 12,13 2,6"/>
-              </svg>
-              <input type="email" id="signup-email" placeholder="nome@escola.com" autocomplete="email" required>
-            </div>
-          </label>
-
-          <label class="auth-field">
-            <span>Celular</span>
-            <div class="input-wrap">
-              <svg class="input-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.362 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
-              </svg>
-              <input type="tel" id="signup-celular" placeholder="(00) 00000-0000" autocomplete="tel" required>
-            </div>
-          </label>
-        </div>
-
         <label class="auth-field hidden" id="signup-matricula-field">
           <span>Matrícula do aluno</span>
           <div class="input-wrap">
@@ -181,45 +154,91 @@
             </svg>
             <input type="text" id="signup-matricula" placeholder="Ex: 2024011">
           </div>
+          <p id="signup-matricula-msg" class="hidden" style="font-size:12px;margin-top:6px;"></p>
+          <button type="button" id="signup-matricula-verificar" style="margin-top:10px;padding:9px 16px;border-radius:8px;border:1.5px solid var(--border-2);background:var(--surface);color:var(--ink-2);font-size:12.5px;font-weight:600;cursor:pointer;">Verificar matrícula</button>
         </label>
 
-        <div class="auth-row">
-          <label class="auth-field" id="signup-curso-field">
-            <span>Curso</span>
-            <div class="input-wrap">
-              <svg class="input-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M22 10v6"/><path d="M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/>
-              </svg>
-              <select id="signup-curso"><option value="">Selecione...</option></select>
-            </div>
-          </label>
-
-          <label class="auth-field" id="signup-turno-field">
-            <span>Turno</span>
-            <div class="input-wrap">
-              <svg class="input-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-              </svg>
-              <select id="signup-turno"><option value="">Selecione...</option><option>Manhã</option><option>Tarde</option><option>Noite</option></select>
-            </div>
-          </label>
+        <div class="hidden" id="signup-matricula-confirm" style="background:var(--success-soft);border:1px solid #bbf7d0;border-radius:12px;padding:14px;margin-bottom:16px;">
+          <p style="font-size:13.5px;color:var(--ink-2);margin-bottom:10px;">Encontramos: <strong id="signup-matricula-confirm-name"></strong>. É esse o aluno?</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button type="button" id="signup-matricula-sim" style="padding:8px 16px;border-radius:8px;border:none;background:var(--blue-dark);color:#fff;font-size:12.5px;font-weight:700;cursor:pointer;">Sim, é esse aluno</button>
+            <button type="button" id="signup-matricula-nao" style="padding:8px 16px;border-radius:8px;border:1.5px solid var(--border-2);background:var(--surface);color:var(--ink-2);font-size:12.5px;font-weight:600;cursor:pointer;">Não, corrigir matrícula</button>
+          </div>
         </div>
 
-        <label class="auth-field">
-          <span>Senha</span>
-          <div class="input-wrap">
-            <svg class="input-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="3" y="11" width="18" height="11" rx="2"/>
-              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-            </svg>
-            <input type="password" id="signup-senha" placeholder="Mín. 8 caracteres" autocomplete="new-password" required>
-          </div>
-        </label>
+        <div id="signup-rest-fields">
+          <label class="auth-field">
+            <span>Nome completo</span>
+            <div class="input-wrap">
+              <svg class="input-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                <circle cx="12" cy="7" r="4"/>
+              </svg>
+              <input type="text" id="signup-nome" placeholder="Seu nome completo" autocomplete="name" required>
+            </div>
+          </label>
 
-        <button type="submit" class="btn-auth">
-          Enviar cadastro
-          <svg class="ico ico-sm" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
-        </button>
+          <div class="auth-row">
+            <label class="auth-field">
+              <span>E-mail</span>
+              <div class="input-wrap">
+                <svg class="input-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                  <polyline points="22,6 12,13 2,6"/>
+                </svg>
+                <input type="email" id="signup-email" placeholder="nome@escola.com" autocomplete="email" required>
+              </div>
+            </label>
+
+            <label class="auth-field">
+              <span>Celular</span>
+              <div class="input-wrap">
+                <svg class="input-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.362 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
+                </svg>
+                <input type="tel" id="signup-celular" placeholder="(00) 00000-0000" autocomplete="tel" required>
+              </div>
+            </label>
+          </div>
+
+          <div class="auth-row">
+            <label class="auth-field" id="signup-curso-field">
+              <span>Curso</span>
+              <div class="input-wrap">
+                <svg class="input-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M22 10v6"/><path d="M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/>
+                </svg>
+                <select id="signup-curso"><option value="">Selecione...</option></select>
+              </div>
+            </label>
+
+            <label class="auth-field" id="signup-turno-field">
+              <span>Turno</span>
+              <div class="input-wrap">
+                <svg class="input-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                </svg>
+                <select id="signup-turno"><option value="">Selecione...</option><option>Manhã</option><option>Tarde</option><option>Noite</option></select>
+              </div>
+            </label>
+          </div>
+
+          <label class="auth-field">
+            <span>Senha</span>
+            <div class="input-wrap">
+              <svg class="input-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+              <input type="password" id="signup-senha" placeholder="Mín. 8 caracteres" autocomplete="new-password" required>
+            </div>
+          </label>
+
+          <button type="submit" class="btn-auth">
+            Enviar cadastro
+            <svg class="ico ico-sm" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+          </button>
+        </div>
 
         <p class="auth-hint" style="margin-top:18px;">Já tem conta? <a href="#" id="link-to-login">Entrar</a></p>
       </form>
@@ -279,6 +298,7 @@
       </form>
 
     <p class="auth-hint">🔒 Conexão segura com o servidor da escola</p>
+    </div>
   </div>
 </div>
 
